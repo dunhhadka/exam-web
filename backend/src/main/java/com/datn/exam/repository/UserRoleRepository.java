@@ -10,6 +10,6 @@ import java.util.UUID;
 
 @Repository
 public interface UserRoleRepository extends JpaRepository<UserRole, UUID> {
-    @Query("SELECT ur FROM UserRole ur WHERE ur.deleted = FALSE AND ur.userId = :userId")
+    @Query("SELECT ur FROM UserRole ur WHERE ur.deleted = FALSE AND ur.user.id = :userId")
     List<UserRole> findByUser(UUID userId);
 }

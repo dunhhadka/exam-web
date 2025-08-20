@@ -16,8 +16,8 @@ public interface ValidateConstraint {
     }
 
     public static final class Format {
-        public static final String FIRST_NAME_PATTERN = "^[A-Za-zÀ-ÖØ-öø-ÿ' -]+$";
-        public static final String LAST_NAME_PATTERN = "^[A-Za-zÀ-ÖØ-öø-ÿ' -]+$";
+        public static final String FIRST_NAME_PATTERN = "^[\\p{L}' -]+$";
+        public static final String LAST_NAME_PATTERN  = "^[\\p{L}' -]+$";
         public static final String PHONE_NUMBER_PATTERN = "^(\\+[0-9]+[\\- \\.]*)?(\\([0-9]+\\)[\\- \\.]*)?([0-9][0-9\\- \\.]+[0-9])$";
         public static final String EMAIL_PATTERN = "^(\\s){0,}[a-zA-Z0-9-_\\.]{1,50}[a-zA-Z0-9]{1,50}@[a-zA-Z0-9_-]{2,}(\\.[a-zA-Z0-9]{2,4}){1,2}(\\s){0,}$";
         public static final String CODE_PATTERN = "^[A-Za-z0-9_.]{4,50}$";

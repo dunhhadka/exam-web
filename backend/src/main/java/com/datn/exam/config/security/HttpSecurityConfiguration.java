@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.access.expression.method.DefaultMethodSecurityExpressionHandler;
 import org.springframework.security.access.expression.method.MethodSecurityExpressionHandler;
@@ -26,6 +27,7 @@ import java.util.Collections;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
+@EnableJpaAuditing(auditorAwareRef = "customAuditorAware")
 @Slf4j
 @RequiredArgsConstructor
 public class HttpSecurityConfiguration {

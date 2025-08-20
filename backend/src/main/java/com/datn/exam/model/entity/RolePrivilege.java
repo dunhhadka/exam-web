@@ -26,11 +26,11 @@ public class RolePrivilege extends AuditableEntity{
     @Column(nullable = false)
     private UUID roleId;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 50)
     @Enumerated(EnumType.STRING)
     private ResourceCode resourceCode;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 50)
     @Enumerated(EnumType.STRING)
     private Permission permission;
 

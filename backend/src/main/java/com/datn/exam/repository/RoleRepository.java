@@ -14,9 +14,9 @@ public interface RoleRepository extends JpaRepository<Role, UUID> {
     @Query("SELECT r FROM Role r WHERE r.deleted = FALSE AND r.id IN :ids")
     List<Role> findActiveByIds(List<UUID> ids);
 
-    @Query("SELECT r FROM Role WHERE r.deleted = FALSE AND r.code = :code")
+    @Query("SELECT r FROM Role r WHERE r.deleted = FALSE AND r.code = :code")
     Optional<Role> findByCode(String code);
 
-    @Query("SELECT r FROM Role WHERE r.deleted = FALSE AND r.code IN :codes")
+    @Query("SELECT r FROM Role r WHERE r.deleted = FALSE AND r.code IN :codes")
     List<Role> findAllByCodes(List<String> codes);
 }

@@ -13,7 +13,6 @@ public interface Constants {
     @Getter
     @AllArgsConstructor
     enum DefaultRole {
-        //NOTE: SUPER ADMIN - FULL PERMISSION
         ADMIN(Map.of(
                 ResourceCode.ALL, List.of(Permission.MANAGE)
         )),
@@ -27,5 +26,15 @@ public interface Constants {
         ;
 
         final Map<ResourceCode, List<Permission>> privileges;
+    }
+
+    @Getter
+    @AllArgsConstructor
+    enum DefaultUser {
+        ADMIN("admin", "Admin123", "admin@gmail.com", DefaultRole.ADMIN);
+        final String username;
+        final String password;
+        final String email;
+        final DefaultRole defaultRole;
     }
 }

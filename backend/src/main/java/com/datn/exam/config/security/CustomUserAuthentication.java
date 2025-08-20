@@ -5,17 +5,13 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 @Getter
 public class CustomUserAuthentication extends UsernamePasswordAuthenticationToken {
     private final UUID userId;
     private final String token;
     private final List<String> grantedPermissions;
-
     public CustomUserAuthentication(
             Object principal,
             Object credentials,
@@ -30,6 +26,12 @@ public class CustomUserAuthentication extends UsernamePasswordAuthenticationToke
         this.grantedPermissions = CollectionUtils.isEmpty(authorities)
                 ? new ArrayList<>()
                 : authorities.stream().map(GrantedAuthority::getAuthority).toList();
+    }
 
+    public CustomUserAuthentication(Object principal, Object credentials) {
+        super(principal, credentials);
+        this.userId = null;
+        this.token = null;
+        this.grantedPermissions = Collections.emptyList();
     }
 }

@@ -1,6 +1,8 @@
 package com.datn.exam.config.security;
 
+import com.datn.exam.model.entity.Role;
 import com.datn.exam.model.entity.User;
+import com.datn.exam.model.entity.UserRole;
 import com.datn.exam.repository.UserRepository;
 import com.datn.exam.support.enums.ActiveStatus;
 import com.datn.exam.support.enums.error.BadRequestError;
@@ -12,11 +14,11 @@ import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
-import java.util.Collections;
-import java.util.Objects;
+import java.util.*;
 
 @Component
 @Slf4j
@@ -35,11 +37,30 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
         User user = userRepository.findByCredential(credential)
                 .orElseThrow(() -> new ResponseException(NotFoundError.USER_NOT_FOUND));
 
-        if (Objects.equals(user.getStatus(), ActiveStatus.INACTIVE)) throw new ResponseException(BadRequestError.USER_WAS_INACTIVATED);
+        if (Objects.equals(user.getStatus(), ActiveStatus.INACTIVE))
+            throw new ResponseException(BadRequestError.USER_WAS_INACTIVATED);
 
-        if (!passwordEncoder.matches(password, user.getPassword())) throw new ResponseException(BadRequestError.LOGIN_FAILED);
+        if (!passwordEncoder.matches(password, user.getPassword()))
+            throw new ResponseException(BadRequestError.LOGIN_FAILED);
 
         return new UsernamePasswordAuthenticationToken(credential, password, Collections.emptyList());
+    }
+
+    private List<SimpleGrantedAuthority> loadUserAuthorities(User user) {
+        Set<String> authorities = new HashSet<>();
+
+        List<Role> roles = user.getUserRoles().stream()
+                .filter(ur -> !ur.getDeleted())
+                .map(UserRole::getRole)
+                .filter(r -> Objects.equals(r.getStatus(), ActiveStatus.ACTIVE) && !r.getDeleted())
+                .toList();
+
+        roles.forEach(role -> authorities.add("ROLE_" + role.getCode()));
+
+        roles.forEach(role -> {
+            //TODO: Code continue
+        });
+        return null;
     }
 
     @Override

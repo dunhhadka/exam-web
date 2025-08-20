@@ -64,6 +64,7 @@ public class RoleServiceImpl implements RoleService {
         }
 
         roleRepository.saveAll(roles);
+        log.info(rolePrivileges.toString());
         rolePrivilegeRepository.saveAll(rolePrivileges);
     }
 

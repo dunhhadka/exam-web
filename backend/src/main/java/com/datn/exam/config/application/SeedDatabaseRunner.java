@@ -14,6 +14,7 @@ public class SeedDatabaseRunner implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
+        roleService.init();
         // TODO: Code continue;
     }
 }
