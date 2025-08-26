@@ -14,8 +14,21 @@ public class CustomPermissionEvaluator implements PermissionEvaluator {
         String requiredPermission = (String) permission;
 
         if (authentication instanceof CustomUserAuthentication userAuthentication) {
-            String requiredResourceCode = requiredPermission.split(":")[0].toUpperCase();
-            String requiredAction = requiredPermission.split(":")[1].toUpperCase();
+            if (requiredPermission.startsWith("ROLE_")) {
+                return userAuthentication.getGrantedPermissions().contains(requiredPermission);
+            }
+            //NOTE: VD: "COURSE:READ"
+            if (!requiredPermission.contains(":")) {
+                return false;
+            }
+
+            String[] requiredParts = requiredPermission.split(":");
+            if (requiredParts.length != 2) {
+                return false;
+            }
+
+            String requiredResourceCode = requiredParts[0].toUpperCase();
+            String requiredAction = requiredParts[1].toUpperCase();
 
             return userAuthentication.getGrantedPermissions().stream()
                     .anyMatch(userPermission -> {

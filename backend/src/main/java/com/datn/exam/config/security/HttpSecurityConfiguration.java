@@ -18,6 +18,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
@@ -31,6 +32,10 @@ import java.util.Collections;
 @Slf4j
 @RequiredArgsConstructor
 public class HttpSecurityConfiguration {
+
+    private final CustomAuthenticationFilter customAuthenticationFilter;
+    private final CustomAuthenticationProvider customAuthenticationProvider;
+
     private final String[] DOC_PUBLIC_URLS = {
             "/api-docs/**",
             "/swagger-ui/**",
@@ -50,6 +55,7 @@ public class HttpSecurityConfiguration {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authenticationProvider(customAuthenticationProvider)
                 .authorizeHttpRequests(
                         registry ->
                                 registry
@@ -58,6 +64,7 @@ public class HttpSecurityConfiguration {
                                         .requestMatchers(COMMAND_PUBLIC_URLS).permitAll()
                                         .anyRequest().authenticated());
 
+        http.addFilterBefore(customAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 
