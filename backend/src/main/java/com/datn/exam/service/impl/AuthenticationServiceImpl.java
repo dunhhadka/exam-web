@@ -17,7 +17,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -49,20 +48,27 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .map(Role::getId)
                 .toList();
 
-        List<RolePrivilege> rolePrivileges = rolePrivilegeRepository.findAllByRoleId(roleIds);
+        List<String> roleNames = roles.stream()
+                .filter(r -> Objects.equals(r.getStatus(), ActiveStatus.ACTIVE))
+                .map(Role::getName)
+                .toList();
 
-        List<String> privileges = new ArrayList<>();
+        List<RolePrivilege> rolePrivileges = rolePrivilegeRepository
+                .findAllByRoleId(activeRoleIds);
 
-        rolePrivileges.forEach(rolePrivilege -> {
-            String privilege = rolePrivilege.getResourceCode().name() + ":" + rolePrivilege.getPermission().name();
-
-            privileges.add(privilege);
-        });
+        List<String> permissions = rolePrivileges.stream()
+                .filter(rp -> !rp.getDeleted())
+                .map(rolePrivilege ->
+                        rolePrivilege.getResourceCode().name().toLowerCase() + ":" +
+                                rolePrivilege.getPermission().name().toLowerCase())
+                .distinct()
+                .toList();
 
         return UserAuthority.builder()
                 .userId(id)
-                .username(user.getUsername())
-                .grantedPrivileges(privileges.stream().distinct().toList())
+                .email(user.getEmail())
+                .roles(roleNames)
+                .permissions(permissions)
                 .build();
     }
 }

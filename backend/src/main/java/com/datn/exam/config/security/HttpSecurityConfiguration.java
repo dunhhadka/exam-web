@@ -34,7 +34,6 @@ import java.util.Collections;
 public class HttpSecurityConfiguration {
 
     private final CustomAuthenticationFilter customAuthenticationFilter;
-    private final CustomAuthenticationProvider customAuthenticationProvider;
 
     private final String[] DOC_PUBLIC_URLS = {
             "/api-docs/**",
@@ -55,7 +54,6 @@ public class HttpSecurityConfiguration {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authenticationProvider(customAuthenticationProvider)
                 .authorizeHttpRequests(
                         registry ->
                                 registry

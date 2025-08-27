@@ -6,6 +6,8 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.Fetch;
 import org.hibernate.annotations.FetchMode;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.util.List;
 import java.util.UUID;
@@ -20,6 +22,7 @@ import java.util.UUID;
 public class Role extends AuditableEntity{
     @Id
     @Column()
+    @JdbcTypeCode(SqlTypes.VARCHAR)
     private UUID id;
 
     @Column(length = ValidateConstraint.Length.CODE_MAX_LENGTH, unique = true, nullable = false)

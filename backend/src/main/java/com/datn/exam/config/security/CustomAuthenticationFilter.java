@@ -20,10 +20,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.time.Instant;
-import java.util.Date;
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 
 @Component
 @RequiredArgsConstructor
@@ -50,17 +47,47 @@ public class CustomAuthenticationFilter extends OncePerRequestFilter {
 
         UserAuthority userAuthority = authenticationService.getUserAuthority(userId);
 
-        List<SimpleGrantedAuthority> grantedAuthorities = userAuthority.grantedPrivileges().stream()
-                .map(SimpleGrantedAuthority::new)
-                .toList();
+        List<String> roles = extractRoles(userAuthority.grantedPrivileges());
+        List<String> permissions = extractPermissions(userAuthority.grantedPrivileges());
 
-        User principal = new User(userAuthority.username(), "", grantedAuthorities);
+        List<SimpleGrantedAuthority> grantedAuthorities = buildCombinedAuthorities(roles, permissions);
 
-        CustomUserAuthentication authentication = new CustomUserAuthentication(principal,"",grantedAuthorities, userId, token);
+        User principal = new User(userAuthority.email(), "", grantedAuthorities);
 
+        CustomUserAuthentication authentication = new CustomUserAuthentication(
+                principal,
+                "",
+                userId,
+                token,
+                roles,
+                permissions
+        );
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
         filterChain.doFilter(request, response);
+    }
+
+    private List<SimpleGrantedAuthority> buildCombinedAuthorities(List<String> roles, List<String> permissions) {
+        List<SimpleGrantedAuthority> authorities = new ArrayList<>();
+
+        roles.forEach(role -> authorities.add(new SimpleGrantedAuthority("ROLE_" + role)));
+
+        permissions.forEach(permission -> authorities.add(new SimpleGrantedAuthority(permission)));
+
+        return authorities;
+    }
+
+    private List<String> extractRoles(List<String> grantedPrivileges) {
+        return grantedPrivileges.stream()
+                .filter(privilege -> privilege.startsWith("ROLE_"))
+                .map(role -> role.substring(5))
+                .toList();
+    }
+
+    private List<String> extractPermissions(List<String> grantedPrivileges) {
+        return grantedPrivileges.stream()
+                .filter(privilege -> privilege.contains(":"))
+                .toList();
     }
 
     private String extractBearerToken(HttpServletRequest request) {

@@ -9,9 +9,8 @@ import java.util.UUID;
 @Builder
 public record UserAuthority(
         UUID userId,
-        String username,
+        String email,
         List<String> roles,
-        List<String> grantedPrivileges,
         List<String> permissions
 ) {
     public List<String> grantedPrivileges() {
