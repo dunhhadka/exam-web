@@ -16,7 +16,6 @@ import com.datn.exam.model.entity.UserRole;
 import com.datn.exam.repository.RoleRepository;
 import com.datn.exam.repository.UserRepository;
 import com.datn.exam.repository.data.dao.UserDao;
-import com.datn.exam.repository.data.dto.UserDto;
 import com.datn.exam.service.AccountService;
 import com.datn.exam.service.AuthenticationService;
 import com.datn.exam.support.constants.Constants;
@@ -95,7 +94,7 @@ public class AccountServiceImpl implements AccountService {
 
         Role memberRole = roleRepository.findByCode(roleName).orElse(null);
 
-        if (Objects.isNull(memberRole)) throw new ResponseException(NotFoundError.ROLE_NOT_FOUNT);
+        if (Objects.isNull(memberRole)) throw new ResponseException(NotFoundError.ROLE_NOT_FOUND);
 
         UserRole userRole = UserRole.builder()
                 .id(IdUtils.nextId())

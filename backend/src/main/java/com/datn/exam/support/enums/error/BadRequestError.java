@@ -11,7 +11,8 @@ public enum BadRequestError implements ResponseError {
     EMAIL_EXISTED(400003, "Email existed"),
     USER_WAS_INACTIVATED(400004, "User was inactivated"),
     USER_WAS_ACTIVATED(400005, "User was activated"),
-    PASSWORD_MISS_MATCH(400006, "Password and confirm password not match")
+    PASSWORD_MISS_MATCH(400006, "Password and confirm password not match"),
+    INVALID_IDS(400007, "Ids must not be null or empty")
     ;
 
     private final int code;

@@ -7,7 +7,8 @@ import lombok.Getter;
 @AllArgsConstructor
 public enum NotFoundError implements ResponseError {
     USER_NOT_FOUND(404001, "User not found"),
-    ROLE_NOT_FOUNT(404001, "Role not found")
+    ROLE_NOT_FOUND(404002, "Role not found"),
+    TAG_NOT_FOUND(4004003, "Tag not found")
     ;
 
     private final int code;

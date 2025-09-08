@@ -23,6 +23,7 @@ public class TokenProvider {
 
     public String buildToken(Authentication authentication, UUID userId, TokenType tokenType) {
         Date expiration = Date.from(Instant.now());
+        String claim;
 
         switch (tokenType) {
             case ACCESS_TOKEN -> expiration = Date.from(Instant.now().plus(authenticationProperties.getAccessTokenExpiresIn()));
@@ -33,6 +34,7 @@ public class TokenProvider {
         return Jwts.builder()
                 .id(IdUtils.convertUUIDToString(userId))
                 .subject(authentication.getName())
+                .claim("token_type", tokenType.name())
                 .signWith(secretKey())
                 .issuedAt(Date.from(Instant.now()))
                 .expiration(expiration)
