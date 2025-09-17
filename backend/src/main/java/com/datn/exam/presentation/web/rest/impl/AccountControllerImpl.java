@@ -27,7 +27,6 @@ public class AccountControllerImpl implements AccountController {
         return Response.of(accountService.login(request));
     }
 
-
     @Override
     public Response<ProfileResponse> getAccountProfile() {
         return Response.of(accountService.getAccountProfile());

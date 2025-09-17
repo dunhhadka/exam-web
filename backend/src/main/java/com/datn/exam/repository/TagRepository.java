@@ -18,4 +18,7 @@ public interface TagRepository extends JpaRepository<Tag, Long> {
     List<Tag> search(String keyword);
 
     List<Tag> findByCreatedBy(String createdBy);
+
+    @Query("SELECT t FROM Tag t WHERE t.id IN :tagIds")
+    List<Tag> findByIds(List<Long> tagIds);
 }

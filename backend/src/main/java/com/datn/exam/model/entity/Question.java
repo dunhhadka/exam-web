@@ -8,6 +8,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import jakarta.persistence.*;
 import lombok.*;
+import org.apache.commons.collections4.CollectionUtils;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -17,9 +18,10 @@ import java.util.List;
 @Table(name = "questions")
 @Getter
 @Setter
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public abstract class Question extends AuditableEntity{
+public class Question extends AuditableEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -46,26 +48,74 @@ public abstract class Question extends AuditableEntity{
     @OrderBy("index ASC")
     private List<Answer> answers = new ArrayList<>();
 
-
-
     @Version
     private Integer version;
 
-    @Transient
     public QuestionType getType() {
         return questionValue != null ? questionValue.getType() : null;
     }
 
-    @Transient
     public Level getLevel() {
         return questionValue != null ? questionValue.getLevel() : null;
     }
 
-    @Transient
     public Boolean getIsPublic() {
         return questionValue != null && questionValue.isPublic();
     }
 
+    public Status getStatus() {
+        return questionValue != null ? questionValue.getStatus() : null;
+    }
+
+    public boolean isDraft() {
+        return this.getStatus() == Status.DRAFT;
+    }
+
+    public boolean isPublisher() {
+        return this.getStatus() == Status.PUBLISHED;
+    }
+
+    public boolean isArchived() {
+        return this.getStatus() == Status.ARCHIVED;
+    }
+
+    public boolean canBePublished() {
+        if (this.isDraft()) {
+            return isValidForPublish();
+        }
+
+        return false;
+    }
+
+    public boolean isValidForPublish() {
+        if (isMultiAnswerType()) {
+            if (answers == null || CollectionUtils.isEmpty(answers)) return false;
+
+            long correctCount = answers.stream()
+                    .filter(answer -> Boolean.TRUE.equals(answer.getResult()))
+                    .count();
+
+            if (correctCount <= 0) return false;
+
+            if (this.getType() == QuestionType.ONE_CHOICE) {
+                return correctCount == 1;
+            }
+
+            if (this.getType() == QuestionType.TRUE_FALSE) {
+                return correctCount == 2;
+            }
+        }
+
+        return true;
+    }
+
+    public boolean isMultiAnswerType() {
+        QuestionType type = getType();
+
+        return type == QuestionType.ONE_CHOICE ||
+                type == QuestionType.MULTI_CHOICE ||
+                type == QuestionType.TRUE_FALSE;
+    }
 
     @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", visible = true)
     @JsonSubTypes({
@@ -76,6 +126,7 @@ public abstract class Question extends AuditableEntity{
             @JsonSubTypes.Type(value = PlainTextQuestion.class, name = "plain_text"),
             @JsonSubTypes.Type(value = TableChoiceQuestion.class, name = "table_choice")
     })
+
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
@@ -168,6 +219,21 @@ public abstract class Question extends AuditableEntity{
 
         public EssayQuestion(Level level, Status status) {
             super(QuestionType.ESSAY, level, status);
+        }
+        public EssayQuestion(
+                Level level,
+                Status status,
+                Integer maxWords,
+                Integer minWords,
+                String sampleAnswer,
+                String gradingCriteria
+        ) {
+            super(QuestionType.ESSAY, level, status);
+
+            this.maxWords = maxWords;
+            this.minWords = minWords;
+            this.sampleAnswer = sampleAnswer;
+            this.gradingCriteria = gradingCriteria;
         }
 
         @Override

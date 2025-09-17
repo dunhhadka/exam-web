@@ -1,5 +1,7 @@
 package com.datn.exam.support.enums;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
 import lombok.Getter;
 
 @Getter
@@ -15,5 +17,20 @@ public enum QuestionType {
 
     QuestionType(String value) {
         this.value = value;
+    }
+
+    @JsonValue
+    public String getValue() {
+        return value;
+    }
+
+    @JsonCreator
+    public static QuestionType fromValue(String value) {
+        for (QuestionType type : values()) {
+            if (type.value.equalsIgnoreCase(value)) {
+                return type;
+            }
+        }
+        throw new IllegalArgumentException("Unknown value: " + value);
     }
 }

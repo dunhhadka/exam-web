@@ -14,12 +14,12 @@ import java.util.List;
 public interface TagController {
 
     @PostMapping("/create")
-    Response<TagResponse> createTag(@RequestBody @Valid TagRequest request);
+    Response<TagResponse> create(@RequestBody @Valid TagRequest request);
 
     @DeleteMapping("/delete")
-    Response<Boolean> deleteTag(@RequestBody IdsRequest request);
+    Response<Boolean> delete(@RequestBody IdsRequest request);
 
     @GetMapping("/search")
-    Response<List<TagResponse>> searchTag(@RequestBody @Valid TagSearchRequest request);
+    Response<List<TagResponse>> search(@RequestBody @Valid TagSearchRequest request);
 
 }

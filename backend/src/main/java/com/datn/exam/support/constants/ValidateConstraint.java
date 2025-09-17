@@ -13,6 +13,12 @@ public interface ValidateConstraint {
         public static final int ADDRESS_MAX_LENGTH = 200;
         public static final int PASSWORD_MIN_LENGTH = 6;
         public static final int PASSWORD_MAX_LENGTH = 50;
+        public static final int QUESTION_MAX_LENGTH = 1;
+        public static final int QUESTION_MIN_LENGTH = 1;
+        public static final int ANSWER_MAX_VALUE = 2000;
+        public static final int ANSWER_MIN_ORDER_INDEX = 0;
+        public static final int ANSWER_MAX_EXPLANATION = 2000;
+        public static final int ANSWER_MAX_EXPLANATION_HTML = 2000;
     }
 
     public static final class Format {

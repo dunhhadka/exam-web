@@ -18,18 +18,18 @@ public class TagControllerImpl implements TagController {
     private final TagService tagService;
 
     @Override
-    public Response<TagResponse> createTag(TagRequest request) {
+    public Response<TagResponse> create(TagRequest request) {
         return Response.of(tagService.create(request));
     }
 
     @Override
-    public Response<Boolean> deleteTag(IdsRequest request) {
+    public Response<Boolean> delete(IdsRequest request) {
         tagService.delete(request);
         return Response.ok();
     }
 
     @Override
-    public Response<List<TagResponse>> searchTag(TagSearchRequest request) {
+    public Response<List<TagResponse>> search(TagSearchRequest request) {
         return Response.of(tagService.search(request));
     }
 }
