@@ -14,17 +14,19 @@ import java.time.Instant;
 @AllArgsConstructor
 @Builder
 public class UserInformation {
+    @Column(name = "first_name")
     private String firstName;
 
+    @Column(name = "last_name")
     private String lastName;
 
     @Column(length = ValidateConstraint.Length.PHONE_MAX_LENGTH)
     private String phone;
 
-    @Column()
+    @Column(name = "date_of_birth")
     private Instant dateOfBirth;
 
-    @Column()
+    @Column(name = "avatar_url")
     private String avatarUrl;
 
     @Column()

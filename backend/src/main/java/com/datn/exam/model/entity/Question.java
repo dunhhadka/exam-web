@@ -4,11 +4,13 @@ import com.datn.exam.support.converter.BaseQuestionConverter;
 import com.datn.exam.support.enums.Level;
 import com.datn.exam.support.enums.QuestionType;
 import com.datn.exam.support.enums.Status;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import jakarta.persistence.*;
 import lombok.*;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -28,12 +30,12 @@ public class Question extends AuditableEntity {
     private long id;
 
     @Column(precision = 5, scale = 2)
-    private BigDecimal score;
+    private BigDecimal point;
 
     private String text;
 
     @Convert(converter = BaseQuestionConverter.class)
-    @Column(name = "question_value", columnDefinition = "JSON")
+    @Column(name = "question_value",columnDefinition = "JSON")
     private BaseQuestion questionValue; //Entity inner class
 
     @ManyToMany(fetch = FetchType.LAZY)
@@ -48,6 +50,9 @@ public class Question extends AuditableEntity {
     @OrderBy("index ASC")
     private List<Answer> answers = new ArrayList<>();
 
+    @OneToMany(mappedBy = "question")
+    private List<ExamQuestion> examQuestions;
+
     @Version
     private Integer version;
 
@@ -60,7 +65,7 @@ public class Question extends AuditableEntity {
     }
 
     public Boolean getIsPublic() {
-        return questionValue != null && questionValue.isPublic();
+        return questionValue != null && questionValue.isPublicFlag();
     }
 
     public Status getStatus() {
@@ -88,28 +93,45 @@ public class Question extends AuditableEntity {
     }
 
     public boolean isValidForPublish() {
-        if (isMultiAnswerType()) {
-            if (answers == null || CollectionUtils.isEmpty(answers)) return false;
 
-            long correctCount = answers.stream()
-                    .filter(answer -> Boolean.TRUE.equals(answer.getResult()))
-                    .count();
-
-            if (correctCount <= 0) return false;
-
-            if (this.getType() == QuestionType.ONE_CHOICE) {
-                return correctCount == 1;
-            }
-
-            if (this.getType() == QuestionType.TRUE_FALSE) {
-                return correctCount == 2;
-            }
+        if (!this.checkCountAnswerWithQuestionType()) {
+            return false;
         }
 
-        return true;
+        if (CollectionUtils.isEmpty(this.answers)) {
+            this.answers = new ArrayList<>();
+        }
+
+        long correctCount = answers.stream()
+                .filter(a -> Boolean.TRUE.equals(a.getResult()))
+                .count();
+
+        QuestionType type = this.getType();
+
+        return switch (type) {
+            case ONE_CHOICE, TRUE_FALSE -> correctCount == 1;
+            case MULTI_CHOICE -> correctCount > 0;
+            default -> true;
+        };
     }
 
-    public boolean isMultiAnswerType() {
+    private boolean checkCountAnswerWithQuestionType() {
+        QuestionType type = this.getType();
+
+        switch (type) {
+            case TRUE_FALSE -> {
+                return answers.size() == 2;
+            }
+            case ONE_CHOICE, MULTI_CHOICE -> {
+                return answers.size() >= 2;
+            }
+            default -> {
+                return true;
+            }
+        }
+    }
+
+    public boolean isChoiceType() {
         QuestionType type = getType();
 
         return type == QuestionType.ONE_CHOICE ||
@@ -119,12 +141,12 @@ public class Question extends AuditableEntity {
 
     @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", visible = true)
     @JsonSubTypes({
-            @JsonSubTypes.Type(value = OneChoiceQuestion.class, name = "one_choice"),
-            @JsonSubTypes.Type(value = MultiChoiceQuestion.class, name = "multi_choice"),
-            @JsonSubTypes.Type(value = TrueFalseChoiceQuestion.class, name = "true_false"),
-            @JsonSubTypes.Type(value = EssayQuestion.class, name = "essay"),
-            @JsonSubTypes.Type(value = PlainTextQuestion.class, name = "plain_text"),
-            @JsonSubTypes.Type(value = TableChoiceQuestion.class, name = "table_choice")
+            @JsonSubTypes.Type(value = OneChoiceQuestion.class, name = "ONE_CHOICE"),
+            @JsonSubTypes.Type(value = MultiChoiceQuestion.class, name = "MULTI_CHOICE"),
+            @JsonSubTypes.Type(value = TrueFalseChoiceQuestion.class, name = "TRUE_FALSE"),
+            @JsonSubTypes.Type(value = EssayQuestion.class, name = "ESSAY"),
+            @JsonSubTypes.Type(value = PlainTextQuestion.class, name = "PLAIN_TEXT"),
+            @JsonSubTypes.Type(value = TableChoiceQuestion.class, name = "TABLE_CHOICE")
     })
 
     @Data
@@ -132,18 +154,18 @@ public class Question extends AuditableEntity {
     @AllArgsConstructor
     public static abstract class BaseQuestion {
         private QuestionType type;
-        private boolean isPublic;
 
-        @Column(nullable = false)
-        @Enumerated(EnumType.STRING)
+        @JsonProperty("public_flag")
+        private boolean publicFlag;
+
         private Status status;
 
         private Level level;
 
-        protected BaseQuestion(QuestionType type, Level level, Status status) {
+        protected BaseQuestion(QuestionType type, Level level, Status status, boolean isPublic) {
             this.type = type;
             this.level = level;
-            this.isPublic = false;
+            this.publicFlag = isPublic;
             this.status = status;
         }
 
@@ -157,8 +179,8 @@ public class Question extends AuditableEntity {
     public static abstract class MultiAnswerQuestion extends BaseQuestion {
         private List<Answer> answers = new ArrayList<>();
 
-        protected MultiAnswerQuestion(List<Answer> answers, QuestionType questionType, Level level, Status status) {
-            super(questionType, level, status);
+        protected MultiAnswerQuestion(List<Answer> answers, QuestionType questionType, Level level, Status status, boolean isPublic) {
+            super(questionType, level, status, isPublic);
             this.answers = answers != null ? answers : new ArrayList<>();
         }
     }
@@ -168,8 +190,8 @@ public class Question extends AuditableEntity {
     @EqualsAndHashCode(callSuper = true)
     public static class OneChoiceQuestion extends MultiAnswerQuestion {
 
-        public OneChoiceQuestion(List<Answer> answers, Level level, Status status) {
-            super(answers, QuestionType.ONE_CHOICE, level, status);
+        public OneChoiceQuestion(List<Answer> answers, Level level, Status status, boolean isPublic) {
+            super(answers, QuestionType.ONE_CHOICE, level, status, isPublic);
         }
 
         @Override
@@ -183,8 +205,8 @@ public class Question extends AuditableEntity {
     @EqualsAndHashCode(callSuper = true)
     public static class MultiChoiceQuestion extends MultiAnswerQuestion {
 
-        public MultiChoiceQuestion(List<Answer> answers, Level level, Status status) {
-            super(answers, QuestionType.MULTI_CHOICE, level, status);
+        public MultiChoiceQuestion(List<Answer> answers, Level level, Status status, boolean isPublic) {
+            super(answers, QuestionType.MULTI_CHOICE, level, status, isPublic);
         }
 
         @Override
@@ -198,8 +220,8 @@ public class Question extends AuditableEntity {
     @EqualsAndHashCode(callSuper = true)
     public static class TrueFalseChoiceQuestion extends MultiAnswerQuestion {
 
-        public TrueFalseChoiceQuestion(List<Answer> answers, Level level, Status status) {
-            super(answers, QuestionType.TRUE_FALSE, level, status);
+        public TrueFalseChoiceQuestion(List<Answer> answers, Level level, Status status, boolean isPublic) {
+            super(answers, QuestionType.TRUE_FALSE, level, status, isPublic);
         }
 
         @Override
@@ -217,18 +239,19 @@ public class Question extends AuditableEntity {
         private String sampleAnswer;
         private String gradingCriteria;
 
-        public EssayQuestion(Level level, Status status) {
-            super(QuestionType.ESSAY, level, status);
+        public EssayQuestion(Level level, Status status, boolean isPublic) {
+            super(QuestionType.ESSAY, level, status, isPublic);
         }
         public EssayQuestion(
                 Level level,
                 Status status,
+                boolean isPublic,
                 Integer maxWords,
                 Integer minWords,
                 String sampleAnswer,
                 String gradingCriteria
         ) {
-            super(QuestionType.ESSAY, level, status);
+            super(QuestionType.ESSAY, level, status, isPublic);
 
             this.maxWords = maxWords;
             this.minWords = minWords;
@@ -245,18 +268,33 @@ public class Question extends AuditableEntity {
     @Data
     @NoArgsConstructor
     @EqualsAndHashCode(callSuper = true)
+    @AllArgsConstructor
     public static class PlainTextQuestion extends BaseQuestion {
         private String expectedAnswer;
-        private Boolean caseSensitive = false;
-        private Boolean exactMatch = false;
+        private Boolean caseSensitive; // CHECK lowercase uppercase?
+        private Boolean exactMatch; //TRUE: MATCH 100%
 
-        public PlainTextQuestion(Level level, Status status) {
-            super(QuestionType.PLAIN_TEXT, level, status);
+        public PlainTextQuestion(String expectedAnswer, Boolean caseSensitive, Boolean exactMatch, Level level, Status status, boolean isPublic) {
+            super(QuestionType.PLAIN_TEXT, level, status, isPublic);
+
+            this.setField(expectedAnswer, caseSensitive, exactMatch);
         }
 
         @Override
         public QuestionType getType() {
             return QuestionType.PLAIN_TEXT;
+        }
+
+        private void setField(String expectedAnswer, Boolean caseSensitive, Boolean exactMatch) {
+            if (!StringUtils.isBlank(expectedAnswer)) {
+                this.expectedAnswer = expectedAnswer;
+                this.caseSensitive = (caseSensitive != null) ? caseSensitive : false;
+                this.exactMatch = exactMatch != null;
+            } else {
+                this.expectedAnswer = null;
+                this.caseSensitive = null;
+                this.exactMatch = null;
+            }
         }
     }
 
@@ -267,8 +305,8 @@ public class Question extends AuditableEntity {
         private List<String> headers = new ArrayList<>();
         private List<List<Answer>> rows = new ArrayList<>();
 
-        public TableChoiceQuestion(Level level, Status status) {
-            super(QuestionType.TABLE_CHOICE, level, status);
+        public TableChoiceQuestion(Level level, Status status, boolean isPublic) {
+            super(QuestionType.TABLE_CHOICE, level, status, isPublic);
         }
 
         @Override

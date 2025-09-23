@@ -2,11 +2,13 @@ package com.datn.exam.model.dto.response;
 
 import com.datn.exam.support.enums.Level;
 import com.datn.exam.support.enums.QuestionType;
+import com.datn.exam.support.enums.Status;
 import lombok.Builder;
 import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
@@ -15,11 +17,11 @@ public class QuestionResponse {
     private long id;
 
     private String text;
-    private BigDecimal score;
+    private BigDecimal point;
     private QuestionType type;
     private Level level;
     private Boolean isPublic;
-    private Boolean isPublish;
+    private Status status;
 
     private List<TagResponse> tags;
     private List<AnswerResponse> answers;
@@ -35,7 +37,8 @@ public class QuestionResponse {
     private Boolean exactMatch;
 
     private Instant createdAt;
-    private Instant updatedAt;
     private String createdBy;
 
+    private Instant lastModifiedAt;
+    private String lastModifiedBy;
 }

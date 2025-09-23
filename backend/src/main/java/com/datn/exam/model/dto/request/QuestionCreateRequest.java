@@ -3,6 +3,7 @@ package com.datn.exam.model.dto.request;
 import com.datn.exam.support.enums.Level;
 import com.datn.exam.support.enums.QuestionType;
 import com.datn.exam.support.enums.Status;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
@@ -16,7 +17,7 @@ import java.util.List;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
-public class QuestionCreateRequest extends Request{
+public class QuestionCreateRequest extends Request implements QuestionCreateBase{
 
     @NotBlank(message = "QUESTION_TEXT_REQUIRED")
     private String text;
@@ -24,18 +25,17 @@ public class QuestionCreateRequest extends Request{
     @DecimalMin(value = "0.0", message = "QUESTION_IS_POSITIVE")
     @DecimalMax(value = "999.99", message = "QUESTION_MAX_SCORE")
     @NotNull(message = "QUESTION_SCORE_REQUIRED")
-    private BigDecimal score;
+    private BigDecimal point;
 
     @NotNull(message = "QUESTION_LEVEL_REQUIRED")
     private Level level;
 
-    @NotNull(message = "QUESTION_STATUS_REQUIRED")
-    private Status status = Status.DRAFT;
-
-    private boolean isPublic = false;
+    @JsonProperty("isPublic")
+    private boolean isPublic;
 
     private List<Long> tagIds;
 
+    @NotNull(message = "QUESTION_TYPE_REQUIRE")
     private QuestionType type;
 
     private @Valid List<AnswerCreateRequest> answers;

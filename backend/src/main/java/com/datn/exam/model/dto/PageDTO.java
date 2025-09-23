@@ -11,12 +11,14 @@ public class PageDTO<T> {
     private int pageIndex;
     private int pageSize;
     private long total;
+    private long totalPages;
 
     public PageDTO(List<T> data, int pageIndex, int pageSize, long total) {
         this.data = data;
         this.pageIndex = pageIndex;
         this.pageSize = pageSize;
         this.total = total;
+        this.totalPages = (pageSize == 0) ? 0 : (total + pageSize - 1) / pageSize;
     }
 
     public static <T> PageDTO<T> of(List<T> data, int pageIndex, int pageSize, long total) {

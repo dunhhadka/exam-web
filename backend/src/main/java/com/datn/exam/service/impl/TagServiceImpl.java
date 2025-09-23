@@ -39,6 +39,7 @@ public class TagServiceImpl implements TagService {
         tagRepository.save(tag);
 
         return TagResponse.builder()
+                .id(tag.getId())
                 .name(tag.getName())
                 .slug(tag.getSlug())
                 .colorCode(tag.getColorCode())

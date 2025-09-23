@@ -12,9 +12,9 @@ import javax.swing.*;
 public class PagingRequest extends Request {
     protected String keyword;
 
-    @Min(value = 1, message = "PAGE_INDEX_MIN")
+    @Min(value = 0, message = "PAGE_INDEX_MIN")
     @Max(value = 200, message = "PAGE_INDEX_MAX")
-    protected int pageIndex = 1;
+    protected int pageIndex = 0;
 
     @Min(value = 1, message = "PAGE_SIZE_MIN")
     @Max(value = 200, message = "PAGE_SIZE_MAX")

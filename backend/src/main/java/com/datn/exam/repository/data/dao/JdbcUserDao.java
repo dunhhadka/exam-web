@@ -22,11 +22,11 @@ public class JdbcUserDao implements UserDao{
                 SELECT\s
                     u.id,
                     u.email,
-                    u.firstName,
-                    u.lastName,
+                    u.first_name as firstName,
+                    u.last_name as lastName,
                     u.phone,
-                    u.dateOfBirth,
-                    u.avatarUrl,
+                    u.date_of_birth as dateOfBirth,
+                    u.avatar_url as avatarUrl,
                     u.gender,
                     u.deleted
                 FROM users u

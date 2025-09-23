@@ -8,7 +8,8 @@ import lombok.Getter;
 public enum NotFoundError implements ResponseError {
     USER_NOT_FOUND(404001, "User not found"),
     ROLE_NOT_FOUND(404002, "Role not found"),
-    TAG_NOT_FOUND(4004003, "Tag not found")
+    TAG_NOT_FOUND(400003, "Tag not found with ids: %s"),
+    QUESTION_NOT_FOUND(400004, "Question not found with ids: %s")
     ;
 
     private final int code;

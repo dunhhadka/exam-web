@@ -45,7 +45,7 @@ public class User extends AuditableEntity{
     @Enumerated(EnumType.STRING)
     private ActiveStatus status;
 
-    @Column()
+    @Column(name = "account_type")
     @Enumerated(EnumType.STRING)
     private AccountType accountType;
 

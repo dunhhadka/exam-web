@@ -1,7 +1,9 @@
 package com.datn.exam.presentation.web.rest.impl;
 
-import com.datn.exam.model.dto.PageDTO;
+import com.datn.exam.model.dto.request.DraftCreateRequest;
 import com.datn.exam.model.dto.request.QuestionCreateRequest;
+import com.datn.exam.model.dto.request.QuestionSearchRequest;
+import com.datn.exam.model.dto.response.PagingResponse;
 import com.datn.exam.model.dto.response.QuestionResponse;
 import com.datn.exam.model.dto.response.Response;
 import com.datn.exam.presentation.web.rest.QuestionController;
@@ -15,8 +17,13 @@ public class QuestionControllerImpl implements QuestionController {
     private final QuestionService questionService;
 
     @Override
-    public Response<QuestionResponse> create(QuestionCreateRequest request) {
-        return Response.of(questionService.createQuestion(request));
+    public Response<QuestionResponse> createPublish(QuestionCreateRequest request) {
+        return Response.of(questionService.createPublish(request));
+    }
+
+    @Override
+    public Response<QuestionResponse> createDraft(DraftCreateRequest request) {
+        return Response.of(questionService.createDraft(request));
     }
 
     @Override
@@ -30,7 +37,7 @@ public class QuestionControllerImpl implements QuestionController {
     }
 
     @Override
-    public PageDTO<QuestionResponse> search() {
-        return null;
+    public PagingResponse<QuestionResponse> search(QuestionSearchRequest request) {
+        return PagingResponse.of(questionService.search(request));
     }
 }

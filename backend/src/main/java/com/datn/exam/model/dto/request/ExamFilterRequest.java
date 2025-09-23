@@ -1,17 +1,15 @@
 package com.datn.exam.model.dto.request;
 
 import com.datn.exam.support.enums.Level;
-import com.datn.exam.support.enums.QuestionType;
 import com.datn.exam.support.enums.Status;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-@EqualsAndHashCode(callSuper = true)
 @Data
-public class QuestionSearchRequest extends PagingRequest{
-    private QuestionType type;
+@EqualsAndHashCode(callSuper = true)
+public class ExamFilterRequest extends PagingRequest{
+    private Boolean me;
     private Level level;
-    private Boolean publicFlag;
-    private String tagName;
     private Status status;
+    private Boolean isPublic;
 }

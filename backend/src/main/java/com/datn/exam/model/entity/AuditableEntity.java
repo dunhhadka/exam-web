@@ -16,6 +16,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.io.Serial;
 import java.io.Serializable;
 import java.time.Instant;
+import java.time.LocalDateTime;
 
 @MappedSuperclass
 @EntityListeners({AuditingEntityListener.class})
@@ -28,18 +29,18 @@ public abstract class AuditableEntity implements Serializable {
     private static final long serialVersionUID = 1L;
 
     @CreatedBy
-    @Column(nullable = false, updatable = false)
+    @Column(name = "created_by", nullable = false, updatable = false)
     protected String createdBy;
 
     @CreatedDate
-    @Column(nullable = false, updatable = false)
+    @Column(name = "created_at", nullable = false, updatable = false)
     protected Instant createdAt;
 
     @LastModifiedBy
-    @Column(insertable = false)
+    @Column(name = "last_modified_by", insertable = false)
     protected String lastModifiedBy;
 
     @LastModifiedDate
-    @Column(insertable = false)
+    @Column(name = "last_modified_at", insertable = false)
     protected Instant lastModifiedAt;
 }

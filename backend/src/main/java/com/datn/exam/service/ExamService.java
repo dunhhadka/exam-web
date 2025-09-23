@@ -1,0 +1,16 @@
+package com.datn.exam.service;
+
+import com.datn.exam.model.dto.PageDTO;
+import com.datn.exam.model.dto.request.ExamCreateRequest;
+import com.datn.exam.model.dto.request.ExamDraftRequest;
+import com.datn.exam.model.dto.request.ExamFilterRequest;
+import com.datn.exam.model.dto.response.ExamResponse;
+
+public interface ExamService {
+    ExamResponse createDraft(ExamDraftRequest request);
+    ExamResponse createPublish(ExamCreateRequest request);
+    PageDTO<ExamResponse> filter(ExamFilterRequest request);
+
+    ExamResponse update();
+    void delete(Long id);
+}

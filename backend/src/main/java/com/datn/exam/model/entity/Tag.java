@@ -20,6 +20,7 @@ public class Tag extends AuditableEntity{
 
     private String slug;
 
+    @Column(name = "color_code")
     private String colorCode;
 
     public Tag(String name, String slug, String colorCode) {
