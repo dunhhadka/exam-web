@@ -46,5 +46,5 @@ public class DraftCreateRequest extends Request implements QuestionCreateBase{
 
     //TableChoice
     private List<String> headers;
-    private List<List<AnswerCreateRequest>> rows;
+    private List<QuestionCreateRequest.RowCompactRequest> rows;
 }

@@ -2,13 +2,10 @@ package com.datn.exam.model.dto.request;
 
 import com.datn.exam.support.enums.Level;
 import com.datn.exam.support.enums.QuestionType;
-import com.datn.exam.support.enums.Status;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.DecimalMax;
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.*;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -53,5 +50,15 @@ public class QuestionCreateRequest extends Request implements QuestionCreateBase
 
     //TableChoice
     private List<String> headers;
-    private List<List<AnswerCreateRequest>> rows;
+
+    private List<RowCompactRequest> rows;
+
+    @Data
+    @AllArgsConstructor
+    public static class RowCompactRequest {
+
+        private String label;
+
+        private Integer correctIndex; // Index của header correct
+    }
 }

@@ -28,5 +28,5 @@ public interface QuestionCreateBase {
 
 
     List<String> getHeaders();
-    List<List<AnswerCreateRequest>> getRows();
+    List<QuestionCreateRequest.RowCompactRequest> getRows();
 }

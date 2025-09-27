@@ -8,8 +8,6 @@ import com.datn.exam.model.dto.response.ExamResponse;
 import com.datn.exam.model.entity.Question;
 import com.datn.exam.repository.ExamRepository;
 import com.datn.exam.repository.QuestionRepository;
-import com.datn.exam.repository.data.dao.QuestionDao;
-import com.datn.exam.repository.data.dto.QuestionDto;
 import com.datn.exam.service.ExamService;
 import com.datn.exam.support.enums.error.NotFoundError;
 import com.datn.exam.support.exception.ResponseException;
@@ -19,9 +17,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.function.Function;
+
 import java.util.stream.Collectors;
 
 @RequiredArgsConstructor

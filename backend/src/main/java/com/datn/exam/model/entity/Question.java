@@ -9,7 +9,6 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import jakarta.persistence.*;
 import lombok.*;
-import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import java.math.BigDecimal;
@@ -84,60 +83,6 @@ public class Question extends AuditableEntity {
         return this.getStatus() == Status.ARCHIVED;
     }
 
-    public boolean canBePublished() {
-        if (this.isDraft()) {
-            return isValidForPublish();
-        }
-
-        return false;
-    }
-
-    public boolean isValidForPublish() {
-
-        if (!this.checkCountAnswerWithQuestionType()) {
-            return false;
-        }
-
-        if (CollectionUtils.isEmpty(this.answers)) {
-            this.answers = new ArrayList<>();
-        }
-
-        long correctCount = answers.stream()
-                .filter(a -> Boolean.TRUE.equals(a.getResult()))
-                .count();
-
-        QuestionType type = this.getType();
-
-        return switch (type) {
-            case ONE_CHOICE, TRUE_FALSE -> correctCount == 1;
-            case MULTI_CHOICE -> correctCount > 0;
-            default -> true;
-        };
-    }
-
-    private boolean checkCountAnswerWithQuestionType() {
-        QuestionType type = this.getType();
-
-        switch (type) {
-            case TRUE_FALSE -> {
-                return answers.size() == 2;
-            }
-            case ONE_CHOICE, MULTI_CHOICE -> {
-                return answers.size() >= 2;
-            }
-            default -> {
-                return true;
-            }
-        }
-    }
-
-    public boolean isChoiceType() {
-        QuestionType type = getType();
-
-        return type == QuestionType.ONE_CHOICE ||
-                type == QuestionType.MULTI_CHOICE ||
-                type == QuestionType.TRUE_FALSE;
-    }
 
     @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", visible = true)
     @JsonSubTypes({
@@ -303,16 +248,27 @@ public class Question extends AuditableEntity {
     @EqualsAndHashCode(callSuper = true)
     public static class TableChoiceQuestion extends BaseQuestion {
         private List<String> headers = new ArrayList<>();
-        private List<List<Answer>> rows = new ArrayList<>();
 
-        public TableChoiceQuestion(Level level, Status status, boolean isPublic) {
+        private List<RowCompact> rows = new ArrayList<>();
+
+        public TableChoiceQuestion(List<String> headers, List<RowCompact> rowCompacts, Level level, Status status, boolean isPublic) {
             super(QuestionType.TABLE_CHOICE, level, status, isPublic);
+            this.headers = headers;
+            this.rows = rowCompacts;
         }
 
         @Override
         public QuestionType getType() {
             return QuestionType.TABLE_CHOICE;
         }
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class RowCompact {
+        private String label; // Label của hàng
+        private Integer correctIndex; // Vị trí cột đúng
     }
 }
 

@@ -2,7 +2,11 @@ package com.datn.exam.repository.data.dao;
 
 import com.datn.exam.model.dto.request.QuestionSearchRequest;
 import com.datn.exam.repository.data.dto.QuestionDto;
+import com.datn.exam.repository.data.dto.TableChoiceValue;
+import com.datn.exam.support.enums.QuestionType;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -13,8 +17,10 @@ import java.util.List;
 
 @Repository
 @RequiredArgsConstructor
+@Slf4j
 public class JdbcQuestionDao implements QuestionDao{
     private final NamedParameterJdbcTemplate jdbcTemplate;
+    private final ObjectMapper mapper;
 
     @Override
     public Long count(QuestionSearchRequest request) {
@@ -46,6 +52,7 @@ public class JdbcQuestionDao implements QuestionDao{
                     JSON_UNQUOTE(JSON_EXTRACT(q.question_value, '$.level')) AS level,
                     JSON_UNQUOTE(JSON_EXTRACT(q.question_value, '$.status')) AS status,
                     JSON_UNQUOTE(JSON_EXTRACT(q.question_value,'$.public_flag')) AS publicFlag,
+                    q.question_value AS questionValue,
                     q.created_at as createdAt,
                     q.created_by as createdBy,
                     q.last_modified_at as lastModifiedAt,
@@ -66,7 +73,11 @@ public class JdbcQuestionDao implements QuestionDao{
 
         String finalSql = String.format(sql, whereFilter.toString());
 
-        return jdbcTemplate.query(finalSql, params, BeanPropertyRowMapper.newInstance(QuestionDto.class));
+        List<QuestionDto> list = jdbcTemplate.query(finalSql, params, BeanPropertyRowMapper.newInstance(QuestionDto.class));
+
+        list.forEach(this::mapTableChoiceFields);
+
+        return list;
     }
 
 //    @Override
@@ -119,5 +130,17 @@ public class JdbcQuestionDao implements QuestionDao{
         }
 
         return params;
+    }
+
+    private void mapTableChoiceFields(QuestionDto dto) {
+        if (dto.getType() == QuestionType.TABLE_CHOICE && dto.getQuestionValue() != null) {
+            try {
+                TableChoiceValue tv = mapper.readValue(dto.getQuestionValue(), TableChoiceValue.class);
+                dto.setHeaders(tv.getHeaders());
+                dto.setRows(tv.getRows());
+            } catch (Exception ex) {
+                log.warn("Failed to parse questionValue for questionId=" + dto.getId(), ex);
+            }
+        }
     }
 }

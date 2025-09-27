@@ -3,8 +3,10 @@ package com.datn.exam.model.dto.response;
 import com.datn.exam.support.enums.Level;
 import com.datn.exam.support.enums.QuestionType;
 import com.datn.exam.support.enums.Status;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.Getter;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -36,9 +38,21 @@ public class QuestionResponse {
     private Boolean caseSensitive;
     private Boolean exactMatch;
 
+    //Table Choice
+    private List<String> headers;
+    private List<RowCompactResponse> rows;
+
     private Instant createdAt;
     private String createdBy;
 
     private Instant lastModifiedAt;
     private String lastModifiedBy;
+
+    @Data
+    @AllArgsConstructor
+    @Builder
+    public static class RowCompactResponse {
+        private String label;
+        private Integer correctIndex;
+    }
 }

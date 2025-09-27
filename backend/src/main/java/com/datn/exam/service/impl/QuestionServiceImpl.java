@@ -3,6 +3,7 @@ package com.datn.exam.service.impl;
 import com.datn.exam.model.dto.PageDTO;
 import com.datn.exam.model.dto.mapper.QuestionMapper;
 import com.datn.exam.model.dto.request.*;
+import com.datn.exam.model.dto.response.InvalidFieldError;
 import com.datn.exam.model.dto.response.QuestionResponse;
 import com.datn.exam.model.dto.response.TagResponse;
 import com.datn.exam.model.entity.Answer;
@@ -15,11 +16,14 @@ import com.datn.exam.repository.data.dao.TagDao;
 import com.datn.exam.repository.data.dto.QuestionDto;
 import com.datn.exam.repository.data.dto.QuestionTagDto;
 import com.datn.exam.service.QuestionService;
+import com.datn.exam.service.validation.ChoiceQuestionPublishValidator;
+import com.datn.exam.service.validation.TableChoicePublishValidator;
 import com.datn.exam.support.enums.Level;
 import com.datn.exam.support.enums.QuestionType;
 import com.datn.exam.support.enums.Status;
 import com.datn.exam.support.enums.error.BadRequestError;
 import com.datn.exam.support.enums.error.NotFoundError;
+import com.datn.exam.support.exception.DomainValidationException;
 import com.datn.exam.support.exception.ResponseException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,10 +43,23 @@ public class QuestionServiceImpl implements QuestionService {
     private final TagRepository tagRepository;
     private final QuestionDao questionDao;
     private final TagDao tagDao;
+    private final TableChoicePublishValidator tableValidator;
+    private final ChoiceQuestionPublishValidator choiceValidator;
 
     @Override
     public QuestionResponse createPublish(QuestionCreateRequest request) {
         log.info("Creating question with type: {}, status: PUBLISHED", Status.PUBLISHED);
+
+        var objectName = request.getClass().getName();
+
+        List<InvalidFieldError> errors = new ArrayList<>();
+
+        errors.addAll(choiceValidator.validate(request, objectName));
+        errors.addAll(tableValidator.validate(request, objectName));
+
+        if (!errors.isEmpty()) {
+            throw new DomainValidationException(errors);
+        }
 
         Question question = this.buildQuestionEntity(request, Status.PUBLISHED);
 
@@ -73,7 +90,6 @@ public class QuestionServiceImpl implements QuestionService {
 
     }
 
-    //NOTE: Test api get
     @Override
     public PageDTO<QuestionResponse> search(QuestionSearchRequest request) {
         Long count = this.questionDao.count(request);
@@ -126,10 +142,6 @@ public class QuestionServiceImpl implements QuestionService {
     }
 
     private Question buildQuestionEntity(QuestionCreateBase request, Status status) {
-        if (needsAnswers(request.getType())) {
-            this.validateAnswerOrderIndex(request.getAnswers());
-        }
-
         Question.BaseQuestion questionValue = buildQuestionValue(request, status);
 
         Question question = Question.builder()
@@ -141,9 +153,6 @@ public class QuestionServiceImpl implements QuestionService {
         this.buildTags(question, request.getTagIds());
         this.buildAnswers(question, request.getAnswers());
 
-        if (status == Status.PUBLISHED && !question.isValidForPublish()) {
-            throw new ResponseException(BadRequestError.QUESTION_NOT_VALID);
-        }
         return question;
     }
 
@@ -174,7 +183,18 @@ public class QuestionServiceImpl implements QuestionService {
     }
 
     private Question.TableChoiceQuestion buildTableChoiceQuestionValue(QuestionCreateBase request, Status status, boolean isPublic) {
-        return null;
+        List<Question.RowCompact> rows = request.getRows().stream()
+                .filter(Objects::nonNull)
+                .map(r -> new Question.RowCompact(r.getLabel(), r.getCorrectIndex()))
+                .toList();
+
+        return new Question.TableChoiceQuestion(
+                request.getHeaders(),
+                rows,
+                request.getLevel(),
+                status,
+                isPublic
+        );
     }
 
     private Question.EssayQuestion buildEssayQuestionValue(QuestionCreateBase request,Status status, boolean isPublic) {
@@ -241,29 +261,6 @@ public class QuestionServiceImpl implements QuestionService {
         return type == QuestionType.ONE_CHOICE ||
                 type == QuestionType.MULTI_CHOICE ||
                 type == QuestionType.TRUE_FALSE;
-    }
-
-    //NOTE: Check for duplicate orderIndex
-    private void validateAnswerOrderIndex(List<AnswerCreateRequest> answers) {
-
-        List<Integer> orderIndices = answers.stream()
-                .map(AnswerCreateRequest::getOrderIndex)
-                .toList();
-
-        Map<Integer, Long> frequencyMap = orderIndices.stream()
-                .collect(Collectors.groupingBy(i -> i, Collectors.counting()));
-
-        if (frequencyMap.size() != orderIndices.size()) {
-            List<Integer> duplicates = frequencyMap.entrySet().stream()
-                    .filter(e -> e.getValue() > 1)
-                    .map(Map.Entry::getKey)
-                    .toList();
-
-            throw new ResponseException(
-                    BadRequestError.ANSWER_DUPLICATE_ORDER_INDEX,
-                    duplicates.toString()
-            );
-        }
     }
 
     private boolean isFilterEmpty(QuestionSearchRequest request) {
