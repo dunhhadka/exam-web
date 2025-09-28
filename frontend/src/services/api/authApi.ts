@@ -1,16 +1,28 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
-import { LoginRequest, LoginResponse } from '../../types/auth'
+import {
+  LoginResponse,
+  LoginTransformedRequest,
+  RegisterTransformedRequest,
+} from '../../types/auth'
+import { publicApi } from './baseApi'
 
-export const authApi = createApi({
-  reducerPath: 'authApi',
-  baseQuery: fetchBaseQuery({ baseUrl: '/api' }),
+export const authApi = publicApi.injectEndpoints({
   endpoints: (builder) => ({
-    login: builder.mutation<LoginResponse, LoginRequest>({
-      query: (request) => ({
-        url: '/login',
+    login: builder.mutation<LoginResponse, LoginTransformedRequest>({
+      query: (credentials) => ({
+        url: '/account/authenticate',
         method: 'POST',
-        body: request,
+        body: credentials,
+      }),
+    }),
+
+    register: builder.mutation<any, RegisterTransformedRequest>({
+      query: (userData) => ({
+        url: '/account/register',
+        method: 'POST',
+        body: userData,
       }),
     }),
   }),
 })
+
+export const { useLoginMutation, useRegisterMutation } = authApi

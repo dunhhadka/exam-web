@@ -6,11 +6,11 @@ import { Container, Form, StyledButton, Subtitle, Title } from './Register'
 import CustomInput from '../../components/common/FormInput'
 import { LockOutlined, MailOutlined } from '@ant-design/icons'
 import { useDispatch } from 'react-redux'
-import { login } from '../../store/slices/authSlice'
+import { useLoginMutation } from '../../services/api/authApi'
+import { setCredentials } from '../../store/slices/authSlice'
 
 const Login = () => {
   const dispatch = useDispatch()
-
   const {
     control,
     handleSubmit,
@@ -23,24 +23,23 @@ const Login = () => {
       password: '',
     },
   })
+  const [loginMutation] = useLoginMutation()
 
-  const onSubmit = async (data: LoginRequest) => {
+  const onSubmit = async (request: LoginRequest) => {
     try {
-      console.log('Login data:', data)
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-
+      const response = await loginMutation({
+        credential: request.email,
+        password: request.password,
+        rememberMe: true,
+      }).unwrap()
       dispatch(
-        login({
-          user: { email: data.email, id: '1', name: 'hadung' },
-          token: 'fake-token',
+        setCredentials({
+          accessToken: response.accessToken,
+          refreshToken: response.refreshToken,
         })
       )
-
-      alert('Đăng nhập thành công!')
     } catch (error) {
-      console.error('Login error:', error)
-      alert('Có lỗi xảy ra, vui lòng thử lại!')
+      throw error
     }
   }
 
