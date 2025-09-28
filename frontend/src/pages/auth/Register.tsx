@@ -6,6 +6,8 @@ import { registerSchema } from '../../validation/registerSchema'
 import { yupResolver } from '@hookform/resolvers/yup'
 import { UserOutlined, MailOutlined, LockOutlined } from '@ant-design/icons'
 import CustomInput from '../../components/common/FormInput'
+import { useRegisterMutation } from '../../services/api/authApi'
+import { useNavigate } from 'react-router-dom'
 
 // Styled Components
 export const Container = styled.div`
@@ -90,15 +92,22 @@ const Register = () => {
     },
   })
 
-  const onSubmit = async (data: RegisterRequest) => {
+  const navigate = useNavigate()
+  const [register] = useRegisterMutation()
+
+  const onSubmit = async (request: RegisterRequest) => {
     try {
-      console.log('Registration data:', data)
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-      alert('Đăng ký thành công!')
+      await register({
+        firstName: request.first_name,
+        lastName: request.last_name,
+        email: request.email,
+        password: request.password,
+        confirmPassword: request.confirm_password,
+        isTeacher: true,
+      })
+      navigate('/login')
     } catch (error) {
-      console.error('Registration error:', error)
-      alert('Có lỗi xảy ra, vui lòng thử lại!')
+      throw error
     }
   }
 
