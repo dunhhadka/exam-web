@@ -11,5 +11,5 @@ public class ExamFilterRequest extends PagingRequest{
     private Boolean me;
     private Level level;
     private Status status;
-    private Boolean isPublic;
+    private Boolean publicFlag;
 }

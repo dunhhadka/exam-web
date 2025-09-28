@@ -3,15 +3,20 @@ package com.datn.exam.model.dto.request;
 import com.datn.exam.support.enums.Level;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.*;
-import lombok.*;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 import java.math.BigDecimal;
 import java.util.List;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
-public class ExamCreateRequest extends Request{
+public class ExamUpdateRequest extends Request{
+
     @NotBlank(message = "EXAM_NAME_REQUIRED")
     private String name;
 
@@ -20,7 +25,7 @@ public class ExamCreateRequest extends Request{
 
     @NotEmpty(message = "EXAM_QUESTIONS_REQUIRED")
     @Valid
-    private List<QuestionRequest> questions;
+    private List<ExamCreateRequest.QuestionRequest> questions;
 
     private List<Long> idsTag;
 
@@ -29,18 +34,4 @@ public class ExamCreateRequest extends Request{
 
     @JsonProperty("isPublic")
     private boolean isPublic;
-
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @Builder
-    public static class QuestionRequest implements QuestionRequestInterface{
-        @NotNull(message = "EXAM_QUESTION_ID_REQUIRED")
-        private Long id;
-
-        @NotNull(message = "EXAM_QUESTION_POINT_REQUIRED")
-        private BigDecimal point;
-
-        private Integer orderIndex;
-    }
 }

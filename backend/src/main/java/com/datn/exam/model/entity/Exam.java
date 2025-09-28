@@ -4,8 +4,12 @@ import com.datn.exam.support.enums.Level;
 import com.datn.exam.support.enums.Status;
 import jakarta.persistence.*;
 import lombok.*;
+import org.apache.commons.collections4.CollectionUtils;
+import org.hibernate.annotations.Fetch;
+import org.hibernate.annotations.FetchMode;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -28,8 +32,17 @@ public class Exam extends AuditableEntity{
     @Enumerated(EnumType.STRING)
     private Level level;
 
-    @OneToMany(mappedBy = "exam", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "exam", fetch = FetchType.EAGER,cascade = CascadeType.ALL, orphanRemoval = true)
+    @Fetch(FetchMode.SUBSELECT)
     private List<ExamQuestion> examQuestions;
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "exam_tags",
+            joinColumns = @JoinColumn(name = "exam_id"),
+            inverseJoinColumns = @JoinColumn(name = "tag_id")
+    )
+    private List<Tag> tags;
 
     private BigDecimal score; //NOTE: total point
 
@@ -39,4 +52,32 @@ public class Exam extends AuditableEntity{
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
     private Status status;
+
+
+    public void setExamQuestions(List<ExamQuestion> newExamQuestion) {
+        if (this.examQuestions != null) {
+            this.examQuestions.forEach(eq -> eq.setExam(null));
+        }
+
+        this.examQuestions = newExamQuestion;
+
+        if (this.examQuestions != null) {
+            this.examQuestions.forEach(eq -> eq.setExam(this));
+        }
+    }
+
+    public void addExamQuestion(ExamQuestion examQuestion) {
+        if (this.examQuestions == null) {
+            this.examQuestions = new ArrayList<>();
+        }
+        this.examQuestions.add(examQuestion);
+        examQuestion.setExam(this);
+    }
+
+    public void removeExamQuestion(ExamQuestion examQuestion) {
+        if (this.examQuestions != null) {
+            this.examQuestions.remove(examQuestion);
+            examQuestion.setExam(null);
+        }
+    }
 }

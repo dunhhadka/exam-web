@@ -3,7 +3,6 @@ package com.datn.exam.repository.data.dto;
 import com.datn.exam.support.enums.Level;
 import com.datn.exam.support.enums.QuestionType;
 import com.datn.exam.support.enums.Status;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 

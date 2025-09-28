@@ -50,7 +50,8 @@ public enum BadRequestError implements ResponseError {
     EXAM_QUESTIONS_REQUIRED(400052, "Questions list must not be null or empty"),
     EXAM_QUESTION_ID_REQUIRED(400053, "Question id is required"),
     EXAM_QUESTION_POINT_REQUIRED(400054, "Question point is required"),
-    EXAM_MIN_SCORE(400055, "Exam score must be positive")
+    EXAM_MIN_SCORE(400055, "Exam score must be positive"),
+    TAG_NOT_FOUND(400060, "Question not found with ids: %s")
     ;
 
     private final int code;

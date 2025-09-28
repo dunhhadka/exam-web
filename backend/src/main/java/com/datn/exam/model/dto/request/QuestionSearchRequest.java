@@ -3,6 +3,7 @@ package com.datn.exam.model.dto.request;
 import com.datn.exam.support.enums.Level;
 import com.datn.exam.support.enums.QuestionType;
 import com.datn.exam.support.enums.Status;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -11,6 +12,7 @@ import lombok.EqualsAndHashCode;
 public class QuestionSearchRequest extends PagingRequest{
     private QuestionType type;
     private Level level;
+
     private Boolean publicFlag;
     private String tagName;
     private Status status;

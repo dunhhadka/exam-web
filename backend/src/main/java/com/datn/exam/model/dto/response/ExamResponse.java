@@ -8,6 +8,7 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 
 @Data
@@ -15,17 +16,21 @@ import java.util.List;
 @AllArgsConstructor
 public class ExamResponse {
     private long id;
-    private String title;
+    private String name;
     private Level level;
-    private List<ExamQuestion> examQuestion;
+    private List<ExamQuestionResponse> examQuestion;
     private BigDecimal score;
     private boolean isPublic;
     private Status status;
 
-    public static class ExamQuestion {
+    private Instant createdAt;
+    private String createdBy;
+    private Instant lastModifiedAt;
+
+    public static class ExamQuestionResponse {
         private long id;
         private String text;
-        private BigDecimal point; // current point
+        private BigDecimal point;
         private Level level;
         private List<TagResponse> tags;
         private QuestionType type;

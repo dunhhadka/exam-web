@@ -10,5 +10,5 @@ public interface QuestionDao {
 
     public List<QuestionDto> search(QuestionSearchRequest request);
 
-//    List<QuestionDto> findByIds(List<Long> ids);
+    List<QuestionDto> findByIds(List<Long> ids);
 }

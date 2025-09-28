@@ -49,7 +49,7 @@ public class Question extends AuditableEntity {
     @OrderBy("index ASC")
     private List<Answer> answers = new ArrayList<>();
 
-    @OneToMany(mappedBy = "question")
+    @OneToMany(mappedBy = "question", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ExamQuestion> examQuestions;
 
     @Version

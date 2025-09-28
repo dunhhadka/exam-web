@@ -17,9 +17,9 @@ public interface TagController {
     Response<TagResponse> create(@RequestBody @Valid TagRequest request);
 
     @DeleteMapping("/delete")
-    Response<Boolean> delete(@RequestBody IdsRequest request);
+    Response<Boolean> delete(IdsRequest request);
 
     @GetMapping("/search")
-    Response<List<TagResponse>> search(@RequestBody @Valid TagSearchRequest request);
+    Response<List<TagResponse>> search(@Valid TagSearchRequest request);
 
 }

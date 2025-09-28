@@ -80,21 +80,25 @@ public class JdbcQuestionDao implements QuestionDao{
         return list;
     }
 
-//    @Override
-//    public List<QuestionDto> findByIds(List<Long> ids) {
-//        String sql = """
-//                SELECT
-//                q.id,
-//                q.text,
-//                JSON_UNQUOTE(JSON_UNQUOTE(q.question_value, '$.type')) AS type,
-//                JSON_UNQUOTE(JSON_UNQUOTE(q.question_value, '$.level')) AS level,
-//                JSON_UNQUOTE(JSON_UNQUOTE(q.question_value, '$.status')) AS status
-//                JSON_UNQUOTE(JSON_UNQUOTE(q.question_value, '$.public_flag')) AS publicFlag
-//                FROM questions q
-//                WHERE q.id IN (:ids)
-//                """;
-//        return List.of();
-//    }
+    @Override
+    public List<QuestionDto> findByIds(List<Long> ids) {
+        String sql = """
+                SELECT
+                q.id,
+                q.text,
+                JSON_UNQUOTE(JSON_UNQUOTE(q.question_value, '$.type')) AS type,
+                JSON_UNQUOTE(JSON_UNQUOTE(q.question_value, '$.level')) AS level,
+                JSON_UNQUOTE(JSON_UNQUOTE(q.question_value, '$.status')) AS status
+                JSON_UNQUOTE(JSON_UNQUOTE(q.question_value, '$.public_flag')) AS publicFlag
+                FROM questions q
+                WHERE q.id IN (:ids)
+                """;
+
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        params.addValue("ids", ids);
+
+        return jdbcTemplate.query(sql, params, BeanPropertyRowMapper.newInstance(QuestionDto.class));
+    }
 
     private MapSqlParameterSource buildWhereConditions(QuestionSearchRequest request, StringBuilder whereFilter) {
         MapSqlParameterSource params = new MapSqlParameterSource();
