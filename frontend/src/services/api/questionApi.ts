@@ -3,6 +3,7 @@ import {
   QuestionFilterRequest,
   QuestionRequestSubmit,
 } from '../../types/question'
+import { parseParamToString } from '../../utils/parseParam'
 import { authenticatedApi } from './baseApi'
 
 export const questionApi = authenticatedApi.injectEndpoints({
@@ -16,15 +17,8 @@ export const questionApi = authenticatedApi.injectEndpoints({
     }),
     searchQuestion: builder.query<any, QuestionFilterRequest>({
       query: (request) => {
-        // Chỉ lấy những key có giá trị != null
-        const params = new URLSearchParams(
-          Object.entries(request as unknown as Record<string, any>)
-            .filter(([_, v]) => v != null)
-            .map(([k, v]) => [k, String(v)]) // ép tất cả về string
-        ).toString()
-
         return {
-          url: `/question/filter?${params}`,
+          url: `/question/filter?${parseParamToString(request)}`,
           method: 'GET',
         }
       },

@@ -11,32 +11,39 @@ import MainLayout from './components/layouts/MainLayout'
 import Home from './pages/home/Home'
 import { QuestionList } from './pages/question/QuestionList'
 import { QuestionCreatePage } from './pages/question/QuestionCreatePage'
+import { ExamListPage } from './pages/exams/ExamListPage'
+import { ExamCreatePage } from './pages/exams/ExamCreatePage'
+import { ToastProvider } from './ToastProvider'
 
 function App() {
   return (
-    <Provider store={store}>
-      <BrowserRouter>
-        <Routes>
-          <Route element={<PublicRoute />}>
-            <Route element={<AuthLayout />}>
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
+    <ToastProvider>
+      <Provider store={store}>
+        <BrowserRouter>
+          <Routes>
+            <Route element={<PublicRoute />}>
+              <Route element={<AuthLayout />}>
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+              </Route>
             </Route>
-          </Route>
-          <Route element={<ProtectedRoute />}>
-            <Route element={<MainLayout />}>
-              <Route path="/home" element={<Home />} />
-              <Route path="/questions" element={<QuestionList />} />
-              <Route
-                path="/questions/create"
-                element={<QuestionCreatePage />}
-              />
-              <Route path="/" element={<Navigate to="/home" replace />} />
+            <Route element={<ProtectedRoute />}>
+              <Route element={<MainLayout />}>
+                <Route path="/home" element={<Home />} />
+                <Route path="/questions" element={<QuestionList />} />
+                <Route path="/exams" element={<ExamListPage />} />
+                <Route
+                  path="/questions/create"
+                  element={<QuestionCreatePage />}
+                />
+                <Route path="/exams/create" element={<ExamCreatePage />} />
+                <Route path="/" element={<Navigate to="/home" replace />} />
+              </Route>
             </Route>
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </Provider>
+          </Routes>
+        </BrowserRouter>
+      </Provider>
+    </ToastProvider>
   )
 }
 

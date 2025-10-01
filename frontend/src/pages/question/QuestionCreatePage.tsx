@@ -30,7 +30,7 @@ import {
   UnorderedListOutlined,
   MoreOutlined,
 } from '@ant-design/icons'
-import { Button, Select, Tabs, InputNumber, Radio, Space } from 'antd'
+import { Button, Select, Tabs, InputNumber, Radio, Space, Input } from 'antd'
 import { ReactNode, useState, useRef } from 'react'
 import {
   DropDownFixedValues,
@@ -58,7 +58,7 @@ export const QuestionCreatePage = () => {
 
   const [requestInput, setRequestInput] = useState<QuestionRequestInput>({
     text: '',
-    point: 0,
+    point: null,
     level: Level.EASY,
     isPublic: false,
     tagIds: [],
@@ -68,8 +68,8 @@ export const QuestionCreatePage = () => {
 
   // question data
 
-  const handlePointsChange = (value: number | string | null) => {
-    if (value === null || value === '') {
+  const handlePointsChange = (value: number | null) => {
+    if (value === null) {
       setRequestInput({
         ...requestInput,
         point: 0,
@@ -77,7 +77,7 @@ export const QuestionCreatePage = () => {
     } else {
       setRequestInput({
         ...requestInput,
-        point: typeof value === 'string' ? parseFloat(value) : value,
+        point: value,
       })
     }
   }
@@ -417,9 +417,9 @@ export const QuestionCreatePage = () => {
           <PointsLabel>
             Điểm: <RequiredStar>*</RequiredStar>
           </PointsLabel>
-          <PointsInput
+          <InputNumber
             placeholder="Nhập điểm"
-            value={requestInput.point ?? 0}
+            value={requestInput.point}
             onChange={handlePointsChange}
             min={0}
             max={100}
@@ -642,35 +642,29 @@ const EditorFooter = styled.div`
   color: #666;
 `
 
-const PointsSection = styled.div`
+export const PointsSection = styled.div`
   display: flex;
   align-items: center;
   gap: 12px;
 `
 
-const PointsLabel = styled.label`
+export const PointsLabel = styled.label`
   font-size: 16px;
   color: #333;
 `
 
-const RequiredStar = styled.span`
+export const RequiredStar = styled.span`
   color: #ff4d4f;
   margin-left: 2px;
 `
 
-const PointsInput = styled(InputNumber)`
-  .ant-input-number-input {
-    text-align: left;
-  }
-`
-
-const PublishStatusSection = styled.div`
+export const PublishStatusSection = styled.div`
   display: flex;
   flex-direction: row;
   gap: 12px;
 `
 
-const PublishStatusLabel = styled.label`
+export const PublishStatusLabel = styled.label`
   font-size: 16px;
   color: #333;
   font-weight: 600;

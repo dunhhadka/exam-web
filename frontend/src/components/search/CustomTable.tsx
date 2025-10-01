@@ -1,6 +1,7 @@
 import styled from '@emotion/styled'
 import { Button, Flex } from 'antd'
 import Table, { ColumnType, TableProps } from 'antd/es/table'
+import { TableRowSelection } from 'antd/es/table/interface'
 import React from 'react'
 
 interface SearchApiConfig<T> {}
@@ -34,6 +35,7 @@ interface Props<T = any>
     total: number
     onChange: (page: number, pageSize: number) => void
   }
+  rowSelection?: TableRowSelection<T>
 }
 
 export const CustomTable = <T extends Record<string, any>>({
@@ -52,6 +54,7 @@ export const CustomTable = <T extends Record<string, any>>({
   pagination,
   tableTitle,
   actions,
+  rowSelection,
   ...restProps
 }: Props<T>) => {
   return (
@@ -86,6 +89,7 @@ export const CustomTable = <T extends Record<string, any>>({
         size={size}
         locale={{ emptyText }}
         pagination={pagination}
+        rowSelection={rowSelection}
         scroll={{
           x: 'max-content',
           y: maxHeight || undefined,

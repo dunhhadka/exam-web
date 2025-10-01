@@ -35,7 +35,7 @@ export interface QuestionFilterRequest extends PagingRequest {}
 
 export interface BaseQuestionRequest {
   text: string
-  point?: number
+  point?: number | null
   level?: Level
   isPublic?: boolean
   tagIds?: number[]

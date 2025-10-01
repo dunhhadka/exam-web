@@ -172,7 +172,7 @@ export const QuestionList = () => {
   )
 }
 
-const Truncate3Lines = styled.div`
+export const Truncate3Lines = styled.div`
   display: -webkit-box;
   -webkit-line-clamp: 3; /* số dòng tối đa */
   -webkit-box-orient: vertical;
