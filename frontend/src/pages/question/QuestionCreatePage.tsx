@@ -1,44 +1,45 @@
+import {
+  AlignCenterOutlined,
+  AlignLeftOutlined,
+  AlignRightOutlined,
+  BoldOutlined,
+  EditOutlined,
+  EyeOutlined,
+  HistoryOutlined,
+  ItalicOutlined,
+  LeftOutlined,
+  MoreOutlined,
+  OrderedListOutlined,
+  PictureOutlined,
+  PlayCircleOutlined,
+  PlusOutlined,
+  RedoOutlined,
+  SearchOutlined,
+  SoundOutlined,
+  StrikethroughOutlined,
+  UnderlineOutlined,
+  UndoOutlined,
+  UnorderedListOutlined,
+} from '@ant-design/icons'
+import styled from '@emotion/styled'
+import { Button, InputNumber, Radio, Select, Space, Tabs } from 'antd'
+import { ReactNode, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import {
+  DropDownFixedValues,
+  DropOptionItem,
+} from '../../components/common/DropDownFixedValues'
+import { TagSelection } from '../../components/common/TagSelection'
+import { useSubmitQuestion } from '../../hooks/useSubmitQuestion'
 import {
   Level,
   LevelLabel,
   QuestionRequestInput,
   QuestionType,
   QuestionTypeLabel,
+  Tag,
 } from '../../types/question'
-import styled from '@emotion/styled'
-import {
-  LeftOutlined,
-  HistoryOutlined,
-  EditOutlined,
-  EyeOutlined,
-  BoldOutlined,
-  ItalicOutlined,
-  UnderlineOutlined,
-  StrikethroughOutlined,
-  UndoOutlined,
-  RedoOutlined,
-  SearchOutlined,
-  PictureOutlined,
-  PlayCircleOutlined,
-  SoundOutlined,
-  PlusOutlined,
-  AlignLeftOutlined,
-  AlignCenterOutlined,
-  AlignRightOutlined,
-  OrderedListOutlined,
-  UnorderedListOutlined,
-  MoreOutlined,
-} from '@ant-design/icons'
-import { Button, Select, Tabs, InputNumber, Radio, Space, Input } from 'antd'
-import { ReactNode, useState, useRef } from 'react'
-import {
-  DropDownFixedValues,
-  DropOptionItem,
-} from '../../components/common/DropDownFixedValues'
-import { TagSelect } from '../../components/common/TagSelector'
 import { QuestionFactory } from './QuestionTypeFactory'
-import { useSubmitQuestion } from '../../hooks/useSubmitQuestion'
 
 interface ActionItem {
   title: string
@@ -243,17 +244,18 @@ export const QuestionCreatePage = () => {
           <DropDownFixedValues
             options={Object.entries(Level).map(
               (value) =>
-                ({
-                  value: value[0],
-                  label: LevelLabel[value[1]],
-                } as DropOptionItem)
+              ({
+                value: value[0],
+                label: LevelLabel[value[1]],
+              } as DropOptionItem)
             )}
             placeholder="Chọn cấp độ"
             title="Cấp độ"
             required
             onChange={handleSelectLevel}
           />
-          <TagSelect />
+          <TagSelection 
+          onSelect={(tags) => console.log(tags)} />
         </FormSection>
 
         <QuestionSection>
