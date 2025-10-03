@@ -31,7 +31,15 @@ export interface PagingRequest {
   sortOrder?: "ASC" | "DESC";
 }
 
-export interface QuestionFilterRequest extends PagingRequest {}
+export interface QuestionFilterRequest extends PagingRequest {
+  key?: string;
+  createdBy?: "me" | "all";
+  type?: QuestionType;
+  level?: Level;
+  isPublic?: boolean;
+  status?: Status;
+  tagIds?: number[];
+}
 
 export interface BaseQuestionRequest {
   text: string;

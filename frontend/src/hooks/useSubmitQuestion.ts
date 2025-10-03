@@ -7,6 +7,7 @@ import {
 } from '../types/question'
 import { TrueFalseData } from '../pages/question/TrueFalse'
 import { OneChoiceData } from '../pages/question/OneChoice'
+import { useToast } from './useToast'
 import { MultiChoiceData } from '../pages/question/MultiChoice'
 
 // Type definitions for better clarity
@@ -103,6 +104,7 @@ const parseToRequest = (
 export const useSubmitQuestion = (): SubmitResult => {
   const [submitPublish, { isLoading: isSubmitting }] =
     useSubmitPublishMutation()
+  const toast = useToast();
 
   const submitQuestion = async (
     type: QuestionType,
@@ -115,6 +117,7 @@ export const useSubmitQuestion = (): SubmitResult => {
 
     try {
       await submitPublish(request).unwrap()
+      toast.success('Xuất bản câu hỏi thành công')
     } catch (error) {
       console.error('Failed to submit question:', error)
       throw error

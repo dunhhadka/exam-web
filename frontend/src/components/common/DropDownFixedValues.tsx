@@ -1,23 +1,24 @@
-import React, { CSSProperties } from 'react'
-import { Select } from 'antd'
-import styled from '@emotion/styled'
-import type { SelectProps } from 'antd' // Import Ant Design types
+import React, { CSSProperties } from "react";
+import { Select } from "antd";
+import styled from "@emotion/styled";
+import type { SelectProps } from "antd";
 
 export interface DropOptionItem {
-  value: string | number
-  label: string
+  value: string | number;
+  label: string;
 }
 
 interface Props {
-  title?: string // Title to display on the left
-  required?: boolean // New prop for required indicator
-  options: DropOptionItem[] // Array of fixed values
-  value?: string | number // Selected value
-  onChange?: (value: string | number) => void // Explicitly define onChange
-  placeholder?: string // Placeholder text
-  disabled?: boolean // Disable the dropdown
-  style?: CSSProperties // Custom styles
-  className?: string // Custom class for additional styling
+  title?: string;
+  required?: boolean;
+  options: DropOptionItem[];
+  value?: string | number;
+  onChange?: (value: string | number) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  style?: CSSProperties;
+  className?: string;
+  isRow?: boolean;
 }
 
 export const DropDownFixedValues = ({
@@ -26,13 +27,14 @@ export const DropDownFixedValues = ({
   options,
   value,
   onChange,
-  placeholder = 'Chọn một giá trị',
+  placeholder = "Chọn một giá trị",
   disabled = false,
   style,
   className,
+  isRow = true,
 }: Props) => {
   return (
-    <Container>
+    <Container isRow={isRow}>
       {title && (
         <Label>
           {title}
@@ -47,32 +49,36 @@ export const DropDownFixedValues = ({
         style={style}
         className={className}
         options={options}
-        aria-label={title || placeholder} // Use title for accessibility if provided
-        aria-required={required} // Accessibility for required field
+        aria-label={title || placeholder}
+        aria-required={required}
       />
     </Container>
-  )
-}
+  );
+};
 
-const Container = styled.div`
+const Container = styled.div<{ isRow?: boolean }>`
   display: flex;
-  align-items: center;
-  gap: 12px; // Space between label and dropdown
-`
+  align-items: ${({ isRow }) => (isRow ? "center" : "flex-start")};
+  gap: 12px;
+  flex: 1;
+  flex-direction: ${({ isRow }) => (isRow ? "row" : "column")};
+`;
 
 const Label = styled.label`
   font-size: 14px;
   font-weight: 500;
   color: #333;
-`
+  white-space: nowrap;
+`;
 
 const RequiredMark = styled.span`
-  color: #ff4d4f; // Red color for required indicator
+  color: #ff4d4f;
   margin-left: 4px;
-`
+`;
 
 const StyledSelect = styled(Select<string | number>)`
-  width: 200px;
+  flex: 1;
+  
   .ant-select-selector {
     border-radius: 6px !important;
     font-size: 14px;
@@ -88,4 +94,4 @@ const StyledSelect = styled(Select<string | number>)`
     background: #f5f5f5;
     color: #888;
   }
-`
+`;

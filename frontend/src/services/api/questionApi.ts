@@ -17,6 +17,7 @@ export const questionApi = authenticatedApi.injectEndpoints({
         method: "POST",
         body: request,
       }),
+      invalidatesTags: [{ type: "Question", id: "LIST" }],
     }),
     searchQuestion: builder.query<any, QuestionFilterRequest>({
       query: (request) => {
@@ -24,6 +25,17 @@ export const questionApi = authenticatedApi.injectEndpoints({
           url: `/question/filter?${parseParamToString(request)}`,
           method: "GET",
         };
+      },
+      providesTags: (result, error, arg, meta) => {
+        return !result?.data
+          ? [{ type: "Question", id: "LIST" }]
+          : [
+              ...result?.data.map((item: Question) => ({
+                type: "Question",
+                id: item.id,
+              })),
+              { type: "Question", id: "LIST" },
+            ];
       },
     }),
     searchTags: builder.query<any, TagSearchRequest>({
@@ -35,7 +47,10 @@ export const questionApi = authenticatedApi.injectEndpoints({
         return !result?.data
           ? [{ type: "Tag", id: "LIST" }]
           : [
-              ...result?.data.map((item: Tag) => ({ type: "Tag", id: item.id })),
+              ...result?.data.map((item: Tag) => ({
+                type: "Tag",
+                id: item.id,
+              })),
               { type: "Tag", id: "LIST" },
             ];
       },
@@ -55,5 +70,5 @@ export const {
   useSubmitPublishMutation,
   useSearchQuestionQuery,
   useSearchTagsQuery,
-  useCreateTagMutation
+  useCreateTagMutation,
 } = questionApi;

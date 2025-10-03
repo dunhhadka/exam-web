@@ -20,17 +20,17 @@ import {
   UnderlineOutlined,
   UndoOutlined,
   UnorderedListOutlined,
-} from '@ant-design/icons'
-import styled from '@emotion/styled'
-import { Button, InputNumber, Radio, Select, Space, Tabs } from 'antd'
-import { ReactNode, useRef, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+} from "@ant-design/icons";
+import styled from "@emotion/styled";
+import { Button, InputNumber, Modal, Radio, Select, Space, Tabs } from "antd";
+import { ReactNode, useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   DropDownFixedValues,
   DropOptionItem,
-} from '../../components/common/DropDownFixedValues'
-import { TagSelection } from '../../components/common/TagSelection'
-import { useSubmitQuestion } from '../../hooks/useSubmitQuestion'
+} from "../../components/common/DropDownFixedValues";
+import { TagSelection } from "../../components/common/TagSelection";
+import { useSubmitQuestion } from "../../hooks/useSubmitQuestion";
 import {
   Level,
   LevelLabel,
@@ -38,34 +38,41 @@ import {
   QuestionType,
   QuestionTypeLabel,
   Tag,
-} from '../../types/question'
-import { QuestionFactory } from './QuestionTypeFactory'
+} from "../../types/question";
+import { QuestionFactory } from "./QuestionTypeFactory";
+import { QuestionPreviewFactory } from "./QuestionPreviewFactory";
+import { useToast } from "../../hooks/useToast";
 
 interface ActionItem {
-  title: string
-  icon: ReactNode
-  onAction: () => void
-  ariaLabel?: string
+  title: string;
+  icon: ReactNode;
+  onAction: () => void;
+  ariaLabel?: string;
 }
 
 export const QuestionCreatePage = () => {
-  const location = useLocation()
-  const navigate = useNavigate()
-  const { type } = location.state as { type: QuestionType }
-  const editorRef = useRef<HTMLDivElement>(null)
-  const [editorContent, setEditorContent] = useState('')
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { type } = location.state as { type: QuestionType };
+  const editorRef = useRef<HTMLDivElement>(null);
+  const [editorContent, setEditorContent] = useState("");
+  const [tags, setTags] = useState<Tag[]>([]);
 
-  const { isSubmitting, submitQuestion } = useSubmitQuestion()
+  const [openPreview, setOpenPreview] = useState(false);
+
+  const { isSubmitting, submitQuestion } = useSubmitQuestion();
+
+  const toast = useToast();
 
   const [requestInput, setRequestInput] = useState<QuestionRequestInput>({
-    text: '',
+    text: "",
     point: null,
     level: Level.EASY,
     isPublic: false,
     tagIds: [],
     type: type,
     data: null,
-  })
+  });
 
   // question data
 
@@ -74,147 +81,159 @@ export const QuestionCreatePage = () => {
       setRequestInput({
         ...requestInput,
         point: 0,
-      })
+      });
     } else {
       setRequestInput({
         ...requestInput,
         point: value,
-      })
+      });
     }
-  }
+  };
 
   const handlePublishStatusChange = (e: any) => {
-    console.log(e.target.value)
     setRequestInput({
       ...requestInput,
-      isPublic: e.target.value === 'private' ? false : true,
-    })
-  }
+      isPublic: e.target.value === "private" ? false : true,
+    });
+  };
 
   const handleCancel = () => {
-    navigate(-1)
-  }
+    navigate(-1);
+  };
 
   const handleSaveDraft = () => {
-    console.log('Save draft')
+    console.log("Save draft");
     // Logic save draft
-  }
+  };
 
   const handlePublish = () => {
-    console.log(requestInput)
-    submitQuestion(type, requestInput)
+    console.log(requestInput);
+    submitQuestion(type, requestInput);
 
-    navigate('/questions')
+    navigate("/questions");
     // Logic publish
-  }
+  };
+
+  const handlePreview = () => {
+    if (!requestInput.data || !requestInput.text) {
+      toast.error("Vui lòng hoàn thành dữ liệu câu hỏi để xem trước");
+      return;
+    }
+    setOpenPreview(true);
+  };
 
   const actions: ActionItem[] = [
     {
       icon: <HistoryOutlined />,
-      title: 'Lịch sử',
+      title: "Lịch sử",
       onAction: () => {
-        console.log('View history')
+        console.log("View history");
       },
-      ariaLabel: 'Xem lịch sử',
+      ariaLabel: "Xem lịch sử",
     },
     {
       icon: <EditOutlined />,
-      title: 'Chỉnh sửa',
+      title: "Chỉnh sửa",
       onAction: () => {
-        console.log('Edit question')
+        console.log("Edit question");
       },
-      ariaLabel: 'Chỉnh sửa câu hỏi',
+      ariaLabel: "Chỉnh sửa câu hỏi",
     },
     {
       icon: <EyeOutlined />,
-      title: 'Xem trước',
-      onAction: () => {
-        console.log('Preview question')
-      },
-      ariaLabel: 'Xem trước câu hỏi',
+      title: "Xem trước",
+      onAction: handlePreview,
+      ariaLabel: "Xem trước câu hỏi",
     },
-  ]
+  ];
 
   const handleSelectLevel = (level: string | number) => {
-    const levelKey = level as keyof typeof Level
-    const levelValue = Level[levelKey]
+    const levelKey = level as keyof typeof Level;
+    const levelValue = Level[levelKey];
     setRequestInput({
       ...requestInput,
       level: levelValue,
-    })
-  }
+    });
+  };
 
   const executeCommand = (command: string, value?: string) => {
-    document.execCommand(command, false, value)
+    document.execCommand(command, false, value);
     if (editorRef.current) {
-      setEditorContent(editorRef.current.innerHTML)
+      setEditorContent(editorRef.current.innerHTML);
     }
-  }
+  };
 
-  const insertMedia = (type: 'image' | 'video' | 'audio') => {
-    const input = document.createElement('input')
-    input.type = 'file'
+  const insertMedia = (type: "image" | "video" | "audio") => {
+    const input = document.createElement("input");
+    input.type = "file";
     input.accept =
-      type === 'image' ? 'image/*' : type === 'video' ? 'video/*' : 'audio/*'
+      type === "image" ? "image/*" : type === "video" ? "video/*" : "audio/*";
     input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0]
+      const file = (e.target as HTMLInputElement).files?.[0];
       if (file) {
-        const reader = new FileReader()
+        const reader = new FileReader();
         reader.onload = (e) => {
-          const result = e.target?.result as string
-          if (type === 'image') {
+          const result = e.target?.result as string;
+          if (type === "image") {
             executeCommand(
-              'insertHTML',
+              "insertHTML",
               `<img src="${result}" alt="Uploaded image" style="max-width: 100%; height: auto;" />`
-            )
-          } else if (type === 'video') {
+            );
+          } else if (type === "video") {
             executeCommand(
-              'insertHTML',
+              "insertHTML",
               `<video controls style="max-width: 100%;"><source src="${result}" /></video>`
-            )
+            );
           } else {
             executeCommand(
-              'insertHTML',
+              "insertHTML",
               `<audio controls><source src="${result}" /></audio>`
-            )
+            );
           }
-        }
-        reader.readAsDataURL(file)
+        };
+        reader.readAsDataURL(file);
       }
-    }
-    input.click()
-  }
+    };
+    input.click();
+  };
 
   const tabItems = [
     {
-      key: 'edit',
-      label: 'Sửa',
+      key: "edit",
+      label: "Sửa",
     },
     {
-      key: 'preview',
-      label: 'Chèn',
+      key: "preview",
+      label: "Chèn",
     },
     {
-      key: 'view',
-      label: 'Xem',
+      key: "view",
+      label: "Xem",
     },
     {
-      key: 'format',
-      label: 'Định dạng',
+      key: "format",
+      label: "Định dạng",
     },
     {
-      key: 'table',
-      label: 'Bảng',
+      key: "table",
+      label: "Bảng",
     },
     {
-      key: 'tools',
-      label: 'Công cụ',
+      key: "tools",
+      label: "Công cụ",
     },
     {
-      key: 'help',
-      label: 'Trợ giúp',
+      key: "help",
+      label: "Trợ giúp",
     },
-  ]
+  ];
+
+  useEffect(() => {
+    setRequestInput({
+      ...requestInput,
+      tagIds: tags.map((tag) => tag.id),
+    });
+  }, [tags]);
 
   return (
     <Container>
@@ -244,18 +263,18 @@ export const QuestionCreatePage = () => {
           <DropDownFixedValues
             options={Object.entries(Level).map(
               (value) =>
-              ({
-                value: value[0],
-                label: LevelLabel[value[1]],
-              } as DropOptionItem)
+                ({
+                  value: value[0],
+                  label: LevelLabel[value[1]],
+                } as DropOptionItem)
             )}
             placeholder="Chọn cấp độ"
             title="Cấp độ"
             required
             onChange={handleSelectLevel}
+            style={{ flex: 1 }}
           />
-          <TagSelection 
-          onSelect={(tags) => console.log(tags)} />
+          <TagSelection tags={tags} onSelect={setTags} />
         </FormSection>
 
         <QuestionSection>
@@ -274,10 +293,10 @@ export const QuestionCreatePage = () => {
 
             <Toolbar>
               <ToolbarGroup>
-                <ToolButton onClick={() => executeCommand('undo')}>
+                <ToolButton onClick={() => executeCommand("undo")}>
                   <UndoOutlined />
                 </ToolButton>
-                <ToolButton onClick={() => executeCommand('redo')}>
+                <ToolButton onClick={() => executeCommand("redo")}>
                   <RedoOutlined />
                 </ToolButton>
                 <ToolButton>
@@ -288,17 +307,17 @@ export const QuestionCreatePage = () => {
               <Separator />
 
               <ToolbarGroup>
-                <ToolButton onClick={() => insertMedia('image')}>
+                <ToolButton onClick={() => insertMedia("image")}>
                   <PictureOutlined />
                 </ToolButton>
-                <ToolButton onClick={() => insertMedia('video')}>
+                <ToolButton onClick={() => insertMedia("video")}>
                   <PlayCircleOutlined />
                 </ToolButton>
-                <ToolButton onClick={() => insertMedia('audio')}>
+                <ToolButton onClick={() => insertMedia("audio")}>
                   <SoundOutlined />
                 </ToolButton>
                 <ToolButton
-                  onClick={() => executeCommand('insertHTML', '<br>')}
+                  onClick={() => executeCommand("insertHTML", "<br>")}
                 >
                   <PlusOutlined />
                 </ToolButton>
@@ -307,16 +326,16 @@ export const QuestionCreatePage = () => {
               <Separator />
 
               <ToolbarGroup>
-                <ToolButton onClick={() => executeCommand('bold')}>
+                <ToolButton onClick={() => executeCommand("bold")}>
                   <BoldOutlined />
                 </ToolButton>
-                <ToolButton onClick={() => executeCommand('italic')}>
+                <ToolButton onClick={() => executeCommand("italic")}>
                   <ItalicOutlined />
                 </ToolButton>
-                <ToolButton onClick={() => executeCommand('underline')}>
+                <ToolButton onClick={() => executeCommand("underline")}>
                   <UnderlineOutlined />
                 </ToolButton>
-                <ToolButton onClick={() => executeCommand('strikethrough')}>
+                <ToolButton onClick={() => executeCommand("strikethrough")}>
                   <StrikethroughOutlined />
                 </ToolButton>
               </ToolbarGroup>
@@ -327,11 +346,11 @@ export const QuestionCreatePage = () => {
                   size="small"
                   style={{ width: 100 }}
                   options={[
-                    { value: 'Mulish', label: 'Mulish' },
-                    { value: 'Arial', label: 'Arial' },
-                    { value: 'Times', label: 'Times' },
+                    { value: "Mulish", label: "Mulish" },
+                    { value: "Arial", label: "Arial" },
+                    { value: "Times", label: "Times" },
                   ]}
-                  onChange={(value) => executeCommand('fontName', value)}
+                  onChange={(value) => executeCommand("fontName", value)}
                 />
               </ToolbarGroup>
 
@@ -341,14 +360,14 @@ export const QuestionCreatePage = () => {
                   size="small"
                   style={{ width: 60 }}
                   options={[
-                    { value: '8pt', label: '8pt' },
-                    { value: '10pt', label: '10pt' },
-                    { value: '12pt', label: '12pt' },
-                    { value: '14pt', label: '14pt' },
-                    { value: '16pt', label: '16pt' },
-                    { value: '18pt', label: '18pt' },
+                    { value: "8pt", label: "8pt" },
+                    { value: "10pt", label: "10pt" },
+                    { value: "12pt", label: "12pt" },
+                    { value: "14pt", label: "14pt" },
+                    { value: "16pt", label: "16pt" },
+                    { value: "18pt", label: "18pt" },
                   ]}
-                  onChange={(value) => executeCommand('fontSize', value)}
+                  onChange={(value) => executeCommand("fontSize", value)}
                 />
               </ToolbarGroup>
 
@@ -358,36 +377,36 @@ export const QuestionCreatePage = () => {
                   size="small"
                   style={{ width: 100 }}
                   options={[
-                    { value: 'p', label: 'Đoạn văn' },
-                    { value: 'h1', label: 'Tiêu đề 1' },
-                    { value: 'h2', label: 'Tiêu đề 2' },
-                    { value: 'h3', label: 'Tiêu đề 3' },
+                    { value: "p", label: "Đoạn văn" },
+                    { value: "h1", label: "Tiêu đề 1" },
+                    { value: "h2", label: "Tiêu đề 2" },
+                    { value: "h3", label: "Tiêu đề 3" },
                   ]}
-                  onChange={(value) => executeCommand('formatBlock', value)}
+                  onChange={(value) => executeCommand("formatBlock", value)}
                 />
               </ToolbarGroup>
 
               <Separator />
 
               <ToolbarGroup>
-                <ToolButton onClick={() => executeCommand('justifyLeft')}>
+                <ToolButton onClick={() => executeCommand("justifyLeft")}>
                   <AlignLeftOutlined />
                 </ToolButton>
-                <ToolButton onClick={() => executeCommand('justifyCenter')}>
+                <ToolButton onClick={() => executeCommand("justifyCenter")}>
                   <AlignCenterOutlined />
                 </ToolButton>
-                <ToolButton onClick={() => executeCommand('justifyRight')}>
+                <ToolButton onClick={() => executeCommand("justifyRight")}>
                   <AlignRightOutlined />
                 </ToolButton>
               </ToolbarGroup>
 
               <ToolbarGroup>
                 <ToolButton
-                  onClick={() => executeCommand('insertUnorderedList')}
+                  onClick={() => executeCommand("insertUnorderedList")}
                 >
                   <UnorderedListOutlined />
                 </ToolButton>
-                <ToolButton onClick={() => executeCommand('insertOrderedList')}>
+                <ToolButton onClick={() => executeCommand("insertOrderedList")}>
                   <OrderedListOutlined />
                 </ToolButton>
               </ToolbarGroup>
@@ -435,7 +454,7 @@ export const QuestionCreatePage = () => {
             setRequestInput({
               ...requestInput,
               data: data,
-            })
+            });
           }}
         />
 
@@ -444,7 +463,7 @@ export const QuestionCreatePage = () => {
             Trạng thái xuất bản: <RequiredStar>*</RequiredStar>
           </PublishStatusLabel>
           <Radio.Group
-            value={requestInput.isPublic ? 'public' : 'private'}
+            value={requestInput.isPublic ? "public" : "private"}
             onChange={handlePublishStatusChange}
           >
             <Space direction="horizontal">
@@ -466,16 +485,34 @@ export const QuestionCreatePage = () => {
           </Space>
         </ActionButtonsSection>
       </ContentLayout>
+
+      {openPreview && (
+        <Modal
+          title="Xem trước hiển thị câu hỏi"
+          open={openPreview}
+          width={"60%"}
+          onCancel={() => setOpenPreview(false)}
+          footer={null}
+        >
+          <div style={{ marginTop: 20 }}>
+            <QuestionPreviewFactory
+              type={type}
+              data={requestInput.data}
+              text={requestInput.text}
+            />
+          </div>
+        </Modal>
+      )}
     </Container>
-  )
-}
+  );
+};
 
 const Container = styled.div`
   width: 100%;
   display: flex;
   flex-direction: column;
   height: 100vh;
-`
+`;
 
 const HeaderAction = styled.div`
   display: flex;
@@ -484,7 +521,7 @@ const HeaderAction = styled.div`
   padding: 12px 20px;
   border-bottom: 1px solid #eee;
   background: #fff;
-`
+`;
 
 const BackAction = styled.div`
   display: flex;
@@ -497,13 +534,13 @@ const BackAction = styled.div`
   &:hover {
     color: #1677ff;
   }
-`
+`;
 
 const ActionGroup = styled.div`
   display: flex;
   align-items: center;
   gap: 12px;
-`
+`;
 
 const ActionButton = styled(Button)`
   display: flex;
@@ -521,7 +558,7 @@ const ActionButton = styled(Button)`
   .anticon {
     margin-right: 6px;
   }
-`
+`;
 
 const ContentLayout = styled.div`
   flex: 1;
@@ -530,32 +567,34 @@ const ContentLayout = styled.div`
   flex-direction: column;
   gap: 20px;
   overflow-y: auto;
-`
+`;
 
 const FormSection = styled.div`
   display: flex;
   gap: 20px;
   flex-wrap: wrap;
-`
+  flex-direction: row;
+  justify-content: space-between;
+`;
 
 const QuestionSection = styled.div`
   display: flex;
   flex-direction: column;
   gap: 8px;
-`
+`;
 
 const QuestionLabel = styled.label`
   font-size: 16px;
   font-weight: 600;
   color: #333;
-`
+`;
 
 const EditorContainer = styled.div`
   border: 1px solid #d9d9d9;
   border-radius: 6px;
   background: #fff;
   padding: 10px;
-`
+`;
 
 const EditorTabs = styled.div`
   border-bottom: 1px solid #d9d9d9;
@@ -564,7 +603,7 @@ const EditorTabs = styled.div`
     padding: 8px 16px;
     font-size: 14px;
   }
-`
+`;
 
 const Toolbar = styled.div`
   display: flex;
@@ -574,13 +613,13 @@ const Toolbar = styled.div`
   background: #fafafa;
   gap: 8px;
   flex-wrap: wrap;
-`
+`;
 
 const ToolbarGroup = styled.div`
   display: flex;
   align-items: center;
   gap: 4px;
-`
+`;
 
 const ToolButton = styled.button`
   display: flex;
@@ -603,14 +642,14 @@ const ToolButton = styled.button`
   &:active {
     background: #bae7ff;
   }
-`
+`;
 
 const Separator = styled.div`
   width: 1px;
   height: 20px;
   background: #d9d9d9;
   margin: 0 4px;
-`
+`;
 
 const EditorContent = styled.div`
   min-height: 200px;
@@ -620,7 +659,7 @@ const EditorContent = styled.div`
   color: #333;
 
   &:empty:before {
-    content: 'Nhập nội dung câu hỏi...';
+    content: "Nhập nội dung câu hỏi...";
     color: #bfbfbf;
   }
 
@@ -632,7 +671,7 @@ const EditorContent = styled.div`
     display: block;
     margin: 8px 0;
   }
-`
+`;
 
 const EditorFooter = styled.div`
   display: flex;
@@ -642,35 +681,35 @@ const EditorFooter = styled.div`
   background: #fafafa;
   font-size: 12px;
   color: #666;
-`
+`;
 
 export const PointsSection = styled.div`
   display: flex;
   align-items: center;
   gap: 12px;
-`
+`;
 
 export const PointsLabel = styled.label`
   font-size: 16px;
   color: #333;
-`
+`;
 
 export const RequiredStar = styled.span`
   color: #ff4d4f;
   margin-left: 2px;
-`
+`;
 
 export const PublishStatusSection = styled.div`
   display: flex;
   flex-direction: row;
   gap: 12px;
-`
+`;
 
 export const PublishStatusLabel = styled.label`
   font-size: 16px;
   color: #333;
   font-weight: 600;
-`
+`;
 
 const ActionButtonsSection = styled.div`
   display: flex;
@@ -678,16 +717,16 @@ const ActionButtonsSection = styled.div`
   padding: 20px 0;
   border-top: 1px solid #f0f0f0;
   margin-top: 20px;
-`
+`;
 
 const CancelButton = styled(Button)`
   min-width: 100px;
-`
+`;
 
 const SaveDraftButton = styled(Button)`
   min-width: 120px;
-`
+`;
 
 const PublishButton = styled(Button)`
   min-width: 100px;
-`
+`;
