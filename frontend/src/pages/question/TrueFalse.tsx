@@ -31,16 +31,13 @@ export const TrueFalse = ({ questionData, onChange, isPreview }: Props) => {
     if (questionData && questionData.correctAnswer !== data.correctAnswer) {
       setData(questionData)
     }
-  }, [questionData?.correctAnswer]) // Chỉ depend vào correctAnswer
-
-  // Notify parent khi data thay đổi
-  useEffect(() => {
-    handleDataChange(data)
-  }, [data, handleDataChange])
+  }, [data.correctAnswer, questionData]) // Chỉ depend vào correctAnswer
 
   const handleAnswerChange = (value: boolean) => {
     const newData = { correctAnswer: value }
     setData(newData)
+
+    handleDataChange(newData)
   }
 
   if (isPreview) {
@@ -68,8 +65,10 @@ export const TrueFalse = ({ questionData, onChange, isPreview }: Props) => {
   return (
     <Container>
       <SectionHeader>
-        <SectionTitle>Đáp án đúng</SectionTitle>
-        <Description>Chọn đáp án chính xác cho câu hỏi này</Description>
+        <div>
+          <SectionTitle>Đáp án đúng</SectionTitle>
+          <Description>Chọn đáp án chính xác cho câu hỏi này</Description>
+        </div>
       </SectionHeader>
 
       <OptionsContainer>
@@ -130,7 +129,7 @@ export const validateTrueFalseData = (data: TrueFalseData) => {
 }
 
 // Styled components
-const Container = styled.div`
+export const Container = styled.div`
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -140,30 +139,31 @@ const Container = styled.div`
   border: 1px solid #f0f0f0;
 `
 
-const SectionHeader = styled.div`
+export const SectionHeader = styled.div`
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: 4px;
+  justify-content: space-between;
 `
 
-const SectionTitle = styled.h3`
+export const SectionTitle = styled.h3`
   margin: 0;
   font-size: 16px;
   font-weight: 600;
   color: #262626;
 `
 
-const Description = styled.div`
+export const Description = styled.div`
   font-size: 14px;
   color: #8c8c8c;
   line-height: 1.4;
 `
 
-const OptionsContainer = styled.div`
+export const OptionsContainer = styled.div`
   width: 100%;
 `
 
-const AnswerOption = styled(Radio)`
+export const AnswerOption = styled(Radio)`
   padding: 16px 20px !important;
   border: 2px solid #f0f0f0;
   border-radius: 8px;
@@ -194,12 +194,12 @@ const AnswerOption = styled(Radio)`
   }
 `
 
-const AnswerContent = styled.div`
+export const AnswerContent = styled.div`
   display: flex;
   width: 100%;
 `
 
-const AnswerIcon = styled.div<{ correct: boolean }>`
+export const AnswerIcon = styled.div<{ correct: boolean }>`
   display: flex;
   align-items: center;
   justify-content: center;
@@ -212,13 +212,13 @@ const AnswerIcon = styled.div<{ correct: boolean }>`
   flex-shrink: 0;
 `
 
-const AnswerText = styled.span`
+export const AnswerText = styled.span`
   font-size: 16px;
   font-weight: 500;
   color: #262626;
 `
 
-const AnswerSummary = styled.div`
+export const AnswerSummary = styled.div`
   display: flex;
   align-items: center;
   gap: 12px;
@@ -228,7 +228,7 @@ const AnswerSummary = styled.div`
   border-left: 4px solid #1677ff;
 `
 
-const SummaryIcon = styled.div<{ correct: boolean }>`
+export const SummaryIcon = styled.div<{ correct: boolean }>`
   display: flex;
   align-items: center;
   justify-content: center;
@@ -238,7 +238,7 @@ const SummaryIcon = styled.div<{ correct: boolean }>`
   flex-shrink: 0;
 `
 
-const SummaryText = styled.div`
+export const SummaryText = styled.div`
   font-size: 14px;
   color: #595959;
 

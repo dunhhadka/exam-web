@@ -6,6 +6,9 @@ import {
   QuestionType,
 } from '../types/question'
 import { TrueFalseData } from '../pages/question/TrueFalse'
+import { OneChoiceData } from '../pages/question/OneChoice'
+import { useToast } from './useToast'
+import { MultiChoiceData } from '../pages/question/MultiChoice'
 
 // Type definitions for better clarity
 type SubmitResult = {
@@ -44,6 +47,54 @@ const parseToRequest = (
         answers,
       }
     }
+    case QuestionType.ONE_CHOICE: {
+      const data = formData as { data: OneChoiceData }
+
+      const correctAnswers = data.data.answers.filter(
+        (answer) => answer.isCorrect
+      )
+
+      console.log('correctAnswers', correctAnswers)
+
+      if (correctAnswers.length !== 1) {
+        throw new Error('require one correct answer')
+      }
+
+      var correctAnswer = correctAnswers[0]
+
+      return {
+        ...formData,
+        answers: data.data.answers.map(
+          (item) =>
+            ({
+              orderIndex: item.orderIndex,
+              value: item.label,
+              result: item.orderIndex === correctAnswer.orderIndex,
+              explanation: undefined,
+            } as AnswerCreateRequest)
+        ),
+      }
+    }
+    case QuestionType.MULTI_CHOICE: {
+      const data = formData as { data: MultiChoiceData }
+
+      const correctAnswerIndexs = data.data.answers
+        .filter((item) => item.isCorrect)
+        .map((item) => item.orderIndex)
+
+      return {
+        ...formData,
+        answers: data.data.answers.map(
+          (item) =>
+            ({
+              orderIndex: item.orderIndex,
+              value: item.label,
+              result: correctAnswerIndexs.includes(item.orderIndex),
+              explanation: undefined,
+            } as AnswerCreateRequest)
+        ),
+      }
+    }
     default:
       return null
   }
@@ -53,6 +104,7 @@ const parseToRequest = (
 export const useSubmitQuestion = (): SubmitResult => {
   const [submitPublish, { isLoading: isSubmitting }] =
     useSubmitPublishMutation()
+  const toast = useToast();
 
   const submitQuestion = async (
     type: QuestionType,
@@ -65,6 +117,7 @@ export const useSubmitQuestion = (): SubmitResult => {
 
     try {
       await submitPublish(request).unwrap()
+      toast.success('Xuất bản câu hỏi thành công')
     } catch (error) {
       console.error('Failed to submit question:', error)
       throw error
