@@ -10,7 +10,8 @@ public enum NotFoundError implements ResponseError {
     ROLE_NOT_FOUND(404002, "Role not found"),
     TAG_NOT_FOUND(400003, "Tag not found with ids: %s"),
     QUESTION_NOT_FOUND(400004, "Question not found with ids: %s"),
-    EXAM_NOT_FOUND(400005, "Exam not found with ids: %s")
+    EXAM_NOT_FOUND(400005, "Exam not found with ids: %s"),
+    EXAM_SESSION_NOT_FOUND(400006, "Exam session not found with ids: %s")
     ;
 
     private final int code;

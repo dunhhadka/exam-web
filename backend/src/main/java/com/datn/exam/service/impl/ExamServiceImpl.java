@@ -15,6 +15,7 @@ import com.datn.exam.repository.data.dao.ExamDao;
 import com.datn.exam.repository.data.dao.JdbcQuestionDao;
 import com.datn.exam.repository.data.dto.ExamDto;
 import com.datn.exam.service.ExamService;
+import com.datn.exam.support.enums.ActiveStatus;
 import com.datn.exam.support.enums.Status;
 import com.datn.exam.support.enums.error.BadRequestError;
 import com.datn.exam.support.enums.error.NotFoundError;
@@ -44,6 +45,7 @@ public class ExamServiceImpl implements ExamService {
 
     @Override
     public ExamResponse createDraft(ExamDraftRequest request) {
+        //TODO: Code continue;
         return null;
     }
 
@@ -67,6 +69,7 @@ public class ExamServiceImpl implements ExamService {
                 .score(score)
                 .isPublic(request.isPublic())
                 .status(Status.PUBLISHED)
+                .deleted(Boolean.FALSE)
                 .tags(tags)
                 .build();
 
@@ -149,7 +152,7 @@ public class ExamServiceImpl implements ExamService {
                 .map(String::valueOf)
                 .collect(Collectors.joining(", "));
 
-        if (StringUtils.isEmpty(idsNotFound)) {
+        if (StringUtils.isNotEmpty(idsNotFound)) {
             throw new ResponseException(NotFoundError.EXAM_NOT_FOUND, idsNotFound);
         }
 

@@ -51,8 +51,11 @@ public enum BadRequestError implements ResponseError {
     EXAM_QUESTION_ID_REQUIRED(400053, "Question id is required"),
     EXAM_QUESTION_POINT_REQUIRED(400054, "Question point is required"),
     EXAM_MIN_SCORE(400055, "Exam score must be positive"),
-    TAG_NOT_FOUND(400060, "Question not found with ids: %s")
-    ;
+    TAG_NOT_FOUND(400060, "Question not found with ids: %s"),
+    EXAM_SESSION_TIME_WINDOW_INVALID(400061, "Exam session time window is invalid (start: %s, end: %s)"),
+    ID_UPLOAD_REQUIRES_UPLOAD_MODE(400062, "ID upload requires identity mode to be UPLOAD"),
+    WEBCAM_MODE_REQUIRES_MONITORING(400063, "Webcam identity mode requires monitoring to be enabled"),
+    NONE_MODE_CANNOT_ENABLE_MONITORING(400064, "Identity mode NONE cannot enable monitoring");
 
     private final int code;
     private final String message;

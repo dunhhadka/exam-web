@@ -89,7 +89,6 @@ public class JdbcExamDao implements ExamDao{
             params.addValue("keyword", request.getKeyword());
         }
 
-
         if (request.getLevel() != null) {
             whereFilter.append(" AND e.level = :level ");
             params.addValue("level", request.getLevel().name());

@@ -1,6 +1,7 @@
 package com.datn.exam.model.entity;
 
 import com.datn.exam.support.converter.BaseQuestionConverter;
+import com.datn.exam.support.enums.ActiveStatus;
 import com.datn.exam.support.enums.Level;
 import com.datn.exam.support.enums.QuestionType;
 import com.datn.exam.support.enums.Status;
@@ -51,6 +52,10 @@ public class Question extends AuditableEntity {
 
     @OneToMany(mappedBy = "question", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ExamQuestion> examQuestions;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "active_status")
+    private ActiveStatus activeStatus;
 
     @Version
     private Integer version;

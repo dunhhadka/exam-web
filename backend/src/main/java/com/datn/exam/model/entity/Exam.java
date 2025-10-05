@@ -4,7 +4,6 @@ import com.datn.exam.support.enums.Level;
 import com.datn.exam.support.enums.Status;
 import jakarta.persistence.*;
 import lombok.*;
-import org.apache.commons.collections4.CollectionUtils;
 import org.hibernate.annotations.Fetch;
 import org.hibernate.annotations.FetchMode;
 
@@ -44,7 +43,11 @@ public class Exam extends AuditableEntity{
     )
     private List<Tag> tags;
 
-    private BigDecimal score; //NOTE: total point
+    @OneToMany(mappedBy = "exam", fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true)
+    @Fetch(FetchMode.SUBSELECT)
+    private List<ExamSession> examSessions;
+
+    private BigDecimal score; //NOTE: total point (max)
 
     @Column(name = "is_public")
     private boolean isPublic;
@@ -53,6 +56,8 @@ public class Exam extends AuditableEntity{
     @Enumerated(EnumType.STRING)
     private Status status;
 
+    @Column(name = "deleted")
+    private Boolean deleted = false;
 
     public void setExamQuestions(List<ExamQuestion> newExamQuestion) {
         if (this.examQuestions != null) {

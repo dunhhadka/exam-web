@@ -24,6 +24,7 @@ public class IdUtils {
         return !id.isBlank() && UUID_REGEX.matcher(id).matches();
     }
 
+
     public static byte[] uuidToBytes(UUID id) {
         var bb = java.nio.ByteBuffer.wrap(new byte[16]);
         bb.putLong(id.getMostSignificantBits());

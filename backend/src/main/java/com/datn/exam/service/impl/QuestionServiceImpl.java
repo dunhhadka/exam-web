@@ -18,6 +18,7 @@ import com.datn.exam.repository.data.dto.QuestionTagDto;
 import com.datn.exam.service.QuestionService;
 import com.datn.exam.service.validation.ChoiceQuestionPublishValidator;
 import com.datn.exam.service.validation.TableChoicePublishValidator;
+import com.datn.exam.support.enums.ActiveStatus;
 import com.datn.exam.support.enums.Level;
 import com.datn.exam.support.enums.QuestionType;
 import com.datn.exam.support.enums.Status;
@@ -148,6 +149,7 @@ public class QuestionServiceImpl implements QuestionService {
                 .text(request.getText())
                 .point(request.getPoint())
                 .questionValue(questionValue)
+                .activeStatus(ActiveStatus.ACTIVE)
                 .build();
 
         this.buildTags(question, request.getTagIds());
@@ -249,7 +251,7 @@ public class QuestionServiceImpl implements QuestionService {
                     .map(String::valueOf)
                     .collect(Collectors.joining(", "));
 
-            if (StringUtils.isNotBlank(tagNotFoundStr)) {
+            if (StringUtils.isNotEmpty(tagNotFoundStr)) {
                 throw new ResponseException(NotFoundError.TAG_NOT_FOUND, tagNotFoundStr);
             }
 
