@@ -13,7 +13,6 @@ import {
   StatusColor,
   StatusLabel,
   Tag as QuestionTag,
-  QuestionFilterRequest,
 } from "../../types/question";
 import styled from "@emotion/styled";
 import { createActionColumns } from "../../components/search/createActionColumn";
@@ -27,7 +26,6 @@ import {
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { QuestionTypeCreate } from "./QuestionTypeCreate";
-import { useSearchQuestionQuery } from "../../services/api/questionApi";
 import { QuestionFilter } from "./filter/QuestionFilter";
 import { useFilterQuestionQuery } from "../../hooks/useFilterQuestionQuery";
 
@@ -97,6 +95,8 @@ export const QuestionList = () => {
     ]),
   ];
 
+  const [openFilter, setOpenFilter] = useState(false);
+
   const {
     query,
     changeQuery,
@@ -140,6 +140,8 @@ export const QuestionList = () => {
         filterActive
         labelItems={labelItems}
         onQueryChange={changeQuery}
+        openFilter={openFilter}
+        onFilterClick={setOpenFilter}
         pagination={{
           current: (questionData?.pageIndex ?? 0) + 1,
           pageSize: questionData?.pageSize ?? 10,
@@ -153,7 +155,11 @@ export const QuestionList = () => {
           },
         }}
         filterComponent={
-          <QuestionFilter filter={filter} onFilterChange={changeFilter} />
+          <QuestionFilter
+            filter={filter}
+            onFilterChange={changeFilter}
+            onClose={() => setOpenFilter(false)}
+          />
         }
         actions={[
           {

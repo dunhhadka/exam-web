@@ -45,6 +45,7 @@ interface Props<T = any>
   onQueryChange?: (query: string) => void;
   placeholder?: string;
   labelItems?: LabelItem[];
+  openFilter?: boolean,
   pagination?: {
     current: number;
     pageSize: number;
@@ -52,7 +53,7 @@ interface Props<T = any>
     onChange: (page: number, pageSize: number) => void;
   };
   rowSelection?: TableRowSelection<T>;
-  onFilterClick?: () => void;
+  onFilterClick?: (openFilter: boolean) => void;
   filterActive?: boolean;
   filterComponent?: React.ReactNode;
 }
@@ -82,9 +83,9 @@ export const CustomTable = <T extends Record<string, any>>({
   onFilterClick,
   filterActive = false,
   filterComponent,
+  openFilter,
   ...restProps
 }: Props<T>) => {
-  const [openFilter, setOpenFilter] = useState(false);
 
   return (
     <Wrapper className={customClassName}>
@@ -133,9 +134,8 @@ export const CustomTable = <T extends Record<string, any>>({
             >
               <FilterButton
                 icon={<FilterOutlined />}
-                onClick={onFilterClick}
+                onClick={() => {onFilterClick?.(!openFilter)}}
                 className={filterActive ? "active" : ""}
-                onClickCapture={() => setOpenFilter(!openFilter)}
               >
                 Bộ lọc
               </FilterButton>

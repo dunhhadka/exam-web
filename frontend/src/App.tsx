@@ -14,6 +14,7 @@ import { QuestionCreatePage } from './pages/question/QuestionCreatePage'
 import { ExamListPage } from './pages/exams/ExamListPage'
 import { ExamCreatePage } from './pages/exams/ExamCreatePage'
 import { ToastProvider } from './ToastProvider'
+import ExamSessionListPage from './pages/examsession/ExamSessionListPage'
 
 function App() {
   return (
@@ -32,6 +33,7 @@ function App() {
                 <Route path="/home" element={<Home />} />
                 <Route path="/questions" element={<QuestionList />} />
                 <Route path="/exams" element={<ExamListPage />} />
+                <Route path='/examsessions' element = {<ExamSessionListPage/>}/>
                 <Route
                   path="/questions/create"
                   element={<QuestionCreatePage />}

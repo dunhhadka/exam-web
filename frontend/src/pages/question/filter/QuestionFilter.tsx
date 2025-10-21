@@ -14,13 +14,16 @@ import styled from "@emotion/styled";
 interface Props {
   filter: QuestionFilterRequest;
   onFilterChange: (newFilter: QuestionFilterRequest) => void;
+  onClose?: () => void;
 }
 
-export const QuestionFilter = ({ filter, onFilterChange }: Props) => {
+export const QuestionFilter = ({ filter, onFilterChange, onClose }: Props) => {
   const [filterState, setFilterState] = useState<QuestionFilterRequest>(filter);
 
   const applyFilter = () => {
     onFilterChange({ ...filterState, pageIndex: 1, pageSize: 10 });
+
+    onClose?.();
   };
 
   const restFilter = useCallback(() => {

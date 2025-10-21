@@ -275,7 +275,7 @@ const FooterBar = styled.div`
   justify-content: flex-end;
 `
 
-const ErrorText = styled.div`
+export const ErrorText = styled.div`
   color: #ff4d4f;
   font-size: 14px;
   margin-top: 4px;
