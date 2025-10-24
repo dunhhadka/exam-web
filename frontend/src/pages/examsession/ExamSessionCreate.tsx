@@ -1,7 +1,16 @@
 import { Controller, useForm } from "react-hook-form";
 import { ExamSession, ExamSessionRequest } from "../../types/examsession";
 import { Input } from "../../components/common/input";
-import { DatePicker, Radio, Space, Button, Row, Col, Divider, Checkbox } from "antd";
+import {
+  DatePicker,
+  Radio,
+  Space,
+  Button,
+  Row,
+  Col,
+  Divider,
+  Checkbox,
+} from "antd";
 import dayjs, { Dayjs } from "dayjs";
 import {
   PublishStatusLabel,
@@ -9,11 +18,18 @@ import {
 } from "../question/QuestionCreatePage";
 import { ErrorText } from "../exams/ExamCreatePage";
 import styled from "@emotion/styled";
+import { useState } from "react";
+import ConfirmModal from "../../components/common/ConfirmModal";
+import DropdownLoadMore from "../../components/common/DropDownLoadMore";
+import { Exam } from "../../types/exam";
+import { useLazySearchExamQuery } from "../../services/api/examApi";
+import { useToast } from "../../hooks/useToast";
 
 interface Props {
   initData?: ExamSession;
   onSubmit: (data: ExamSessionRequest) => void;
   loading?: boolean;
+  onClose: () => void;
 }
 
 type ExamSessionFormData = Partial<ExamSessionRequest> & {
@@ -22,12 +38,18 @@ type ExamSessionFormData = Partial<ExamSessionRequest> & {
   endTime?: Dayjs | string | null;
 };
 
-const ExamSessionCreate = ({ initData, onSubmit, loading = false }: Props) => {
+const ExamSessionCreate = ({
+  initData,
+  onSubmit,
+  loading = false,
+  onClose,
+}: Props) => {
   const {
     handleSubmit,
     formState: { errors },
     control,
     watch,
+    setValue,
   } = useForm<ExamSessionFormData>({
     defaultValues: {
       examId: initData?.exam?.id,
@@ -45,12 +67,34 @@ const ExamSessionCreate = ({ initData, onSubmit, loading = false }: Props) => {
     },
   });
 
+  const toast = useToast();
+
+  const [confirmModal, setConfirmModal] = useState(false);
   const handleFormSubmit = (data: ExamSessionFormData) => {
+    const now = dayjs();
+    const startTime = data.startTime ? dayjs(data.startTime) : null;
+    const endTime = data.endTime ? dayjs(data.endTime) : null;
+
+    if (startTime && startTime.isBefore(now)) {
+      toast.error("Thời gian bắt đầu không được ở trong quá khứ");
+      return;
+    }
+
+    if (endTime && endTime.isBefore(now)) {
+      toast.error("Thời gian kết thúc không được ở trong quá khứ");
+      return;
+    }
+
+    if (startTime && endTime && !endTime.isAfter(startTime)) {
+      toast.error("Thời gian kết thúc phải sau thời gian bắt đầu");
+      return;
+    }
+
     const requestData: ExamSessionRequest = {
       examId: data.examId!,
       name: data.name!,
-      startTime: data.startTime ? dayjs(data.startTime).toISOString() : "",
-      endTime: data.endTime ? dayjs(data.endTime).toISOString() : "",
+      startTime: startTime ? startTime.toISOString() : "",
+      endTime: endTime ? endTime.toISOString() : "",
       durationMinutes: data.durationMinutes ?? 60,
       lateJoinMinnutes: data.lateJoinMinnutes ?? 15,
       shuffleAnswers: data.shuffleAnswers ?? false,
@@ -65,6 +109,30 @@ const ExamSessionCreate = ({ initData, onSubmit, loading = false }: Props) => {
 
   const startTimeValue = watch("startTime");
 
+  const [searchExamLazy, {}] = useLazySearchExamQuery();
+
+  const fetchExam = async ({
+    page,
+    pageSize,
+    search,
+  }: {
+    page: number;
+    pageSize: number;
+    search?: string;
+  }) => {
+    const response = await searchExamLazy({
+      pageIndex: page,
+      pageSize: pageSize,
+      key: search,
+    });
+
+    return {
+      data: response?.data?.data ?? [],
+      total: response?.data?.total ?? 0,
+      hasMore: response?.data?.totalPages !== page,
+    };
+  };
+
   return (
     <FormContainer>
       <form onSubmit={handleSubmit(handleFormSubmit)}>
@@ -78,19 +146,27 @@ const ExamSessionCreate = ({ initData, onSubmit, loading = false }: Props) => {
               control={control}
               rules={{ required: "Vui lòng chọn bài kiểm tra" }}
               render={({ field }) => (
-                <>
-                  <Input
+                <div>
+                  <Label>
+                    Chọn bài kiểm tra <RequiredStar>*</RequiredStar>
+                  </Label>
+                  <DropdownLoadMore<Exam>
                     {...field}
-                    title="Chọn bài kiểm tra"
+                    fetchData={fetchExam}
+                    onSelect={(value) => {
+                      setValue("examId", value);
+                    }}
                     placeholder="Chọn bài kiểm tra"
-                    require
-                    error={!!errors.examName}
-                    vertical
+                    renderOption={(item) => ({
+                      label: item.name,
+                      value: item.id,
+                    })}
+                    style={{ width: "100%" }}
                   />
                   {errors.examName && (
                     <ErrorMessage>{errors.examName.message}</ErrorMessage>
                   )}
-                </>
+                </div>
               )}
             />
           </FormRow>
@@ -311,7 +387,10 @@ const ExamSessionCreate = ({ initData, onSubmit, loading = false }: Props) => {
                 <>
                   <Radio.Group
                     value={field.value ? "public" : "private"}
-                    onChange={(e) => field.onChange(e.target.value === "public")}
+                    onChange={(e) =>
+                      field.onChange(e.target.value === "public")
+                    }
+                    style={{ marginLeft: 10 }}
                   >
                     <Space direction="horizontal">
                       <Radio value="private">Chỉ mình tôi</Radio>
@@ -356,7 +435,7 @@ const ExamSessionCreate = ({ initData, onSubmit, loading = false }: Props) => {
         </FormSection>
 
         <ButtonGroup>
-          <Button htmlType="button" onClick={() => window.history.back()}>
+          <Button htmlType="button" onClick={() => setConfirmModal(true)}>
             Hủy
           </Button>
           <Button type="primary" htmlType="submit" loading={loading}>
@@ -364,6 +443,14 @@ const ExamSessionCreate = ({ initData, onSubmit, loading = false }: Props) => {
           </Button>
         </ButtonGroup>
       </form>
+      {confirmModal && (
+        <ConfirmModal
+          open={confirmModal}
+          onOk={onClose}
+          danger
+          onCancel={() => setConfirmModal(false)}
+        />
+      )}
     </FormContainer>
   );
 };

@@ -72,8 +72,14 @@ const ExamSessionListPage = () => {
           title={"Tạo bài kiểm tra mới"}
           onCancel={closeCreateAssignmentModal}
           width={"60%"}
+          footer={null}
         >
-          <ExamSessionCreate onSubmit={(data) => {}} />
+          <ExamSessionCreate
+            onSubmit={(data) => {
+              console.log(data);
+            }}
+            onClose={closeCreateAssignmentModal}
+          />
         </Modal>
       )}
     </div>

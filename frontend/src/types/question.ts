@@ -24,6 +24,7 @@ export interface Question {
 }
 
 export interface PagingRequest {
+  key?: string;
   pageIndex: number;
   pageSize: number;
   total?: number;
