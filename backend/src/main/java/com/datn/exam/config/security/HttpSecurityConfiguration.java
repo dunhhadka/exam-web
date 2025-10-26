@@ -42,11 +42,14 @@ public class HttpSecurityConfiguration {
     };
 
     private final String[] QUERY_PUBLIC_URLS = {
+            "/api/join/**"
     };
 
     private final String[] COMMAND_PUBLIC_URLS = {
             "/api/account/register",
-            "/api/account/authenticate"
+            "/api/account/authenticate",
+            "/api/join/**",
+            "/api/exam-attempt/**"
     };
 
     @Bean

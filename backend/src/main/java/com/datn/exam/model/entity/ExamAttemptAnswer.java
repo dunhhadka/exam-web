@@ -11,7 +11,7 @@ import java.util.Map;
 @Table(name = "exam_attempt_answers")
 @Getter
 @Setter
-@Builder
+@Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(callSuper = true)

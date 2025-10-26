@@ -6,6 +6,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 
 @Entity
@@ -23,6 +24,12 @@ public class ExamSession extends AuditableEntity{
     private String code; //NOTE: Mã vào cho thí sinh (ví dụ 6-8 kí tự)
     private String name; // Tên phiên bài kiểm tra
 
+    @Column(name = "student_email")
+    private String studentEmail;
+
+    @Column(name = "student_name")
+    private String studentName;
+
     @Column(name = "join_token", length = 36, unique = true, nullable = false)
     private String joinToken; //Token dùng cho link/QR
 
@@ -33,7 +40,7 @@ public class ExamSession extends AuditableEntity{
     private Instant endTime; // Đóng cổng vào/hoàn tất
 
     @Column(name = "duration_minutes")
-    private Integer durationMinutes; // Thời lượng làm bài
+    private Integer durationMinutes;
 
     @Column(name = "late_join_minutes")
     private Integer lateJoinMinutes; // Phút cho phép vào muộn
@@ -61,8 +68,23 @@ public class ExamSession extends AuditableEntity{
     @JoinColumn(name = "exam_id")
     private Exam exam;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "exam_status")
+    private ExamStatus examStatus;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "access_mode", nullable = false)
+    @Builder.Default
+    private AccessMode accessMode = AccessMode.PUBLIC;
+
     public static enum ExamStatus {
         OPEN, CLOSED
+    }
+
+    public enum AccessMode {
+        PUBLIC,
+        WHITELIST,
+        PASSWORD
     }
 
     @PrePersist

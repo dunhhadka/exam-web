@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7.2-alpine
+    container_name: exam-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass 123456 --appendonly yes
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: exam-redis-commander
+    ports:
+      - "8082:8081"
+    environment:
+      - REDIS_HOSTS=local:exam-redis:6379:0:123456
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+volumes:
+  redis-data:
+    driver: local

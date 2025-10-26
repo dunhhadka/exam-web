@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface ExamSessionRepository extends JpaRepository<ExamSession, Long> {
@@ -19,5 +20,11 @@ public interface ExamSessionRepository extends JpaRepository<ExamSession, Long> 
 
     @Modifying
     @Query("UPDATE ExamSession es SET es.deleted = TRUE WHERE es.id IN :ids")
-    int softDeleteByIds(@Param("ids") List<Long> ids);
+    void softDeleteByIds(@Param("ids") List<Long> ids);
+
+    Optional<ExamSession> findByCode(String code);
+
+    Optional<ExamSession> findByJoinToken(String joinToken);
+
+
 }

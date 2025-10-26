@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mã xác minh tài khoản - Exam.vn</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+            background-color: #f5f7fa;
+            line-height: 1.6;
+            color: #333;
+        }
+        .wrapper {
+            max-width: 600px;
+            margin: 20px auto;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+        /* Header with logo */
+        .header {
+            padding: 30px 20px;
+            text-align: center;
+            border-bottom: 1px solid #e8ecf1;
+        }
+        .logo {
+            font-size: 0;
+            margin-bottom: 5px;
+        }
+        .logo svg {
+            height: 32px;
+            width: auto;
+        }
+        /* Main content section */
+        .content {
+            padding: 40px 30px;
+            text-align: center;
+        }
+        .email-icon {
+            margin: 0 auto 20px;
+            width: 80px;
+            height: 80px;
+        }
+        .email-icon svg {
+            width: 100%;
+            height: 100%;
+        }
+        .title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1a1a2e;
+            margin-bottom: 15px;
+            line-height: 1.4;
+        }
+        .subtitle {
+            font-size: 14px;
+            color: #6c757d;
+            margin-bottom: 25px;
+            text-decoration: underline;
+        }
+        .message {
+            font-size: 14px;
+            color: #555;
+            margin-bottom: 25px;
+            line-height: 1.8;
+            text-align: left;
+        }
+        .message-highlight {
+            color: #0066cc;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+        .divider {
+            height: 1px;
+            background-color: #e0e0e0;
+            margin: 25px 0;
+        }
+        /* OTP Code Section */
+        .otp-container {
+            background-color: #f0f4f9;
+            padding: 25px;
+            border-radius: 4px;
+            margin: 30px 0;
+        }
+        .otp-code {
+            font-size: 42px;
+            font-weight: 700;
+            color: #e63946;
+            letter-spacing: 8px;
+            font-family: 'Courier New', monospace;
+            text-align: center;
+            margin: 15px 0;
+            word-break: break-all;
+        }
+        .otp-expiry {
+            font-size: 12px;
+            color: #6c757d;
+            text-align: center;
+            margin-top: 10px;
+        }
+        .expiry-highlight {
+            color: #e63946;
+            font-weight: 600;
+        }
+        /* Info box */
+        .info-section {
+            background-color: #fffbeb;
+            border: 1px solid #fcd34d;
+            border-left: 4px solid #f59e0b;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 25px 0;
+            text-align: left;
+            font-size: 13px;
+            color: #92400e;
+            line-height: 1.6;
+        }
+        .info-section strong {
+            display: block;
+            margin-bottom: 8px;
+            color: #78350f;
+        }
+        .warning-text {
+            font-style: italic;
+            color: #6c757d;
+            margin-top: 20px;
+            font-size: 13px;
+        }
+        /* Footer section */
+        .footer-divider {
+            height: 1px;
+            background-color: #e0e0e0;
+            margin: 30px 0;
+        }
+        .footer-content {
+            font-size: 12px;
+            color: #6c757d;
+            line-height: 1.8;
+            text-align: center;
+        }
+        .footer-link {
+            color: #0066cc;
+            text-decoration: none;
+        }
+        .footer-link:hover {
+            text-decoration: underline;
+        }
+        /* Bottom section */
+        .bottom-section {
+            background-color: #f8f9fa;
+            padding: 25px 30px;
+            text-align: center;
+            border-top: 1px solid #e0e0e0;
+        }
+        .bottom-text {
+            font-size: 11px;
+            color: #999;
+            margin-bottom: 12px;
+        }
+        .footer-links {
+            font-size: 11px;
+        }
+        .footer-links a {
+            color: #0066cc;
+            text-decoration: none;
+            margin: 0 5px;
+        }
+        .footer-links a:hover {
+            text-decoration: underline;
+        }
+        .copyright {
+            font-size: 11px;
+            color: #999;
+            margin-top: 12px;
+        }
+        /* Social links */
+        .social-links {
+            margin-top: 15px;
+            font-size: 12px;
+        }
+        .social-links a {
+            display: inline-block;
+            width: 28px;
+            height: 28px;
+            background-color: #4da6a6;
+            color: white;
+            border-radius: 4px;
+            line-height: 28px;
+            text-align: center;
+            margin: 0 4px;
+            text-decoration: none;
+            font-size: 12px;
+        }
+        .social-links a:hover {
+            background-color: #3d8888;
+        }
+        @media (max-width: 600px) {
+            .content {
+                padding: 25px 20px;
+            }
+            .title {
+                font-size: 20px;
+            }
+            .otp-code {
+                font-size: 32px;
+                letter-spacing: 6px;
+            }
+            .email-icon {
+                width: 60px;
+                height: 60px;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="wrapper">
+    <div class="container">
+        <!-- Header with Exam.vn Logo -->
+        <div class="header">
+            <div class="logo">
+                <svg viewBox="0 0 120 32" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Exam.vn Logo with chevron -->
+                    <defs>
+                        <linearGradient id="chevronGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#1e40af;stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:#3b82f6;stop-opacity:1" />
+                        </linearGradient>
+                    </defs>
+                    <!-- Chevron icon -->
+                    <g>
+                        <rect x="4" y="6" width="8" height="20" fill="url(#chevronGrad)" transform="rotate(-15 8 16)"/>
+                        <rect x="14" y="4" width="8" height="24" fill="url(#chevronGrad)" transform="rotate(15 18 16)"/>
+                    </g>
+                    <!-- Text -->
+                    <text x="32" y="24" font-family="Arial, sans-serif" font-size="22" font-weight="600" fill="#001a4d">exam.vn</text>
+                </svg>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Email Icon -->
+            <div class="email-icon">
+                <svg viewBox="0 0 120 100" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Envelope -->
+                    <g>
+                        <!-- Outer envelope -->
+                        <rect x="15" y="25" width="90" height="60" fill="none" stroke="#2d5a6a" stroke-width="2.5" rx="3"/>
+                        <!-- Envelope flap -->
+                        <polyline points="15,25 60,50 105,25" fill="none" stroke="#2d5a6a" stroke-width="2.5" stroke-linejoin="round"/>
+                        <!-- Inner lines -->
+                        <polyline points="15,25 60,55 105,25" fill="none" stroke="#d4a574" stroke-width="2" stroke-linejoin="round"/>
+                        <line x1="60" y1="55" x2="15" y2="85" stroke="#d4a574" stroke-width="2"/>
+                        <!-- Motion lines -->
+                        <line x1="2" y1="35" x2="10" y2="32" stroke="#2d5a6a" stroke-width="2" stroke-linecap="round"/>
+                        <line x1="2" y1="50" x2="10" y2="50" stroke="#2d5a6a" stroke-width="2" stroke-linecap="round"/>
+                        <line x1="4" y1="65" x2="10" y2="68" stroke="#2d5a6a" stroke-width="2" stroke-linecap="round"/>
+                    </g>
+                </svg>
+            </div>
+
+            <!-- Title -->
+            <div class="title">Mã xác minh tài khoản của bạn</div>
+            <div class="subtitle">Cảm ơn vì sự lựa chọn Exam.vn.</div>
+
+            <!-- Message -->
+            <div class="message">
+                Vui lòng xác nhận rằng <a href="mailto:" class="message-highlight" th:text="${userEmail}"></a> là địa chỉ email của bạn bằng cách nhập mã OTP bên dưới. Mã xác minh sẽ hết hạn sau <span th:text="${expiryMinutes}"></span> phút.<br>
+                Không chia sẻ mã của bạn với bất kỳ ai.
+            </div>
+
+            <div class="divider"></div>
+
+            <!-- OTP Code -->
+            <div class="otp-container">
+                <div class="otp-code" th:text="${otp}"></div>
+                <div class="otp-expiry">
+                    ⏱️ Mã này sẽ hết hạn sau <span class="expiry-highlight" th:text="${expiryMinutes}"></span> phút
+                </div>
+            </div>
+
+            <!-- Info Box -->
+            <div class="info-section">
+                <strong>🔒 Lưu ý về bảo mật:</strong>
+                Email này được tạo ra vì hệ thống nhận được yêu cầu được yêu cầu tạo tài khoản.<br>
+                Hãy bỏ qua email này nếu bạn không yêu cầu tạo tài khoản!<br>
+                Đây là một tin nhắn tự động, vui lòng không trả lời.
+            </div>
+
+            <div class="warning-text">
+                Email này được tạo ra vì hệ thống nhận được yêu cầu được yêu cầu tạo tài khoản. Nếu bạn không phải là người thực hiện yêu cầu này, vui lòng bỏ qua email này. Tài khoản của bạn vẫn an toàn.
+            </div>
+
+            <div class="footer-divider"></div>
+
+            <!-- Footer Content -->
+            <div class="footer-content">
+                <div>Email này được tạo ra vì hệ thống nhận được yêu cầu được yêu cầu tạo tài khoản.</div>
+                <div>Hãy bỏ qua email này nếu bạn không yêu cầu tạo tài khoản!</div>
+                <div>Đây là một tin nhắn tự động, vui lòng không trả lời.</div>
+            </div>
+        </div>
+
+        <!-- Bottom Section -->
+        <div class="bottom-section">
+            <div class="bottom-text">Theo dõi & liên hệ chúng tôi</div>
+            <div class="social-links">
+                <a href="#" title="Liên kết">🔗</a>
+            </div>
+            <div class="footer-links" style="margin-top: 15px;">
+                <a href="#">Chính sách bảo mật</a> |
+                <a href="#">Điều khoản sử dụng</a> |
+                <a href="#">Liên hệ</a>
+            </div>
+            <div class="copyright">© 2022 - 2030 Exam.vn, All Rights Reserved.</div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

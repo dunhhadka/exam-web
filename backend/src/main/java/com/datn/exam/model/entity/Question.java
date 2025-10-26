@@ -47,7 +47,7 @@ public class Question extends AuditableEntity {
     private List<Tag> tags = new ArrayList<>();
 
     @OneToMany(mappedBy = "question", cascade = CascadeType.ALL, orphanRemoval = true)
-    @OrderBy("index ASC")
+    @OrderBy("orderIndex ASC")
     private List<Answer> answers = new ArrayList<>();
 
     @OneToMany(mappedBy = "question", cascade = CascadeType.ALL, orphanRemoval = true)

@@ -8,10 +8,6 @@ import lombok.EqualsAndHashCode;
 @Data
 @EqualsAndHashCode(callSuper = true)
 public class AnswerCreateRequest extends Request{
-    @NotNull(message = "ANSWER_ORDER_INDEX_REQUIRED")
-    @Min(value = ValidateConstraint.Length.ANSWER_MIN_ORDER_INDEX, message = "ANSWER_MIN_ORDER_INDEX")
-    private Integer orderIndex;
-
     @Size(max = 2000, message = "ANSWER_MAX_VALUE")
     private String value;
 

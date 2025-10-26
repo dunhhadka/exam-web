@@ -33,6 +33,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 @Service
@@ -223,9 +224,10 @@ public class QuestionServiceImpl implements QuestionService {
             question.setAnswers(new ArrayList<>());
         }
 
+        AtomicInteger index = new AtomicInteger(0);
         answerRequests.forEach(a -> {
             Answer answer = Answer.builder()
-                    .orderIndex(a.getOrderIndex())
+                    .orderIndex(index.getAndIncrement())
                     .value(a.getValue())
                     .result(a.getResult())
                     .explanation(a.getExplanation())
