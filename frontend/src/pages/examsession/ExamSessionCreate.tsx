@@ -1,42 +1,42 @@
-import { Controller, useForm } from "react-hook-form";
-import { ExamSession, ExamSessionRequest } from "../../types/examsession";
-import { Input } from "../../components/common/input";
+import styled from '@emotion/styled'
 import {
-  DatePicker,
-  Radio,
-  Space,
   Button,
-  Row,
-  Col,
-  Divider,
   Checkbox,
-} from "antd";
-import dayjs, { Dayjs } from "dayjs";
+  Col,
+  DatePicker,
+  Divider,
+  Radio,
+  Row,
+  Space,
+} from 'antd'
+import dayjs, { Dayjs } from 'dayjs'
+import { useState } from 'react'
+import { Controller, useForm } from 'react-hook-form'
+import ConfirmModal from '../../components/common/ConfirmModal'
+import DropdownLoadMore from '../../components/common/DropDownLoadMore'
+import { Input } from '../../components/common/input'
+import { useToast } from '../../hooks/useToast'
+import { useLazySearchExamQuery } from '../../services/api/examApi'
+import { Exam } from '../../types/exam'
+import { ExamSession, ExamSessionRequest } from '../../types/examsession'
 import {
   PublishStatusLabel,
   RequiredStar,
-} from "../question/QuestionCreatePage";
-import { ErrorText } from "../exams/ExamCreatePage";
-import styled from "@emotion/styled";
-import { useState } from "react";
-import ConfirmModal from "../../components/common/ConfirmModal";
-import DropdownLoadMore from "../../components/common/DropDownLoadMore";
-import { Exam } from "../../types/exam";
-import { useLazySearchExamQuery } from "../../services/api/examApi";
-import { useToast } from "../../hooks/useToast";
+} from '../question/QuestionCreatePage'
+import { formatDateTimeToRequest } from '../../utils/times'
 
 interface Props {
-  initData?: ExamSession;
-  onSubmit: (data: ExamSessionRequest) => void;
-  loading?: boolean;
-  onClose: () => void;
+  initData?: ExamSession
+  onSubmit: (data: ExamSessionRequest) => void
+  loading?: boolean
+  onClose: () => void
 }
 
 type ExamSessionFormData = Partial<ExamSessionRequest> & {
-  examName?: string;
-  startTime?: Dayjs | string | null;
-  endTime?: Dayjs | string | null;
-};
+  examName?: string
+  startTime?: Dayjs | string | null
+  endTime?: Dayjs | string | null
+}
 
 const ExamSessionCreate = ({
   initData,
@@ -53,8 +53,8 @@ const ExamSessionCreate = ({
   } = useForm<ExamSessionFormData>({
     defaultValues: {
       examId: initData?.exam?.id,
-      examName: initData?.exam?.name || "",
-      name: initData?.name || "",
+      examName: initData?.exam?.name || '',
+      name: initData?.name || '',
       startTime: initData?.startTime,
       endTime: initData?.endTime,
       durationMinutes: initData?.durationMinutes || 60,
@@ -65,36 +65,38 @@ const ExamSessionCreate = ({
       isPublic: initData?.publicFlag ?? true,
       settings: initData?.settings,
     },
-  });
+  })
 
-  const toast = useToast();
+  const toast = useToast()
 
-  const [confirmModal, setConfirmModal] = useState(false);
+  const [confirmModal, setConfirmModal] = useState(false)
   const handleFormSubmit = (data: ExamSessionFormData) => {
-    const now = dayjs();
-    const startTime = data.startTime ? dayjs(data.startTime) : null;
-    const endTime = data.endTime ? dayjs(data.endTime) : null;
+    const now = dayjs()
+    const startTime = data.startTime ? dayjs(data.startTime) : null
+    const endTime = data.endTime ? dayjs(data.endTime) : null
+
+    console.log(startTime, endTime)
 
     if (startTime && startTime.isBefore(now)) {
-      toast.error("Thời gian bắt đầu không được ở trong quá khứ");
-      return;
+      toast.error('Thời gian bắt đầu không được ở trong quá khứ')
+      return
     }
 
     if (endTime && endTime.isBefore(now)) {
-      toast.error("Thời gian kết thúc không được ở trong quá khứ");
-      return;
+      toast.error('Thời gian kết thúc không được ở trong quá khứ')
+      return
     }
 
     if (startTime && endTime && !endTime.isAfter(startTime)) {
-      toast.error("Thời gian kết thúc phải sau thời gian bắt đầu");
-      return;
+      toast.error('Thời gian kết thúc phải sau thời gian bắt đầu')
+      return
     }
 
     const requestData: ExamSessionRequest = {
       examId: data.examId!,
       name: data.name!,
-      startTime: startTime ? startTime.toISOString() : "",
-      endTime: endTime ? endTime.toISOString() : "",
+      startTime: formatDateTimeToRequest(startTime),
+      endTime: formatDateTimeToRequest(endTime),
       durationMinutes: data.durationMinutes ?? 60,
       lateJoinMinnutes: data.lateJoinMinnutes ?? 15,
       shuffleAnswers: data.shuffleAnswers ?? false,
@@ -102,36 +104,36 @@ const ExamSessionCreate = ({
       attemptLimit: data.attemptLimit ?? 1,
       isPublic: data.isPublic ?? true,
       settings: data.settings || undefined,
-    };
+    }
 
-    onSubmit(requestData);
-  };
+    onSubmit(requestData)
+  }
 
-  const startTimeValue = watch("startTime");
+  const startTimeValue = watch('startTime')
 
-  const [searchExamLazy, {}] = useLazySearchExamQuery();
+  const [searchExamLazy, {}] = useLazySearchExamQuery()
 
   const fetchExam = async ({
     page,
     pageSize,
     search,
   }: {
-    page: number;
-    pageSize: number;
-    search?: string;
+    page: number
+    pageSize: number
+    search?: string
   }) => {
     const response = await searchExamLazy({
       pageIndex: page,
       pageSize: pageSize,
       key: search,
-    });
+    })
 
     return {
       data: response?.data?.data ?? [],
       total: response?.data?.total ?? 0,
       hasMore: response?.data?.totalPages !== page,
-    };
-  };
+    }
+  }
 
   return (
     <FormContainer>
@@ -144,7 +146,7 @@ const ExamSessionCreate = ({
             <Controller
               name="examName"
               control={control}
-              rules={{ required: "Vui lòng chọn bài kiểm tra" }}
+              rules={{ required: 'Vui lòng chọn bài kiểm tra' }}
               render={({ field }) => (
                 <div>
                   <Label>
@@ -154,14 +156,14 @@ const ExamSessionCreate = ({
                     {...field}
                     fetchData={fetchExam}
                     onSelect={(value) => {
-                      setValue("examId", value);
+                      setValue('examId', value)
                     }}
                     placeholder="Chọn bài kiểm tra"
                     renderOption={(item) => ({
                       label: item.name,
                       value: item.id,
                     })}
-                    style={{ width: "100%" }}
+                    style={{ width: '100%' }}
                   />
                   {errors.examName && (
                     <ErrorMessage>{errors.examName.message}</ErrorMessage>
@@ -175,7 +177,7 @@ const ExamSessionCreate = ({
             <Controller
               name="name"
               control={control}
-              rules={{ required: "Vui lòng nhập tên đợt thi" }}
+              rules={{ required: 'Vui lòng nhập tên đợt thi' }}
               render={({ field }) => (
                 <>
                   <Input
@@ -207,7 +209,7 @@ const ExamSessionCreate = ({
                 <Controller
                   name="startTime"
                   control={control}
-                  rules={{ required: "Vui lòng chọn thời gian bắt đầu" }}
+                  rules={{ required: 'Vui lòng chọn thời gian bắt đầu' }}
                   render={({ field }) => (
                     <>
                       <Label>
@@ -219,8 +221,8 @@ const ExamSessionCreate = ({
                         onChange={(date) => field.onChange(date)}
                         placeholder="Chọn ngày và giờ bắt đầu"
                         format="DD/MM/YYYY HH:mm"
-                        showTime={{ format: "HH:mm" }}
-                        status={errors.startTime ? "error" : ""}
+                        showTime={{ format: 'HH:mm' }}
+                        status={errors.startTime ? 'error' : ''}
                       />
                       {errors.startTime && (
                         <ErrorMessage>{errors.startTime.message}</ErrorMessage>
@@ -237,16 +239,16 @@ const ExamSessionCreate = ({
                   name="endTime"
                   control={control}
                   rules={{
-                    required: "Vui lòng chọn thời gian kết thúc",
+                    required: 'Vui lòng chọn thời gian kết thúc',
                     validate: (value) => {
                       if (
                         startTimeValue &&
                         value &&
                         dayjs(value).isBefore(dayjs(startTimeValue))
                       ) {
-                        return "Thời gian kết thúc phải sau thời gian bắt đầu";
+                        return 'Thời gian kết thúc phải sau thời gian bắt đầu'
                       }
-                      return true;
+                      return true
                     },
                   }}
                   render={({ field }) => (
@@ -260,12 +262,12 @@ const ExamSessionCreate = ({
                         onChange={(date) => field.onChange(date)}
                         placeholder="Chọn ngày và giờ kết thúc"
                         format="DD/MM/YYYY HH:mm"
-                        showTime={{ format: "HH:mm" }}
-                        status={errors.endTime ? "error" : ""}
+                        showTime={{ format: 'HH:mm' }}
+                        status={errors.endTime ? 'error' : ''}
                         disabledDate={(current) => {
                           return startTimeValue
-                            ? current.isBefore(dayjs(startTimeValue), "day")
-                            : false;
+                            ? current.isBefore(dayjs(startTimeValue), 'day')
+                            : false
                         }}
                       />
                       {errors.endTime && (
@@ -285,8 +287,8 @@ const ExamSessionCreate = ({
                   name="durationMinutes"
                   control={control}
                   rules={{
-                    required: "Vui lòng nhập thời gian làm bài",
-                    min: { value: 1, message: "Thời gian phải lớn hơn 0" },
+                    required: 'Vui lòng nhập thời gian làm bài',
+                    min: { value: 1, message: 'Thời gian phải lớn hơn 0' },
                   }}
                   render={({ field }) => (
                     <>
@@ -316,8 +318,8 @@ const ExamSessionCreate = ({
                   name="lateJoinMinnutes"
                   control={control}
                   rules={{
-                    required: "Vui lòng nhập thời gian vào trễ",
-                    min: { value: 0, message: "Thời gian không được âm" },
+                    required: 'Vui lòng nhập thời gian vào trễ',
+                    min: { value: 0, message: 'Thời gian không được âm' },
                   }}
                   render={({ field }) => (
                     <>
@@ -347,8 +349,8 @@ const ExamSessionCreate = ({
               name="attemptLimit"
               control={control}
               rules={{
-                required: "Vui lòng nhập số lần làm bài",
-                min: { value: 1, message: "Số lần phải lớn hơn 0" },
+                required: 'Vui lòng nhập số lần làm bài',
+                min: { value: 1, message: 'Số lần phải lớn hơn 0' },
               }}
               render={({ field }) => (
                 <>
@@ -386,9 +388,9 @@ const ExamSessionCreate = ({
               render={({ field }) => (
                 <>
                   <Radio.Group
-                    value={field.value ? "public" : "private"}
+                    value={field.value ? 'public' : 'private'}
                     onChange={(e) =>
-                      field.onChange(e.target.value === "public")
+                      field.onChange(e.target.value === 'public')
                     }
                     style={{ marginLeft: 10 }}
                   >
@@ -439,7 +441,7 @@ const ExamSessionCreate = ({
             Hủy
           </Button>
           <Button type="primary" htmlType="submit" loading={loading}>
-            {initData ? "Cập nhật" : "Tạo mới"}
+            {initData ? 'Cập nhật' : 'Tạo mới'}
           </Button>
         </ButtonGroup>
       </form>
@@ -452,32 +454,32 @@ const ExamSessionCreate = ({
         />
       )}
     </FormContainer>
-  );
-};
+  )
+}
 
-export default ExamSessionCreate;
+export default ExamSessionCreate
 
 // Styled Components
 const FormContainer = styled.div`
   margin: 0 auto;
   background: #fff;
   border-radius: 8px;
-`;
+`
 
 const FormSection = styled.div`
   margin-bottom: 24px;
-`;
+`
 
 const SectionTitle = styled.h3`
   font-size: 16px;
   font-weight: 600;
   margin-bottom: 20px;
   color: #1a1a1a;
-`;
+`
 
 const FormRow = styled.div`
   margin-bottom: 20px;
-`;
+`
 
 const Label = styled.label`
   display: block;
@@ -485,16 +487,16 @@ const Label = styled.label`
   font-weight: 500;
   margin-bottom: 8px;
   color: #333;
-`;
+`
 
 const StyledDatePicker = styled(DatePicker)`
   width: 100%;
   height: 40px;
-`;
+`
 
 const StyledDivider = styled(Divider)`
   margin: 32px 0;
-`;
+`
 
 const CheckboxGroup = styled.div`
   display: flex;
@@ -504,7 +506,7 @@ const CheckboxGroup = styled.div`
   .ant-checkbox-wrapper {
     font-size: 14px;
   }
-`;
+`
 
 const ButtonGroup = styled.div`
   display: flex;
@@ -513,11 +515,11 @@ const ButtonGroup = styled.div`
   margin-top: 32px;
   padding-top: 24px;
   border-top: 1px solid #f0f0f0;
-`;
+`
 
 const ErrorMessage = styled.span`
   display: block;
   color: #ff4d4f;
   font-size: 12px;
   margin-top: 4px;
-`;
+`

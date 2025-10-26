@@ -1,5 +1,67 @@
-import { authenticatedApi } from "./baseApi";
+import {
+  ExamFilterRequest,
+  ExamSession,
+  ExamSessionRequest,
+} from '../../types/examsession'
+import { QuestionFilterRequest } from '../../types/question'
+import { parseParamToString } from '../../utils/parseParam'
+import { authenticatedApi } from './baseApi'
 
 export const examSessionApi = authenticatedApi.injectEndpoints({
-    endpoints: builder => ({})
+  endpoints: (builder) => ({
+    createExamSession: builder.mutation<ExamSession, ExamSessionRequest>({
+      query: (request) => ({
+        url: '/exam-session',
+        method: 'POST',
+        body: request,
+      }),
+      invalidatesTags: [{ type: 'ExamSession', id: 'LIST' }],
+    }),
+    filterExamSession: builder.query<any, ExamFilterRequest>({
+      query: (request) => ({
+        url: `/exam-session/filter?${parseParamToString(request)}`,
+        method: 'GET',
+      }),
+      providesTags(result, error, arg, meta) {
+        return !result?.data
+          ? [{ type: 'ExamSession', id: 'LIST' }]
+          : [
+              ...(result.data ?? []).map((item: ExamSession) => ({
+                type: 'ExamSession',
+                id: item.id,
+              })),
+              { type: 'ExamSession', id: 'LIST' },
+            ]
+      },
+    }),
+    updateExamSession: builder.mutation<
+      ExamSession,
+      { id: number; request: ExamSessionRequest }
+    >({
+      query: (data) => ({
+        url: `/exam-session/${data.id}`,
+        method: 'PUT',
+        body: data.request,
+      }),
+      invalidatesTags(result, error, arg, meta) {
+        return result
+          ? [{ type: 'ExamSession', id: result.id }]
+          : [{ type: 'ExamSession', id: 'LIST' }]
+      },
+    }),
+    deleteExamSession: builder.mutation<any, { id: number }>({
+      query: (request) => ({
+        url: `/exam-session/${request.id}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: [{ type: 'ExamSession', id: 'LIST' }],
+    }),
+  }),
 })
+
+export const {
+  useCreateExamSessionMutation,
+  useFilterExamSessionQuery,
+  useUpdateExamSessionMutation,
+  useDeleteExamSessionMutation,
+} = examSessionApi

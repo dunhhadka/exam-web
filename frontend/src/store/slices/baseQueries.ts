@@ -9,7 +9,7 @@ import { TokenManager } from '../../utils/tokenManager'
 import { logout, setRefreshing, updateTokens } from './authSlice'
 import { ApiResponse } from '../../types/common'
 
-export const BASE_URL = 'http://localhost:8080/api'
+export const BASE_URL = 'http://localhost:8081/api'
 
 const transformResponse = (result: any) => {
   if (result.data) {
@@ -34,7 +34,7 @@ const transformResponse = (result: any) => {
 
     console.log('Transformed data: ', apiResponse.data)
 
-    return { data: apiResponse }
+    return { data: apiResponse.data }
   }
 
   return result

@@ -1,55 +1,56 @@
-import { Exam } from "./exam";
+import { Exam } from './exam'
+import { PagingRequest } from './question'
 
 export interface ExamSession {
-  id: number;
-  exam: Exam;
-  name: string;
-  code: string;
-  joinToken: string;
-  joinPath: string;
+  id: number
+  exam: Exam
+  name: string
+  code: string
+  joinToken: string
+  joinPath: string
 
-  status: ExamSessionStatus;
+  status: ExamSessionStatus
 
-  startTime: string;
-  endTime: string;
-  durationMinutes: number;
-  lateJoinMinutes: number;
-  shuffleQuestion: boolean;
-  shuffleAnswers: boolean;
+  startTime: string
+  endTime: string
+  durationMinutes: number
+  lateJoinMinutes: number
+  shuffleQuestion: boolean
+  shuffleAnswers: boolean
 
-  publicFlag: boolean;
-  attemptLimit: number;
+  publicFlag: boolean
+  attemptLimit: number
 
   settings: ExamSessionSetting
 }
 
 export enum ExamSessionStatus {
-  OPEN = "OPEN",
-  CLOSED = "CLOSED",
+  OPEN = 'OPEN',
+  CLOSED = 'CLOSED',
 }
 
 export const ExamSessionStatusLabel: Record<ExamSessionStatus, String> = {
-  [ExamSessionStatus.OPEN]: "Đang mở",
-  [ExamSessionStatus.CLOSED]: "Đã đóng",
-};
+  [ExamSessionStatus.OPEN]: 'Đang mở',
+  [ExamSessionStatus.CLOSED]: 'Đã đóng',
+}
 
 export interface ExamSessionSetting {
-  antiCheat: AntiCheat;
-  proctoring?: Proctoring;
+  antiCheat: AntiCheat
+  proctoring?: Proctoring
 }
 
 export interface AntiCheat {
-  blockCopyPaste?: boolean;
-  blockDevTools?: boolean;
-  maxWindowBlurAllowed?: boolean;
-  maxExitFullscreenAllowed?: boolean;
+  blockCopyPaste?: boolean
+  blockDevTools?: boolean
+  maxWindowBlurAllowed?: boolean
+  maxExitFullscreenAllowed?: boolean
 }
 
 export interface Proctoring {
-  monitorEnabled?: boolean;
-  identityMode?: IdentityMode;
-  requireIdUpload?: boolean;
-  screenRecording?: boolean;
+  monitorEnabled?: boolean
+  identityMode?: IdentityMode
+  requireIdUpload?: boolean
+  screenRecording?: boolean
 }
 
 export enum IdentityMode {
@@ -59,8 +60,8 @@ export enum IdentityMode {
 }
 
 export interface Notifications {
-  sendResultEmail?: boolean;
-  releasePolicy?: ReleasePolicy;
+  sendResultEmail?: boolean
+  releasePolicy?: ReleasePolicy
 }
 
 export enum ReleasePolicy {
@@ -69,18 +70,24 @@ export enum ReleasePolicy {
 }
 
 export interface ExamSessionRequest {
-  examId?: number;
-  name?: string;
-  startTime?: string;
-  endTime?: string;
-  durationMinutes?: number;
-  lateJoinMinnutes?: number;
-  shuffleQuestion?: boolean;
-  shuffleAnswers?: boolean;
+  examId?: number
+  name?: string
+  startTime?: string
+  endTime?: string
+  durationMinutes?: number
+  lateJoinMinnutes?: number
+  shuffleQuestion?: boolean
+  shuffleAnswers?: boolean
 
-  attemptLimit?: number;
+  attemptLimit?: number
 
-  isPublic?: boolean;
+  isPublic?: boolean
 
-  settings?: ExamSessionSetting;
+  settings?: ExamSessionSetting
+}
+
+export interface ExamFilterRequest extends PagingRequest {
+  publicFlag?: boolean
+  startDate?: string
+  endDate?: string
 }
