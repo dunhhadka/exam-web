@@ -22,4 +22,16 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     @Query("SELECT u FROM User u WHERE u.deleted = FALSE AND u.accountType = 'SYSTEM' AND u.email = :email")
     Optional<User> findSystemByEmail(String email);
+
+    @Query("""
+             SELECT CASE WHEN COUNT(u) > 0 THEN TRUE ELSE FALSE END
+                FROM User u
+                JOIN u.userRoles ur
+                JOIN ur.role r
+                WHERE u.deleted = FALSE
+                  AND r.deleted = FALSE
+                  AND u.email = :email
+                  AND r.code = 'TEACHER'
+            """)
+    boolean existsTeacherByEmail(String email);
 }

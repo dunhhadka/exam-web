@@ -6,5 +6,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;
 
 public interface ExamSessionAccessRepository extends JpaRepository<ExamSessionAccess, Long> {
-    Optional<ExamSessionAccess> findByExamSessionIdAndEmail(Long sessionId, String email);
+    boolean existsByExamSessionIdAndEmail(Long sessionId, String email);
 }

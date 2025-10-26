@@ -40,7 +40,5 @@ public class ExamCreateRequest extends Request{
 
         @NotNull(message = "EXAM_QUESTION_POINT_REQUIRED")
         private BigDecimal point;
-
-        private Integer orderIndex;
     }
 }

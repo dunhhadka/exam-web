@@ -4,6 +4,7 @@ package com.datn.exam.config.application.aop.advice;
 import com.datn.exam.model.dto.response.ErrorResponse;
 import com.datn.exam.model.dto.response.InvalidFieldError;
 import com.datn.exam.model.dto.response.InvalidInputResponse;
+import com.datn.exam.support.enums.error.AuthorizationError;
 import com.datn.exam.support.enums.error.BadRequestError;
 import com.datn.exam.support.enums.error.InternalServerError;
 import com.datn.exam.support.enums.error.ResponseError;
@@ -15,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -73,6 +75,22 @@ public class CustomExceptionHandleAdvice {
                         )
                 );
     }
+
+    @ExceptionHandler({AccessDeniedException.class})
+    public ResponseEntity<ErrorResponse<Void>> handleValidationException(AccessDeniedException e, HttpServletRequest request) {
+        log.warn("Failed to handle {} request {}: {}", request.getMethod(), request.getRequestURI(), e.getMessage(), e);
+
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(
+                        new ErrorResponse<>(
+                                AuthorizationError.ACCESS_DENIED.getCode(),
+                                e.getMessage(),
+                                AuthorizationError.ACCESS_DENIED.getName()
+                        )
+                );
+    }
+
 
     @ExceptionHandler({MethodArgumentNotValidException.class})
     public ResponseEntity<InvalidInputResponse> handleMethodArgumentNotValidException(MethodArgumentNotValidException e, HttpServletRequest request) {

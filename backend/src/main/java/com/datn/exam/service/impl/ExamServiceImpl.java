@@ -45,8 +45,30 @@ public class ExamServiceImpl implements ExamService {
 
     @Override
     public ExamResponse createDraft(ExamDraftRequest request) {
-        //TODO: Code continue;
-        return null;
+
+        List<Tag> tags = validateAndGetTags(request.getIdsTag());
+
+        var score = request.getScore();
+        if (score == null) {
+            score = request.getQuestions().stream()
+                    .map(ExamDraftRequest.QuestionRequest::getPoint)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add)
+                    .setScale(1, RoundingMode.CEILING);
+        }
+
+        Exam exam = Exam.builder()
+                .name(request.getName())
+                .level(request.getLevel())
+                .score(null)
+                .isPublic(request.isPublic())
+                .status(Status.DRAFT)
+                .deleted(Boolean.FALSE)
+                .tags(tags)
+                .examQuestions(new ArrayList<>()) // Empty list of questions for a draft
+                .build();
+
+        examRepository.save(exam);
+        return examMapper.toExamResponse(exam);
     }
 
     @Override
@@ -81,7 +103,7 @@ public class ExamServiceImpl implements ExamService {
             ExamQuestion examQuestion = ExamQuestion.builder()
                     .question(questionMap.get(questionRequest.getId()))
                     .point(questionRequest.getPoint())
-                    .orderIndex(questionRequest.getOrderIndex())
+                    .orderIndex(i)
                     .build();
 
             examQuestions.add(examQuestion);
@@ -128,7 +150,7 @@ public class ExamServiceImpl implements ExamService {
             ExamQuestion examQuestion = ExamQuestion.builder()
                     .question(questionMap.get(questionRequest.getId()))
                     .point(questionRequest.getPoint())
-                    .orderIndex(questionRequest.getOrderIndex())
+                    .orderIndex(i)
                     .build();
 
             examQuestions.add(examQuestion);

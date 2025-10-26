@@ -28,7 +28,7 @@ public class ExamAttemptQuestion extends AuditableEntity{
     @Column(name = "question_id")
     private Long questionId;
 
-    @Column(name = "exam_question_id")
+    @Column(name = "exam_question_id", nullable = false)
     private Long examQuestionId;
 
     @Column(name = "orderIndex")
@@ -38,9 +38,13 @@ public class ExamAttemptQuestion extends AuditableEntity{
 
     private BigDecimal point; // Điểm snapshot
 
-    @Column(name = "question_snapshot")
+    @Column(name = "question_snapshot", columnDefinition = "TEXT")
     @Convert(converter = MapObjectConverter.class)
     private Map<String, Object> questionSnapshot;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "question_id", insertable = false, updatable = false)
+    private Question question;
 
     @Column(name = "auto_score")
     private BigDecimal autoScore;
@@ -49,4 +53,14 @@ public class ExamAttemptQuestion extends AuditableEntity{
     private BigDecimal manualScore;
 
     private Boolean correct;
+
+    @OneToOne(mappedBy = "attemptQuestion", cascade = CascadeType.ALL, orphanRemoval = true)
+    private ExamAttemptAnswer answer;
+
+    public void setAnswer(ExamAttemptAnswer answer) {
+        this.answer = answer;
+        if (answer != null) {
+            answer.setAttemptQuestion(this);
+        }
+    }
 }

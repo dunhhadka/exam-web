@@ -1,0 +1,2 @@
+--ALTER TABLE exam_attempt_questions
+--MODIFY COLUMN question_snapshot TEXT;

@@ -73,6 +73,7 @@ public class ExamSessionServiceImpl implements ExamSessionService {
                 .isPublic(request.isPublic())
                 .attemptLimit(request.getAttemptLimit())
                 .settings(settingsMap)
+                .examStatus(ExamSession.ExamStatus.OPEN)
                 .deleted(Boolean.FALSE)
                 .build();
 

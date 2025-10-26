@@ -3,9 +3,12 @@ package com.datn.exam.model.entity;
 import com.datn.exam.support.converter.MapObjectConverter;
 import jakarta.persistence.*;
 import lombok.*;
+import org.apache.commons.collections4.CollectionUtils;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -26,9 +29,14 @@ public class ExamAttempt extends AuditableEntity{
     @JoinColumn(name = "exam_session_id", nullable = false)
     private ExamSession examSession;
 
-    @ManyToOne
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    @OneToMany(mappedBy = "attempt", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ExamAttemptQuestion> attemptQuestions;
+
+    @Column(name = "student_email")
+    private String studentEmail;
+
+    @Column(name = "student_name")
+    private String studentName;
 
     @Column(name = "attempt_no", nullable = false)
     private Integer attemptNo;
@@ -80,10 +88,16 @@ public class ExamAttempt extends AuditableEntity{
     public enum AttemptStatus {
         IN_PROGRESS,
         SUBMITTED,
-        EXPIRED,
-        ABANDONED, // Thoát ra giữa chừng
-        CANCELLED, // Bị hủy bài thi
-        GRADED, // Đã chấm điểm xong: được chấp thuận bài thi
-        TERMINATED // Bị dừng do vi phạm gian lận
+        ABANDONED,
     }
+
+    public void addAttemptQuestion(ExamAttemptQuestion question) {
+        if (CollectionUtils.isEmpty(attemptQuestions)) {
+            this.attemptQuestions = new ArrayList<>();
+        }
+
+        this.attemptQuestions.add(question);
+        question.setAttempt(this);
+    }
+
 }

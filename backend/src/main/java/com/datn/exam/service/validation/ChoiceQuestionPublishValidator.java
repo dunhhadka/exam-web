@@ -43,23 +43,9 @@ public class ChoiceQuestionPublishValidator {
         for(int i = 0; i < answers.size(); i++) {
             AnswerCreateRequest a = answers.get(i);
 
-            if (a.getOrderIndex() == null) {
-                errors.add(err(objectName, "answers[" + i + "].orderIndex", "ANSWER_ORDER_INDEX_REQUIRED"));
-            } else if (a.getOrderIndex() < 0) {
-                errors.add(err(objectName, "answers[" + i + "].orderIndex", "ANSWER_ORDER_INDEX_INVALID"));
-            }
-
             if (StringUtils.isBlank(a.getValue())) {
                 errors.add(err(objectName, "answers[" + i + "].value", "ANSWER_TEXT_REQUIRED"));
             }
-        }
-
-        //NOTE: duplicate orderIndex
-        var orderIndices = answers.stream().map(AnswerCreateRequest::getOrderIndex).filter(Objects::nonNull).toList();
-        Map<Integer, Long> freq = orderIndices.stream().collect(Collectors.groupingBy(i -> i, Collectors.counting()));
-        var dups = freq.entrySet().stream().filter(e -> e.getValue() > 1).map(Map.Entry::getKey).toList();
-        if (!dups.isEmpty()) {
-            errors.add(err(objectName, "answers", "ANSWER_DUPLICATE_ORDER_INDEX"));
         }
 
         // Số đáp án đúng

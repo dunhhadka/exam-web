@@ -1,18 +1,12 @@
 server:
   port: 8081
-  logging:
-    level:
-      org.springframework.security: DEBUG
-  servlet:
-    encoding:
-      charset: UTF8
-      enabled: true
-      force: true
+
 spring:
   datasource:
     url: ${DB_URL:jdbc:mysql://localhost:3306/exam?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:1234}
+
   jpa:
     hibernate:
       ddl-auto: update
@@ -22,17 +16,51 @@ spring:
     properties:
       hibernate:
         format_sql: true
-#  mail:
-#    host: ${MAIL_HOST:localhost}
-#    port: ${MAIL_PORT:1025}
-#    username: ${MAIL_USERNAME:admin}
-#    password: ${MAIL_PASSWORD:Admin123@}
-#    protocol: ${MAIL_PROTOCOL:smtp}
-#    properties:
-#      mail:
-#        smtp:
-#          auth: ${MAIL_AUTH:true}
-#          starttls.enable: ${MAIL_TLS:true}
+        jdbc.time_zone: UTC
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:123456}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
+
+  cache:
+    type: redis
+    redis:
+      time-to-live: PT60M
+      cache-null-values: false
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: vichatvn@gmail.com
+    password: vbog qofy wone ckul
+    properties:
+      mail:
+        smtp:
+          starttls:
+            enable: true
+          auth: true
+custom:
+  cache:
+    custom-cache:
+      users:
+        time-to-live: PT30M
+        cache-null-values: false
+      sessions:
+        time-to-live: PT120M
+        cache-null-values: false
+      exams:
+        time-to-live: PT60M
+        cache-null-values: false
+
 security:
   authentication:
     jwt:
@@ -40,4 +68,3 @@ security:
       access-token-expires-in: ${ACCESS_TOKEN_EXPIRES_IN:60m}
       refresh-token-expires-in: ${REFRESH_TOKEN_EXPIRES_IN:1d}
       refresh-token-long-expires-in: ${REFRESH_TOKEN_LONG_EXPIRES_IN:30d}
-
