@@ -32,8 +32,6 @@ const transformResponse = (result: any) => {
       }
     }
 
-    console.log('Transformed data: ', apiResponse.data)
-
     return { data: apiResponse.data }
   }
 

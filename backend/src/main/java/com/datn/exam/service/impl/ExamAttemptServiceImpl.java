@@ -21,6 +21,7 @@ import com.datn.exam.support.exception.ResponseException;
 import com.datn.exam.support.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -61,15 +62,15 @@ public class ExamAttemptServiceImpl implements ExamAttemptService {
 
         this.validateSessionForStart(examSession);
 
-        Optional<ExamAttempt> existingAttempt = examAttemptRepository
+        var existingAttempt = examAttemptRepository
                 .findByExamSessionIdAndStudentEmailAndStatus(
                         examSession.getId(),
                         studentEmail,
                         ExamAttempt.AttemptStatus.IN_PROGRESS
                 );
 
-        if (existingAttempt.isPresent()) {
-            return buildAttemptDetailResponse(existingAttempt.get(), examSession.getDurationMinutes());
+        if (CollectionUtils.isNotEmpty(existingAttempt)) {
+            return buildAttemptDetailResponse(existingAttempt.get(0), examSession.getDurationMinutes());
         }
 
         int usedAttempts = examAttemptRepository.countByExamSessionIdAndStudentEmail(examSession.getId(), studentEmail);
@@ -155,8 +156,6 @@ public class ExamAttemptServiceImpl implements ExamAttemptService {
              throw new ResponseException(BadRequestError.SUBMIT_AFTER_DEADLINE);
         }
 
-        var objectName = request.getClass().getName();
-
         List<InvalidFieldError> errors = submitAttemptValidator.validate(request, attemptId);
         if (!errors.isEmpty()) {
             throw new DomainValidationException(errors);
@@ -221,7 +220,7 @@ public class ExamAttemptServiceImpl implements ExamAttemptService {
 
         String studentEmail = guestAccess.getEmail();
 
-        Optional<ExamAttempt> attemptOpt = examAttemptRepository
+        var attemptOpt = examAttemptRepository
                 .findByExamSessionIdAndStudentEmailAndStatus(
                         sessionId,
                         studentEmail,
@@ -232,7 +231,7 @@ public class ExamAttemptServiceImpl implements ExamAttemptService {
             throw new ResponseException(NotFoundError.NO_ACTIVE_ATTEMPT);
         }
 
-        ExamAttempt attempt = attemptOpt.get();
+        ExamAttempt attempt = attemptOpt.get(0);
         ExamSession session = attempt.getExamSession();
 
         Instant now = Instant.now();

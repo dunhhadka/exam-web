@@ -227,6 +227,7 @@ public class ExamJoinServiceImpl implements ExamJoinService {
                 .attemptRemaining(0)
                 .canStart(Boolean.FALSE)
                 .message(message)
+                .status(401)
                 .build();
     }
 }

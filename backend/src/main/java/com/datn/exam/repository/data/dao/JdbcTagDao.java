@@ -2,6 +2,7 @@ package com.datn.exam.repository.data.dao;
 
 import com.datn.exam.repository.data.dto.QuestionTagDto;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -11,11 +12,15 @@ import java.util.List;
 
 @Repository
 @RequiredArgsConstructor
-public class JdbcTagDao implements TagDao{
+public class JdbcTagDao implements TagDao {
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
     @Override
     public List<QuestionTagDto> findTagByQuestionIds(List<Long> questionIds) {
+        if (CollectionUtils.isEmpty(questionIds)) {
+            return List.of();
+        }
+
         String sql = """
                 SELECT
                     qt.question_id AS questionId,

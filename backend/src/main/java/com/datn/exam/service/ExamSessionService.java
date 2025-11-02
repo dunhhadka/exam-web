@@ -12,7 +12,7 @@ import java.util.List;
 public interface ExamSessionService {
     ExamSessionResponse create(ExamSessionRequest request);
     ExamSessionResponse update(Long id, ExamSessionRequest request);
-    PageDTO<ExamSessionDto> filter(ExamSessionFilterRequest request);
+    PageDTO<ExamSessionResponse> filter(ExamSessionFilterRequest request);
     void delete(IdsRequest request);
     ExamSessionResponse getById(Long id);
 }

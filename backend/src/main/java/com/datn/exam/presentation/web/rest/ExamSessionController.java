@@ -20,7 +20,7 @@ public interface ExamSessionController {
 
     @GetMapping("/filter")
     @ResponseStatus(HttpStatus.OK)
-    public PagingResponse<ExamSessionDto> search(@Valid ExamSessionFilterRequest request);
+    public PagingResponse<ExamSessionResponse> search(@Valid ExamSessionFilterRequest request);
 
     @DeleteMapping("/delete")
     @ResponseStatus(HttpStatus.OK)

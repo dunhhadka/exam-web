@@ -4,6 +4,7 @@ import com.datn.exam.model.entity.ExamAttempt;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface ExamAttemptRepository extends JpaRepository<ExamAttempt, Long> {
@@ -22,6 +23,6 @@ public interface ExamAttemptRepository extends JpaRepository<ExamAttempt, Long> 
                      AND a.studentEmail = :email
                      AND a.status = :status
             """)
-    Optional<ExamAttempt> findByExamSessionIdAndStudentEmailAndStatus(Long sessionId, String email, ExamAttempt.AttemptStatus status);
+    List<ExamAttempt> findByExamSessionIdAndStudentEmailAndStatus(Long sessionId, String email, ExamAttempt.AttemptStatus status);
 
 }

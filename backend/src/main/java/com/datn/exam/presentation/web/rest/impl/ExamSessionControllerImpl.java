@@ -29,7 +29,7 @@ public class ExamSessionControllerImpl implements ExamSessionController {
     }
 
     @Override
-    public PagingResponse<ExamSessionDto> search(ExamSessionFilterRequest request) {
+    public PagingResponse<ExamSessionResponse> search(ExamSessionFilterRequest request) {
         return PagingResponse.of(examSessionService.filter(request));
     }
 

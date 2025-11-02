@@ -25,4 +25,8 @@ public class PagingRequest extends Request {
     protected String sortBy;
 
     protected SortOrder sortOrder;
+
+    public void setPageIndex(int pageIndex) {
+        this.pageIndex = pageIndex - 1;
+    }
 }

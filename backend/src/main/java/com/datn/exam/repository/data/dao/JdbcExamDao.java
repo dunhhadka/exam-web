@@ -59,7 +59,7 @@ public class JdbcExamDao implements ExamDao{
         params.addValue("limit", request.getPageSize());
         params.addValue("offset", request.getPageSize() * request.getPageIndex());
 
-        String finalSql = String.format(sql, whereFilter.toString());
+        String finalSql = String.format(sql, whereFilter);
 
         return jdbcTemplate.query(finalSql, params, BeanPropertyRowMapper.newInstance(ExamDto.class));
     }
