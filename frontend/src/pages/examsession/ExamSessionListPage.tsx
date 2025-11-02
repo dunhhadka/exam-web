@@ -134,7 +134,7 @@ const ExamSessionListPage = () => {
         columns={columns}
         tableTitle="Bài kiểm tra"
         filterActive
-        data={examSessionData?.data ?? []}
+        data={examSessionData ?? []}
         actions={[
           {
             title: 'Giao bài',

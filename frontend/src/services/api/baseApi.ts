@@ -9,19 +9,21 @@ export const publicApi = createApi({
   baseQuery: async (args, api, extraOptions) => {
     const result = await publicBaseQuery(args, api, extraOptions)
 
-    if (result.data) {
-      const apiResponse = result.data as any
-      if (!apiResponse.success) {
-        return {
-          error: {
-            status: apiResponse.code,
-            data: apiResponse,
-          },
-        }
-      }
+    // console.log('result', result)
 
-      return { data: apiResponse.data }
-    }
+    // if (result.data) {
+    //   const apiResponse = result.data as any
+    //   if (!apiResponse.success) {
+    //     return {
+    //       error: {
+    //         status: apiResponse.code,
+    //         data: apiResponse,
+    //       },
+    //     }
+    //   }
+
+    //   return { data: apiResponse.data }
+    // }
 
     return result
   },

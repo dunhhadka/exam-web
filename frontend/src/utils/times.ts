@@ -5,11 +5,11 @@ export function formatInstant(instant: string): string {
 
   const pad = (n: number) => n.toString().padStart(2, '0')
 
-  const hours = pad(date.getHours())
-  const minutes = pad(date.getMinutes())
-  const day = pad(date.getDate())
-  const month = pad(date.getMonth() + 1)
-  const year = date.getFullYear()
+  const hours = pad(date.getUTCHours())
+  const minutes = pad(date.getUTCMinutes())
+  const day = pad(date.getUTCDate())
+  const month = pad(date.getUTCMonth() + 1)
+  const year = date.getUTCFullYear()
 
   return `${hours}:${minutes} ${day}/${month}/${year}`
 }

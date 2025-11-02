@@ -1,0 +1,71 @@
+import {
+  AttemptDetailResponse,
+  JoinByCodeRequest,
+  JoinSessionMetaResponse,
+  OtpRequest,
+  SessionTokenResponse,
+  StartAttemptRequest,
+  SubmitAttemptRequest,
+  VerifyOtpRequest,
+} from '../../types/take-exam'
+import { publicApi } from './baseApi'
+
+const takeExamApi = publicApi.injectEndpoints({
+  endpoints: (builder) => ({
+    joinExamByCode: builder.mutation<
+      JoinSessionMetaResponse,
+      JoinByCodeRequest
+    >({
+      query: (request) => ({
+        url: '/join/by-code',
+        method: 'POST',
+        body: request,
+      }),
+    }),
+    requestOtp: builder.mutation<any, OtpRequest>({
+      query: (request) => ({
+        url: '/join/otp/request',
+        method: 'POST',
+        body: request,
+      }),
+    }),
+    verifyOtp: builder.mutation<SessionTokenResponse, VerifyOtpRequest>({
+      query: (request) => ({
+        url: '/join/otp/verify',
+        method: 'POST',
+        body: request,
+      }),
+    }),
+    startExamAttempt: builder.mutation<
+      AttemptDetailResponse,
+      StartAttemptRequest
+    >({
+      query: (request) => ({
+        url: '/exam-attempt',
+        method: 'POST',
+        body: request,
+      }),
+    }),
+    submitAttempt: builder.mutation<
+      AttemptDetailResponse,
+      { attemptId: number; request: SubmitAttemptRequest; sessionToken: string }
+    >({
+      query: ({ attemptId, request, sessionToken }) => ({
+        method: 'PUT',
+        url: `/exam-attempt/${attemptId}`,
+        body: request,
+        headers: {
+          'X-Session-Token': sessionToken,
+        },
+      }),
+    }),
+  }),
+})
+
+export const {
+  useJoinExamByCodeMutation,
+  useRequestOtpMutation,
+  useVerifyOtpMutation,
+  useStartExamAttemptMutation,
+  useSubmitAttemptMutation,
+} = takeExamApi

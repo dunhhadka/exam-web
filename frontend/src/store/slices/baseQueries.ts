@@ -5,9 +5,9 @@ import {
   FetchBaseQueryError,
 } from '@reduxjs/toolkit/query'
 import { RootState } from '..'
+import { ApiResponse } from '../../types/common'
 import { TokenManager } from '../../utils/tokenManager'
 import { logout, setRefreshing, updateTokens } from './authSlice'
-import { ApiResponse } from '../../types/common'
 
 export const BASE_URL = 'http://localhost:8081/api'
 
@@ -157,5 +157,7 @@ export const authenticatedBaseQuery: BaseQueryFn<
     },
   })
 
-  return transformResponse(rawBaseQuery(args, api, extraOptions))
+  const result = await rawBaseQuery(args, api, extraOptions)
+
+  return transformResponse(result)
 }

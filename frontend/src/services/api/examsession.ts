@@ -17,20 +17,20 @@ export const examSessionApi = authenticatedApi.injectEndpoints({
       }),
       invalidatesTags: [{ type: 'ExamSession', id: 'LIST' }],
     }),
-    filterExamSession: builder.query<any, ExamFilterRequest>({
+    filterExamSession: builder.query<ExamSession[], ExamFilterRequest>({
       query: (request) => ({
         url: `/exam-session/filter?${parseParamToString(request)}`,
         method: 'GET',
       }),
       providesTags(result, error, arg, meta) {
-        return !result?.data
-          ? [{ type: 'ExamSession', id: 'LIST' }]
+        return !result
+          ? [{ type: 'ExamSession' as const, id: 'LIST' }]
           : [
-              ...(result.data ?? []).map((item: ExamSession) => ({
-                type: 'ExamSession',
+              ...(result ?? []).map((item: ExamSession) => ({
+                type: 'ExamSession' as const,
                 id: item.id,
               })),
-              { type: 'ExamSession', id: 'LIST' },
+              { type: 'ExamSession' as const, id: 'LIST' },
             ]
       },
     }),

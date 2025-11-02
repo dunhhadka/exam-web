@@ -78,7 +78,7 @@ export function useSearch<IFilter extends Record<string, any>, IResult>(
     setFilter,
     setSearchTerm,
     resetFilter,
-    data: response?.data ?? [],
+    data: response ?? [],
     isLoading,
     isFetching,
     refetch,
