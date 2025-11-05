@@ -321,7 +321,13 @@ const TakeExam = () => {
       case QuestionType.TRUE_FALSE:
         return (
           <Radio.Group
-            value={answer.text}
+            value={
+              !!answer.selectedAnswerId
+                ? answer.selectedAnswerId === 0
+                  ? 'True'
+                  : 'False'
+                : undefined
+            }
             onChange={(e) =>
               handleAnswerChange(
                 question.attemptQuestionId,
@@ -332,11 +338,7 @@ const TakeExam = () => {
           >
             <TrueFalseList>
               {question.answers.map((ans) => {
-                const answerValue =
-                  typeof ans.value === 'string'
-                    ? ans.value.toLowerCase()
-                    : String(ans.value).toLowerCase()
-                const isTrue = answerValue === 'true' || answerValue === 'đúng'
+                const isTrue = ans.value === 'True'
 
                 return (
                   <Radio key={ans.answerId} value={ans.value}>

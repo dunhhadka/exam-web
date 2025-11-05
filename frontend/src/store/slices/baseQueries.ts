@@ -8,6 +8,7 @@ import { RootState } from '..'
 import { ApiResponse } from '../../types/common'
 import { TokenManager } from '../../utils/tokenManager'
 import { logout, setRefreshing, updateTokens } from './authSlice'
+import { notification } from 'antd'
 
 export const BASE_URL = 'http://localhost:8081/api'
 
@@ -15,9 +16,16 @@ const transformResponse = (result: any) => {
   if (result.data) {
     const apiResponse: ApiResponse = result.data as ApiResponse
 
-    console.log('Raw BE Response: ', apiResponse)
-
     if (!apiResponse.success) {
+      console.log('Raw BE Response: ', apiResponse)
+
+      notification.error({
+        message: apiResponse.message || 'Có lỗi xảy ra',
+        description: 'Lỗi từ server',
+        duration: 3,
+        placement: 'topRight',
+      })
+
       return {
         error: {
           status: apiResponse.code || 400,
@@ -33,6 +41,16 @@ const transformResponse = (result: any) => {
     }
 
     return { data: apiResponse.data }
+  } else if (result.error) {
+    const data = result.error?.data
+    if (data) {
+      notification.error({
+        message: data?.message || 'Có lỗi xảy ra',
+        description: 'Lỗi từ server',
+        duration: 3,
+        placement: 'topRight',
+      })
+    }
   }
 
   return result
