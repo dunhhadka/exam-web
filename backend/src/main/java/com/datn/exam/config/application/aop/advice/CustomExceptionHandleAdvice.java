@@ -14,6 +14,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -111,9 +113,13 @@ public class CustomExceptionHandleAdvice {
                 .toList();
 
 
-        String topMessage = fieldErrors.isEmpty()
+        String topMessage = CollectionUtils.isEmpty(fieldErrors)
                 ? DEFAULT_INPUT_INVALID_CODE
-                : fieldErrors.stream().map(InvalidFieldError::getMessage).distinct().collect(Collectors.joining("; "));
+                : fieldErrors.stream()
+                .map(InvalidFieldError::getMessage)
+                .filter(StringUtils::isNotBlank)
+                .findFirst()
+                .orElse(DEFAULT_INPUT_INVALID_CODE);
 
         log.warn("Failed to handle request {}: {}", request.getRequestURI(), e.getMessage());
 

@@ -24,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -172,14 +173,14 @@ public class ExamJoinServiceImpl implements ExamJoinService {
             return this.buildCannotStartResponse(session, MessageConstants.SESSION_CLOSED);
         }
 
-        Instant now = Instant.now();
+        LocalDateTime now = LocalDateTime.now();
         if (session.getStartTime() != null && now.isBefore(session.getStartTime())) {
             return buildCannotStartResponse(session, MessageConstants.SESSION_NOT_STARTED);
         }
 
         if (session.getEndTime() != null) {
             long lateJoinSeconds = (session.getLateJoinMinutes() != null ? session.getLateJoinMinutes() : 0) * 60L;
-            Instant finalDeadline = session.getEndTime().plusSeconds(lateJoinSeconds);
+            LocalDateTime finalDeadline = session.getEndTime().plusSeconds(lateJoinSeconds);
             if (now.isAfter(finalDeadline)) {
                 return buildCannotStartResponse(session, MessageConstants.SESSION_ENDED);
             }

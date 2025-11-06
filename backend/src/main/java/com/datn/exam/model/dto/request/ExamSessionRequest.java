@@ -1,26 +1,25 @@
 package com.datn.exam.model.dto.request;
 
 import com.datn.exam.model.dto.ExamSessionSetting;
-import com.datn.exam.model.dto.mapper.InstantCustomDeserializer;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
-import java.time.Instant;
+import java.time.LocalDateTime;
 
 @Data
 @Builder
 @AllArgsConstructor
+@NoArgsConstructor
 public class ExamSessionRequest {
     private Long examId;
     private String name;
 
-    @JsonDeserialize(using = InstantCustomDeserializer.class)
-    private Instant startTime;
-    @JsonDeserialize(using = InstantCustomDeserializer.class)
-    private Instant endTime;
+    private LocalDateTime startTime;
+
+    private LocalDateTime endTime;
 
     private Integer durationMinutes;
 

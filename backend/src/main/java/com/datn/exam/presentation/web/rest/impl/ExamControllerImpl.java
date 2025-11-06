@@ -30,6 +30,11 @@ public class ExamControllerImpl implements ExamController {
     }
 
     @Override
+    public Response<Integer> count(ExamFilterRequest request) {
+        return Response.of(examService.count(request));
+    }
+
+    @Override
     public Response<Boolean> delete(IdsRequest request) {
         examService.delete(request.getIds());
         return Response.ok();

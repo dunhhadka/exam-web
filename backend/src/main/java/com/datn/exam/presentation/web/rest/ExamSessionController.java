@@ -12,15 +12,15 @@ public interface ExamSessionController {
 
     @PostMapping("")
     @ResponseStatus(HttpStatus.CREATED)
-    public Response<ExamSessionResponse> create(@RequestBody @Valid ExamSessionRequest request);
+    Response<ExamSessionResponse> create(@RequestBody @Valid ExamSessionRequest request);
 
     @PutMapping("/{id}")
     @ResponseStatus(HttpStatus.OK)
-    public Response<ExamSessionResponse> update(@PathVariable(name = "id") Long id, @RequestBody @Valid ExamSessionRequest request);
+    Response<ExamSessionResponse> update(@PathVariable(name = "id") Long id, @RequestBody @Valid ExamSessionRequest request);
 
     @GetMapping("/filter")
     @ResponseStatus(HttpStatus.OK)
-    public PagingResponse<ExamSessionResponse> search(@Valid ExamSessionFilterRequest request);
+    PagingResponse<ExamSessionResponse> search(@Valid ExamSessionFilterRequest request);
 
     @DeleteMapping("/delete")
     @ResponseStatus(HttpStatus.OK)

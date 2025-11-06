@@ -128,6 +128,11 @@ public class QuestionServiceImpl implements QuestionService {
         return PageDTO.of(questions, request.getPageIndex(), request.getPageSize(), count);
     }
 
+    @Override
+    public Integer count(QuestionSearchRequest request) {
+        return this.questionDao.count(request).intValue();
+    }
+
     private void validateDraft(DraftCreateRequest request) {
         if (this.needsAnswers(request.getType()) && CollectionUtils.isEmpty(request.getAnswers())) {
             throw new ResponseException(BadRequestError.ANSWER_MIN_ONE_REQUIRE);

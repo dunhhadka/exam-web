@@ -7,6 +7,7 @@ import org.apache.commons.collections4.CollectionUtils;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -42,13 +43,13 @@ public class ExamAttempt extends AuditableEntity{
     private Integer attemptNo;
 
     @Column(name = "started_at", nullable = false)
-    private Instant startedAt;
+    private LocalDateTime startedAt;
 
     @Column(name = "submitted_at")
-    private Instant submittedAt;
+    private LocalDateTime submittedAt;
 
     @Column(name = "auto_submitted_at")
-    private Instant autoSubmittedAt;
+    private LocalDateTime autoSubmittedAt;
 
     @Column(name = "score_auto")
     private BigDecimal scoreAuto; // Điểm chấm tự động

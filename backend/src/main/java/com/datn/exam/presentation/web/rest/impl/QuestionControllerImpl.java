@@ -32,12 +32,17 @@ public class QuestionControllerImpl implements QuestionController {
     }
 
     @Override
-    public boolean delete() {
+    public boolean delete(int questionId) {
         return false;
     }
 
     @Override
     public PagingResponse<QuestionResponse> search(QuestionSearchRequest request) {
         return PagingResponse.of(questionService.search(request));
+    }
+
+    @Override
+    public Response<Integer> count(QuestionSearchRequest request) {
+        return Response.of(questionService.count(request));
     }
 }

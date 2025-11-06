@@ -13,4 +13,6 @@ public interface QuestionService {
     QuestionResponse update(QuestionUpdateRequest request);
     void delete(long id);
     PageDTO<QuestionResponse> search(QuestionSearchRequest request);
+
+    Integer count(QuestionSearchRequest request);
 }

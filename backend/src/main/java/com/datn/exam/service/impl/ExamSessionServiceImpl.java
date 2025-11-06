@@ -29,6 +29,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -166,7 +167,7 @@ public class ExamSessionServiceImpl implements ExamSessionService {
         return examSessionMapper.toExamSessionResponse(examSession);
     }
 
-    private void validateWindow(Instant start, Instant end) {
+    private void validateWindow(LocalDateTime start, LocalDateTime end) {
         if (start != null && end != null && !end.isAfter(start)) {
             throw new ResponseException(BadRequestError.EXAM_SESSION_TIME_WINDOW_INVALID, start, end);
         }
