@@ -8,6 +8,7 @@ import { LockOutlined, MailOutlined } from '@ant-design/icons'
 import { useDispatch } from 'react-redux'
 import { useLoginMutation } from '../../services/api/authApi'
 import { setCredentials } from '../../store/slices/authSlice'
+import { useToast } from '../../hooks/useToast'
 
 const Login = () => {
   const dispatch = useDispatch()
@@ -25,6 +26,8 @@ const Login = () => {
   })
   const [loginMutation] = useLoginMutation()
 
+  const toast = useToast()
+
   const onSubmit = async (request: LoginRequest) => {
     try {
       const response = await loginMutation({
@@ -38,6 +41,8 @@ const Login = () => {
           refreshToken: response.refreshToken,
         })
       )
+
+      toast.success('Đăng nhập thành công')
     } catch (error) {
       console.log(error)
     }

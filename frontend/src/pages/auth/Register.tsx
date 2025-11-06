@@ -8,6 +8,7 @@ import { UserOutlined, MailOutlined, LockOutlined } from '@ant-design/icons'
 import CustomInput from '../../components/common/FormInput'
 import { useRegisterMutation } from '../../services/api/authApi'
 import { useNavigate } from 'react-router-dom'
+import { useToast } from '../../hooks/useToast'
 
 // Styled Components
 export const Container = styled.div`
@@ -94,20 +95,24 @@ const Register = () => {
 
   const navigate = useNavigate()
   const [register] = useRegisterMutation()
+  const toast = useToast()
 
   const onSubmit = async (request: RegisterRequest) => {
     try {
-      await register({
+      const res = await register({
         firstName: request.first_name,
         lastName: request.last_name,
         email: request.email,
         password: request.password,
         confirmPassword: request.confirm_password,
         isTeacher: true,
-      })
+      }).unwrap()
+
+      toast.success('Tạo tài khoản thành công')
+
       navigate('/login')
     } catch (error) {
-      throw error
+      console.log(error)
     }
   }
 

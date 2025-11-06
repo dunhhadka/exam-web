@@ -4,21 +4,43 @@ import { authenticatedApi } from './baseApi'
 
 export const examApi = authenticatedApi.injectEndpoints({
   endpoints: (builder) => ({
-    searchExam: builder.query<Exam[], ExamSearchRequest>({
-      query: (request) => ({
-        url: `exam/filter?${parseParamToString(request)}`,
-        method: 'GET',
-      }),
+    searchExam: builder.query<
+      { data: Exam[]; count: number },
+      ExamSearchRequest
+    >({
+      queryFn: async (request, api, extraOptions, baseQuery) => {
+        const [examResult, countResult] = await Promise.all([
+          baseQuery({
+            url: `/exam/filter?${parseParamToString(request)}`,
+            method: 'GET',
+          }),
+          baseQuery({
+            url: `/exam/filter/count?${parseParamToString(request)}`,
+            method: 'GET',
+          }),
+        ])
+
+        return {
+          data: {
+            data: examResult.data as Exam[],
+            count: countResult.data as number,
+          },
+        }
+      },
       providesTags: (result) =>
-        result && result.length > 0
+        result && result?.data?.length > 0
           ? [
-              ...result.map((exam) => ({
+              ...result.data.map((exam) => ({
                 type: 'Exam' as const,
                 id: exam.id,
               })),
               { type: 'Exam' as const, id: 'LIST' },
+              { type: 'Exam' as const, id: 'COUNT' },
             ]
-          : [{ type: 'Exam' as const, id: 'LIST' }],
+          : [
+              { type: 'Exam' as const, id: 'LIST' },
+              { type: 'Exam' as const, id: 'COUNT' },
+            ],
     }),
 
     createExam: builder.mutation<Exam, ExamRequest>({

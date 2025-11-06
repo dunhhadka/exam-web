@@ -1,4 +1,5 @@
 import { notification } from 'antd'
+import { useEffect } from 'react'
 import { ToastContext, ToastContextType, ToastType } from './ToastContext'
 
 notification.config({
@@ -7,6 +8,13 @@ notification.config({
   duration: 3,
   maxCount: 3,
 })
+
+// Export singleton toast instance
+let toastInstance: ToastContextType | null = null
+
+export const getToastInstance = (): ToastContextType | null => {
+  return toastInstance
+}
 
 export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -37,6 +45,16 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
     info: (message, description, duration) =>
       showToast('info', message, description, duration),
   }
+
+  // Set global instance when provider mounts
+  useEffect(() => {
+    toastInstance = contextValue
+    console.log('Toast instance initialized')
+
+    return () => {
+      toastInstance = null
+    }
+  }, []) // Empty dependency để chỉ set 1 lần
 
   return (
     <ToastContext.Provider value={contextValue}>

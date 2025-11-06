@@ -129,8 +129,8 @@ const ExamSessionCreate = ({
     }).unwrap()
 
     return {
-      data: response ?? [],
-      total: response?.length ?? 0,
+      data: response?.data ?? [],
+      total: response?.count ?? 0,
       hasMore: false,
     }
   }

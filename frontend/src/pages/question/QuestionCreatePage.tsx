@@ -50,6 +50,13 @@ interface ActionItem {
   ariaLabel?: string
 }
 
+interface ValidationErrors {
+  level?: string
+  text?: string
+  point?: string
+  data?: string
+}
+
 export const QuestionCreatePage = () => {
   const location = useLocation()
   const navigate = useNavigate()
@@ -59,6 +66,8 @@ export const QuestionCreatePage = () => {
   const [tags, setTags] = useState<Tag[]>([])
 
   const [openPreview, setOpenPreview] = useState(false)
+  const [errors, setErrors] = useState<ValidationErrors>({})
+  const [touched, setTouched] = useState<{ [key: string]: boolean }>({})
 
   const { isSubmitting, submitQuestion } = useSubmitQuestion()
 
@@ -67,26 +76,84 @@ export const QuestionCreatePage = () => {
   const [requestInput, setRequestInput] = useState<QuestionRequestInput>({
     text: '',
     point: null,
-    level: Level.EASY,
+    level: null as any, // Để null để validate
     isPublic: false,
     tagIds: [],
     type: type,
     data: null,
   })
 
-  // question data
+  // Validation function
+  const validateField = (
+    field: keyof ValidationErrors,
+    value: any
+  ): string | undefined => {
+    switch (field) {
+      case 'level':
+        return !value ? 'Vui lòng chọn cấp độ' : undefined
+      case 'text':
+        // Strip HTML tags để check nội dung thực
+        const textContent = value?.replace(/<[^>]*>/g, '').trim()
+        return !textContent ? 'Vui lòng nhập nội dung câu hỏi' : undefined
+      case 'point':
+        if (value === null || value === undefined) {
+          return 'Vui lòng nhập điểm'
+        }
+        if (value < 0) {
+          return 'Điểm phải lớn hơn hoặc bằng 0'
+        }
+        if (value > 100) {
+          return 'Điểm không được vượt quá 100'
+        }
+        return undefined
+      case 'data':
+        return !value ? 'Vui lòng hoàn thiện dữ liệu câu hỏi' : undefined
+      default:
+        return undefined
+    }
+  }
+
+  // Validate all fields
+  const validateAll = (): boolean => {
+    const newErrors: ValidationErrors = {}
+
+    newErrors.level = validateField('level', requestInput.level)
+    newErrors.text = validateField('text', requestInput.text)
+    newErrors.point = validateField('point', requestInput.point)
+    newErrors.data = validateField('data', requestInput.data)
+
+    setErrors(newErrors)
+    setTouched({
+      level: true,
+      text: true,
+      point: true,
+      data: true,
+    })
+
+    // Check if there are any errors
+    return !Object.values(newErrors).some((error) => error !== undefined)
+  }
+
+  // Handle field blur
+  const handleBlur = (field: keyof ValidationErrors) => {
+    setTouched({ ...touched, [field]: true })
+    const error = validateField(
+      field,
+      requestInput[field as keyof QuestionRequestInput]
+    )
+    setErrors({ ...errors, [field]: error })
+  }
 
   const handlePointsChange = (value: number | null) => {
-    if (value === null) {
-      setRequestInput({
-        ...requestInput,
-        point: 0,
-      })
-    } else {
-      setRequestInput({
-        ...requestInput,
-        point: value,
-      })
+    const newValue = value === null ? 0 : value
+    setRequestInput({
+      ...requestInput,
+      point: newValue,
+    })
+
+    if (touched.point) {
+      const error = validateField('point', newValue)
+      setErrors({ ...errors, point: error })
     }
   }
 
@@ -107,13 +174,33 @@ export const QuestionCreatePage = () => {
   }
 
   const handlePublish = () => {
+    // Validate before submit
+    const isValid = validateAll()
+
+    if (!isValid) {
+      toast.error(
+        'Vui lòng kiểm tra lại thông tin',
+        'Có một số trường chưa được điền đầy đủ hoặc không hợp lệ'
+      )
+      return
+    }
+
     console.log(requestInput)
     submitQuestion(type, requestInput)
-    // Logic publish
   }
 
   const handlePreview = () => {
-    if (!requestInput.data || !requestInput.text) {
+    // Validate before preview
+    if (!requestInput.text || !requestInput.data) {
+      const newErrors: ValidationErrors = {}
+      if (!requestInput.text)
+        newErrors.text = validateField('text', requestInput.text)
+      if (!requestInput.data)
+        newErrors.data = validateField('data', requestInput.data)
+
+      setErrors(newErrors)
+      setTouched({ ...touched, text: true, data: true })
+
       toast.error('Vui lòng hoàn thành dữ liệu câu hỏi để xem trước')
       return
     }
@@ -152,6 +239,11 @@ export const QuestionCreatePage = () => {
       ...requestInput,
       level: levelValue,
     })
+
+    if (touched.level) {
+      const error = validateField('level', levelValue)
+      setErrors({ ...errors, level: error })
+    }
   }
 
   const executeCommand = (command: string, value?: string) => {
@@ -258,28 +350,35 @@ export const QuestionCreatePage = () => {
 
       <ContentLayout>
         <FormSection>
-          <DropDownFixedValues
-            options={Object.entries(Level).map(
-              (value) =>
-                ({
-                  value: value[0],
-                  label: LevelLabel[value[1]],
-                } as DropOptionItem)
+          <div style={{ flex: 1 }}>
+            <DropDownFixedValues
+              options={Object.entries(Level).map(
+                (value) =>
+                  ({
+                    value: value[0],
+                    label: LevelLabel[value[1]],
+                  } as DropOptionItem)
+              )}
+              placeholder="Chọn cấp độ"
+              title="Cấp độ"
+              required
+              onChange={handleSelectLevel}
+              style={{ width: '100%' }}
+            />
+            {touched.level && errors.level && (
+              <ErrorMessage>{errors.level}</ErrorMessage>
             )}
-            placeholder="Chọn cấp độ"
-            title="Cấp độ"
-            required
-            onChange={handleSelectLevel}
-            style={{ flex: 1 }}
-          />
+          </div>
           <TagSelection tags={tags} onSelect={setTags} />
         </FormSection>
 
         <QuestionSection>
-          <QuestionLabel>Câu hỏi</QuestionLabel>
+          <QuestionLabel>
+            Câu hỏi <RequiredStar>*</RequiredStar>
+          </QuestionLabel>
 
           {/* Rich Text Editor */}
-          <EditorContainer>
+          <EditorContainer hasError={!!(touched.text && errors.text)}>
             <EditorTabs>
               <Tabs
                 defaultActiveKey="edit"
@@ -417,12 +516,19 @@ export const QuestionCreatePage = () => {
             <EditorContent
               ref={editorRef}
               contentEditable
-              onInput={(e) =>
+              onInput={(e) => {
+                const html = (e.target as HTMLDivElement).innerHTML
                 setRequestInput({
                   ...requestInput,
-                  text: (e.target as HTMLDivElement).innerHTML,
+                  text: html,
                 })
-              }
+
+                if (touched.text) {
+                  const error = validateField('text', html)
+                  setErrors({ ...errors, text: error })
+                }
+              }}
+              onBlur={() => handleBlur('text')}
               suppressContentEditableWarning={true}
             />
 
@@ -430,31 +536,51 @@ export const QuestionCreatePage = () => {
               <span>0 từ</span>
             </EditorFooter>
           </EditorContainer>
+          {touched.text && errors.text && (
+            <ErrorMessage>{errors.text}</ErrorMessage>
+          )}
         </QuestionSection>
 
         <PointsSection>
-          <PointsLabel>
-            Điểm: <RequiredStar>*</RequiredStar>
-          </PointsLabel>
-          <InputNumber
-            placeholder="Nhập điểm"
-            value={requestInput.point}
-            onChange={handlePointsChange}
-            min={0}
-            max={100}
-            style={{ width: 200 }}
-          />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <PointsLabel>
+              Điểm: <RequiredStar>*</RequiredStar>
+            </PointsLabel>
+            <InputNumber
+              placeholder="Nhập điểm"
+              value={requestInput.point}
+              onChange={handlePointsChange}
+              onBlur={() => handleBlur('point')}
+              min={0}
+              max={100}
+              style={{ width: 200 }}
+              status={touched.point && errors.point ? 'error' : ''}
+            />
+            {touched.point && errors.point && (
+              <ErrorMessage>{errors.point}</ErrorMessage>
+            )}
+          </div>
         </PointsSection>
 
-        <QuestionFactory
-          questionType={type}
-          onChange={(data) => {
-            setRequestInput({
-              ...requestInput,
-              data: data,
-            })
-          }}
-        />
+        <div>
+          <QuestionFactory
+            questionType={type}
+            onChange={(data) => {
+              setRequestInput({
+                ...requestInput,
+                data: data,
+              })
+
+              if (touched.data) {
+                const error = validateField('data', data)
+                setErrors({ ...errors, data: error })
+              }
+            }}
+          />
+          {touched.data && errors.data && (
+            <ErrorMessage>{errors.data}</ErrorMessage>
+          )}
+        </div>
 
         <PublishStatusSection>
           <PublishStatusLabel>
@@ -477,7 +603,11 @@ export const QuestionCreatePage = () => {
             <SaveDraftButton onClick={handleSaveDraft}>
               Lưu bản nháp
             </SaveDraftButton>
-            <PublishButton type="primary" onClick={handlePublish}>
+            <PublishButton
+              type="primary"
+              onClick={handlePublish}
+              loading={isSubmitting}
+            >
               Xuất bản
             </PublishButton>
           </Space>
@@ -587,11 +717,12 @@ const QuestionLabel = styled.label`
   color: #333;
 `
 
-const EditorContainer = styled.div`
-  border: 1px solid #d9d9d9;
+const EditorContainer = styled.div<{ hasError?: boolean }>`
+  border: 1px solid ${(props) => (props.hasError ? '#ff4d4f' : '#d9d9d9')};
   border-radius: 6px;
   background: #fff;
   padding: 10px;
+  transition: border-color 0.3s;
 `
 
 const EditorTabs = styled.div`
@@ -727,4 +858,10 @@ const SaveDraftButton = styled(Button)`
 
 const PublishButton = styled(Button)`
   min-width: 100px;
+`
+
+const ErrorMessage = styled.div`
+  color: #ff4d4f;
+  font-size: 14px;
+  margin-top: 4px;
 `
