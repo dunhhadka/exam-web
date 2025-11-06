@@ -6,7 +6,7 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public enum BadRequestError implements ResponseError {
-    LOGIN_FAILED(400001, "Đăng nhập thất bại"),
+    LOGIN_FAILED(400001, "Sai email hoặc mật khẩu. Vui lòng đăng nhập lại."),
     USERNAME_EXISTED(400002, "Tên đăng nhập đã tồn tại"),
     EMAIL_EXISTED(400003, "Email đã tồn tại"),
     USER_WAS_INACTIVATED(400004, "Người dùng đã bị vô hiệu hóa"),

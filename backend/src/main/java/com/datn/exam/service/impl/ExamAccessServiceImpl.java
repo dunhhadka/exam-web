@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDateTime;
 
 @RequiredArgsConstructor
 @Service
@@ -45,7 +46,7 @@ public class ExamAccessServiceImpl implements ExamAccessService {
     }
 
     private void validateWindow(ExamSession session) {
-        Instant now = Instant.now();
+        LocalDateTime now = LocalDateTime.now();
 
         if (session.getExamStatus() != ExamSession.ExamStatus.OPEN) {
             throw new ResponseException(BadRequestError.EXAM_SESSION_CLOSED);

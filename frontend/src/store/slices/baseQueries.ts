@@ -5,34 +5,51 @@ import {
   FetchBaseQueryError,
 } from '@reduxjs/toolkit/query'
 import { RootState } from '..'
+import { ApiResponse } from '../../types/common'
 import { TokenManager } from '../../utils/tokenManager'
 import { logout, setRefreshing, updateTokens } from './authSlice'
-import { ApiResponse } from '../../types/common'
+import { getToastInstance } from '../../ToastProvider'
 
 export const BASE_URL = 'http://localhost:8081/api'
 
+const showNotification = (
+  type: 'error' | 'success' | 'warning' | 'info',
+  message: string,
+  description?: string
+) => {
+  const toast = getToastInstance()
+
+  if (toast) {
+    toast[type](message, description || '', 3)
+  } else {
+    console.warn('[Toast not ready]', type, message, description)
+  }
+}
+
 const transformResponse = (result: any) => {
+  if (result.error) {
+    const errorData = result.error.data
+
+    showNotification('error', errorData?.message || 'Có lỗi xảy ra')
+
+    return result
+  }
+
   if (result.data) {
     const apiResponse: ApiResponse = result.data as ApiResponse
 
-    console.log('Raw BE Response: ', apiResponse)
-
     if (!apiResponse.success) {
+      console.log('Raw BE Response: ', apiResponse)
+
+      showNotification('error', apiResponse.message || 'Có lỗi xảy ra', '')
+
       return {
         error: {
           status: apiResponse.code || 400,
-          data: {
-            success: apiResponse.success,
-            code: apiResponse.code,
-            message: apiResponse.message,
-            timestamp: apiResponse.timestamp,
-            status: apiResponse.status,
-          },
+          data: apiResponse,
         } as FetchBaseQueryError,
       }
     }
-
-    console.log('Transformed data: ', apiResponse.data)
 
     return { data: apiResponse.data }
   }
@@ -54,7 +71,6 @@ export const publicBaseQuery: BaseQueryFn<
   FetchBaseQueryError
 > = async (args, api, extraOptions) => {
   const result = await basePublicQuery(args, api, extraOptions)
-
   return transformResponse(result)
 }
 
@@ -68,11 +84,28 @@ export const authenticatedBaseQuery: BaseQueryFn<
 
   let accessToken = state.auth.accessToken
 
-  if (accessToken && tokenManager.shouldRefreshToken(accessToken)) {
+  if (!accessToken) {
+    const error = {
+      status: 401,
+      data: {
+        message: 'Vui lòng đăng nhập',
+      },
+    } as FetchBaseQueryError
+
+    showNotification(
+      'error',
+      'Chưa đăng nhập',
+      'Vui lòng đăng nhập để tiếp tục'
+    )
+
+    return { error }
+  }
+
+  // Handle token refresh
+  if (tokenManager.shouldRefreshToken(accessToken)) {
     let refreshPromise = tokenManager.getRefreshPromise()
 
     if (!refreshPromise && !state.auth.isRefreshing) {
-      // Start token refresh
       api.dispatch(setRefreshing(true))
 
       refreshPromise = new Promise<string>(async (resolve, reject) => {
@@ -112,6 +145,11 @@ export const authenticatedBaseQuery: BaseQueryFn<
 
           resolve(refreshResponse.data.accessToken)
         } catch (error) {
+          showNotification(
+            'error',
+            'Phiên đăng nhập hết hạn',
+            'Vui lòng đăng nhập lại'
+          )
           api.dispatch(logout())
           reject(error)
         } finally {
@@ -127,7 +165,6 @@ export const authenticatedBaseQuery: BaseQueryFn<
       try {
         accessToken = await refreshPromise
       } catch {
-        // Token refresh failed, redirect to login will be handled by logout action
         return {
           error: {
             status: 401,
@@ -140,7 +177,11 @@ export const authenticatedBaseQuery: BaseQueryFn<
     }
   }
 
-  if (!accessToken || tokenManager.isTokenExpired(accessToken)) {
+  if (tokenManager.isTokenExpired(accessToken)) {
+    showNotification('error', 'Token hết hạn', 'Vui lòng đăng nhập lại')
+
+    api.dispatch(logout())
+
     return {
       error: {
         status: 401,
@@ -155,9 +196,12 @@ export const authenticatedBaseQuery: BaseQueryFn<
     baseUrl: BASE_URL,
     prepareHeaders: (headers) => {
       headers.set('Authorization', `Bearer ${accessToken}`)
+      headers.set('Content-Type', 'application/json')
       return headers
     },
   })
 
-  return transformResponse(rawBaseQuery(args, api, extraOptions))
+  const result = await rawBaseQuery(args, api, extraOptions)
+
+  return transformResponse(result)
 }

@@ -21,11 +21,13 @@ import com.datn.exam.support.exception.ResponseException;
 import com.datn.exam.support.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
@@ -61,15 +63,15 @@ public class ExamAttemptServiceImpl implements ExamAttemptService {
 
         this.validateSessionForStart(examSession);
 
-        Optional<ExamAttempt> existingAttempt = examAttemptRepository
+        var existingAttempt = examAttemptRepository
                 .findByExamSessionIdAndStudentEmailAndStatus(
                         examSession.getId(),
                         studentEmail,
                         ExamAttempt.AttemptStatus.IN_PROGRESS
                 );
 
-        if (existingAttempt.isPresent()) {
-            return buildAttemptDetailResponse(existingAttempt.get(), examSession.getDurationMinutes());
+        if (CollectionUtils.isNotEmpty(existingAttempt)) {
+            return buildAttemptDetailResponse(existingAttempt.get(0), examSession.getDurationMinutes());
         }
 
         int usedAttempts = examAttemptRepository.countByExamSessionIdAndStudentEmail(examSession.getId(), studentEmail);
@@ -80,7 +82,7 @@ public class ExamAttemptServiceImpl implements ExamAttemptService {
         int attemptNoMax = examAttemptRepository.findMaxAttemptNoByEmail(examSession.getId(), studentEmail);
         int nextAttemptNo = attemptNoMax + 1;
 
-        Instant startedAt = Instant.now();
+        LocalDateTime startedAt = LocalDateTime.now();
         ExamAttempt attempt = ExamAttempt.builder()
                 .examSession(examSession)
                 .studentEmail(studentEmail)
@@ -147,15 +149,13 @@ public class ExamAttemptServiceImpl implements ExamAttemptService {
             throw new ResponseException(BadRequestError.ATTEMPT_ALREADY_SUBMITTED);
         }
 
-        Instant submittedAt = Instant.now();
-        Instant expireAt = attempt.getStartedAt()
+        LocalDateTime submittedAt = LocalDateTime.now();
+        LocalDateTime expireAt = attempt.getStartedAt()
                 .plusSeconds((long) attempt.getExamSession().getDurationMinutes() * 60);
 
         if (submittedAt.isAfter(expireAt.plusSeconds(60))) {
              throw new ResponseException(BadRequestError.SUBMIT_AFTER_DEADLINE);
         }
-
-        var objectName = request.getClass().getName();
 
         List<InvalidFieldError> errors = submitAttemptValidator.validate(request, attemptId);
         if (!errors.isEmpty()) {
@@ -221,7 +221,7 @@ public class ExamAttemptServiceImpl implements ExamAttemptService {
 
         String studentEmail = guestAccess.getEmail();
 
-        Optional<ExamAttempt> attemptOpt = examAttemptRepository
+        var attemptOpt = examAttemptRepository
                 .findByExamSessionIdAndStudentEmailAndStatus(
                         sessionId,
                         studentEmail,
@@ -232,11 +232,11 @@ public class ExamAttemptServiceImpl implements ExamAttemptService {
             throw new ResponseException(NotFoundError.NO_ACTIVE_ATTEMPT);
         }
 
-        ExamAttempt attempt = attemptOpt.get();
+        ExamAttempt attempt = attemptOpt.get(0);
         ExamSession session = attempt.getExamSession();
 
-        Instant now = Instant.now();
-        Instant expireAt = attempt.getStartedAt()
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime expireAt = attempt.getStartedAt()
                 .plusSeconds((long) session.getDurationMinutes() * 60);
 
         if (now.isAfter(expireAt)) {
@@ -249,7 +249,7 @@ public class ExamAttemptServiceImpl implements ExamAttemptService {
     private void autoSubmitExpiredAttempt(ExamAttempt attempt) {
         attempt.setStatus(ExamAttempt.AttemptStatus.ABANDONED);
         attempt.setGradingStatus(ExamAttempt.GradingStatus.DONE);
-        attempt.setSubmittedAt(Instant.now());
+        attempt.setSubmittedAt(LocalDateTime.now());
         attempt.setScoreAuto(BigDecimal.ZERO);
         attempt.setScoreManual(BigDecimal.ZERO);
 
@@ -265,14 +265,14 @@ public class ExamAttemptServiceImpl implements ExamAttemptService {
             throw new ResponseException(BadRequestError.EXAM_SESSION_CLOSED);
         }
 
-        Instant now = Instant.now();
+        LocalDateTime now = LocalDateTime.now();
         if (session.getStartTime() != null && now.isBefore(session.getStartTime())) {
             throw new ResponseException(BadRequestError.EXAM_SESSION_STARTED);
         }
 
         if (session.getEndTime() != null) {
             long lateJoinSeconds = (session.getLateJoinMinutes() != null ? session.getLateJoinMinutes() : 0) * 60L;
-            Instant finalDeadline = session.getEndTime().plusSeconds(lateJoinSeconds);
+            LocalDateTime finalDeadline = session.getEndTime().plusSeconds(lateJoinSeconds);
             if (now.isAfter(finalDeadline)) {
                 throw new ResponseException(BadRequestError.EXAM_SESSION_ENDED);
             }
@@ -328,7 +328,7 @@ public class ExamAttemptServiceImpl implements ExamAttemptService {
             Integer durationMinutes
     ) {
         List<ExamAttemptQuestion> questions = attempt.getAttemptQuestions();
-        Instant expireAt = attempt.getStartedAt().plusSeconds((long) durationMinutes * 60);
+        LocalDateTime expireAt = attempt.getStartedAt().plusSeconds((long) durationMinutes * 60);
 
         List<AttemptDetailResponse.QuestionResponse> questionResponses = questions.stream()
                 .map(this::mapToQuestionResponse)

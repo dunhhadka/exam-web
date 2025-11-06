@@ -8,6 +8,7 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 
 @Data
 @Builder
@@ -21,8 +22,8 @@ public class ExamSessionResponse {
     private String joinPath; // "/join/{token}"
     private ExamSession.ExamStatus status;
 
-    private Instant startTime;
-    private Instant endTime;
+    private LocalDateTime startTime;
+    private LocalDateTime endTime;
     private Integer durationMinutes;
     private Integer lateJoinMinutes;
 

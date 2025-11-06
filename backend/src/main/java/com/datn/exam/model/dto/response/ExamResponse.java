@@ -9,6 +9,7 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
@@ -23,9 +24,9 @@ public class ExamResponse {
     private boolean isPublic;
     private Status status;
 
-    private Instant createdAt;
+    private LocalDateTime createdAt;
     private String createdBy;
-    private Instant lastModifiedAt;
+    private LocalDateTime lastModifiedAt;
 
     public static class ExamQuestionResponse {
         private long id;

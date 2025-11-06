@@ -14,18 +14,22 @@ import org.springframework.web.bind.annotation.*;
 public interface QuestionController {
     @PostMapping("/publish")
     @ResponseStatus(HttpStatus.CREATED)
-    public Response<QuestionResponse> createPublish(@RequestBody @Valid QuestionCreateRequest request);
+    Response<QuestionResponse> createPublish(@RequestBody @Valid QuestionCreateRequest request);
 
     @PostMapping("/draft")
     @ResponseStatus(HttpStatus.CREATED)
-    public Response<QuestionResponse> createDraft(@RequestBody @Valid DraftCreateRequest request);
+    Response<QuestionResponse> createDraft(@RequestBody @Valid DraftCreateRequest request);
 
 
-    public Response<QuestionResponse> update();
+    Response<QuestionResponse> update();
 
-    public boolean delete();
+    @DeleteMapping("/{questionId}")
+    boolean delete(@PathVariable int questionId);
 
     @GetMapping("/filter")
     @ResponseStatus(HttpStatus.OK)
-    public PagingResponse<QuestionResponse> search(@Valid QuestionSearchRequest request);
+    PagingResponse<QuestionResponse> search(@Valid QuestionSearchRequest request);
+
+    @GetMapping("/filter/count")
+    Response<Integer> count(QuestionSearchRequest request);
 }

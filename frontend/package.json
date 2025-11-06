@@ -20,9 +20,12 @@
     "antd": "^5.27.0",
     "clsx": "^2.1.1",
     "jwt-decode": "^4.0.0",
+    "qrcode.react": "^4.2.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-hook-form": "^7.62.0",
+    "react-qr-code": "^2.0.18",
+    "react-qrcode-logo": "^4.0.0",
     "react-redux": "^9.2.0",
     "react-router-dom": "^7.8.1",
     "react-scripts": "5.0.1",
@@ -55,5 +58,8 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "@types/qrcode.react": "^3.0.0"
   }
 }

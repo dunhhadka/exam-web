@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 public interface ExamController {
     @PostMapping("/publish")
     @ResponseStatus(HttpStatus.CREATED)
-    public Response<ExamResponse> createPublish(@RequestBody @Valid ExamCreateRequest request);
+    Response<ExamResponse> createPublish(@RequestBody @Valid ExamCreateRequest request);
 
 //    @PostMapping("/draft")
 //    @ResponseStatus(HttpStatus.CREATED)
@@ -20,11 +20,14 @@ public interface ExamController {
 
     @PutMapping("/update/{id}")
     @ResponseStatus(HttpStatus.OK)
-    public Response<ExamResponse> update(@PathVariable(name = "id") Long id, @RequestBody @Valid ExamUpdateRequest request);
+    Response<ExamResponse> update(@PathVariable(name = "id") Long id, @RequestBody @Valid ExamUpdateRequest request);
 
     @GetMapping("/filter")
     @ResponseStatus(HttpStatus.OK)
-    public PagingResponse<ExamResponse> search(@Valid ExamFilterRequest request);
+    PagingResponse<ExamResponse> search(@Valid ExamFilterRequest request);
+
+    @GetMapping("/filter/count")
+    Response<Integer> count(ExamFilterRequest request);
 
     @DeleteMapping("/delete")
     Response<Boolean> delete(@RequestBody IdsRequest request);

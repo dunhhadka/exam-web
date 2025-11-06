@@ -126,12 +126,12 @@ const ExamSessionCreate = ({
       pageIndex: page,
       pageSize: pageSize,
       key: search,
-    })
+    }).unwrap()
 
     return {
-      data: response?.data?.data ?? [],
-      total: response?.data?.total ?? 0,
-      hasMore: response?.data?.totalPages !== page,
+      data: response?.data ?? [],
+      total: response?.count ?? 0,
+      hasMore: false,
     }
   }
 

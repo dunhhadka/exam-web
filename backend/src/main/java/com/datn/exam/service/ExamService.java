@@ -16,4 +16,6 @@ public interface ExamService {
 
     ExamResponse update(Long examId, ExamUpdateRequest request);
     void delete(List<Long> ids);
+
+    Integer count(ExamFilterRequest request);
 }

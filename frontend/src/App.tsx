@@ -15,37 +15,58 @@ import { ExamListPage } from './pages/exams/ExamListPage'
 import { ExamCreatePage } from './pages/exams/ExamCreatePage'
 import { ToastProvider } from './ToastProvider'
 import ExamSessionListPage from './pages/examsession/ExamSessionListPage'
+import CheckinExam from './pages/take-exams/CheckinExam'
+import CheckinValidateToken from './pages/take-exams/CheckinValidateToken'
+import CheckInInfo from './pages/take-exams/CheckinInfo'
+import TakeExam from './pages/take-exams/TakeExam'
+import FinishExam from './pages/take-exams/FinishExam'
+import { App as AntdApp } from 'antd'
 
 function App() {
   return (
-    <ToastProvider>
-      <Provider store={store}>
-        <BrowserRouter>
-          <Routes>
-            <Route element={<PublicRoute />}>
-              <Route element={<AuthLayout />}>
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
+    <AntdApp>
+      <ToastProvider>
+        <Provider store={store}>
+          <BrowserRouter>
+            <Routes>
+              <Route element={<PublicRoute />}>
+                <Route element={<AuthLayout />}>
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/register" element={<Register />} />
+                </Route>
+                <Route>
+                  <Route path="/exam-checkin" element={<CheckinExam />} />
+                  <Route
+                    path="/exam-checkin-verify-code"
+                    element={<CheckinValidateToken />}
+                  />
+                  <Route path="/exam-checkin-info" element={<CheckInInfo />} />
+                  <Route path="/do-exam" element={<TakeExam />} />
+                  <Route path="/finish-exam" element={<FinishExam />} />
+                </Route>
               </Route>
-            </Route>
-            <Route element={<ProtectedRoute />}>
-              <Route element={<MainLayout />}>
-                <Route path="/home" element={<Home />} />
-                <Route path="/questions" element={<QuestionList />} />
-                <Route path="/exams" element={<ExamListPage />} />
-                <Route path='/examsessions' element = {<ExamSessionListPage/>}/>
-                <Route
-                  path="/questions/create"
-                  element={<QuestionCreatePage />}
-                />
-                <Route path="/exams/create" element={<ExamCreatePage />} />
-                <Route path="/" element={<Navigate to="/home" replace />} />
+              <Route element={<ProtectedRoute />}>
+                <Route element={<MainLayout />}>
+                  <Route path="/home" element={<Home />} />
+                  <Route path="/questions" element={<QuestionList />} />
+                  <Route path="/exams" element={<ExamListPage />} />
+                  <Route
+                    path="/examsessions"
+                    element={<ExamSessionListPage />}
+                  />
+                  <Route
+                    path="/questions/create"
+                    element={<QuestionCreatePage />}
+                  />
+                  <Route path="/exams/create" element={<ExamCreatePage />} />
+                  <Route path="/" element={<Navigate to="/home" replace />} />
+                </Route>
               </Route>
-            </Route>
-          </Routes>
-        </BrowserRouter>
-      </Provider>
-    </ToastProvider>
+            </Routes>
+          </BrowserRouter>
+        </Provider>
+      </ToastProvider>
+    </AntdApp>
   )
 }
 

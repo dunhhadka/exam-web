@@ -7,6 +7,7 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
@@ -18,9 +19,9 @@ public class AttemptDetailResponse {
     private Integer attemptNo;
     private ExamAttempt.AttemptStatus status;
     private ExamAttempt.GradingStatus gradingStatus;
-    private Instant startedAt;
-    private Instant submittedAt;
-    private Instant expireAt;
+    private LocalDateTime startedAt;
+    private LocalDateTime submittedAt;
+    private LocalDateTime expireAt;
     private BigDecimal scoreAuto;
     private BigDecimal scoreManual;
     private List<QuestionResponse> questions;

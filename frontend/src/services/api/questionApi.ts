@@ -5,70 +5,103 @@ import {
   Tag,
   TagRequest,
   TagSearchRequest,
-} from "../../types/question";
-import { parseParamToString } from "../../utils/parseParam";
-import { authenticatedApi } from "./baseApi";
+} from '../../types/question'
+import { parseParamToString } from '../../utils/parseParam'
+import { authenticatedApi } from './baseApi'
 
 export const questionApi = authenticatedApi.injectEndpoints({
   endpoints: (builder) => ({
     submitPublish: builder.mutation<Question, QuestionRequestSubmit>({
       query: (request) => ({
-        url: "/question/publish",
-        method: "POST",
+        url: '/question/publish',
+        method: 'POST',
         body: request,
       }),
-      invalidatesTags: [{ type: "Question", id: "LIST" }],
+      invalidatesTags: [{ type: 'Question', id: 'LIST' }],
     }),
-    searchQuestion: builder.query<any, QuestionFilterRequest>({
-      query: (request) => {
+
+    searchQuestion: builder.query<
+      { data: Question[]; count: number },
+      QuestionFilterRequest
+    >({
+      queryFn: async (request, api, extraOptions, baseQuery) => {
+        // Gọi song song 2 API
+        const [questionsResult, countResult] = await Promise.all([
+          baseQuery({
+            url: `/question/filter?${parseParamToString(request)}`,
+            method: 'GET',
+          }),
+          baseQuery({
+            url: `/question/filter/count?${parseParamToString(request)}`,
+            method: 'GET',
+          }),
+        ])
+
         return {
-          url: `/question/filter?${parseParamToString(request)}`,
-          method: "GET",
-        };
+          data: {
+            data: questionsResult.data as Question[],
+            count: countResult.data as number,
+          },
+        }
       },
-      providesTags: (result, error, arg, meta) => {
-        return !result?.data
-          ? [{ type: "Question", id: "LIST" }]
-          : [
-              ...result?.data.map((item: Question) => ({
-                type: "Question",
+      providesTags: (result) => {
+        return result?.data
+          ? [
+              ...result.data.map((item: Question) => ({
+                type: 'Question' as const,
                 id: item.id,
               })),
-              { type: "Question", id: "LIST" },
-            ];
+              { type: 'Question' as const, id: 'LIST' },
+              { type: 'Question' as const, id: 'COUNT' },
+            ]
+          : [
+              { type: 'Question' as const, id: 'LIST' },
+              { type: 'Question' as const, id: 'COUNT' },
+            ]
       },
     }),
-    searchTags: builder.query<any, TagSearchRequest>({
+
+    searchTags: builder.query<Tag[], TagSearchRequest>({
       query: (request) => ({
         url: `/tag/search?${parseParamToString(request)}`,
-        method: "GET",
+        method: 'GET',
       }),
-      providesTags(result, error, arg, meta) {
-        return !result?.data
-          ? [{ type: "Tag", id: "LIST" }]
-          : [
-              ...result?.data.map((item: Tag) => ({
-                type: "Tag",
+      providesTags(result) {
+        return result
+          ? [
+              ...result.map((item: Tag) => ({
+                type: 'Tag' as const,
                 id: item.id,
               })),
-              { type: "Tag", id: "LIST" },
-            ];
+              { type: 'Tag' as const, id: 'LIST' },
+            ]
+          : [{ type: 'Tag' as const, id: 'LIST' }]
       },
     }),
+
     createTag: builder.mutation<Tag, TagRequest>({
       query: (request) => ({
-        url: "/tag/create",
-        method: "POST",
+        url: '/tag/create',
+        method: 'POST',
         body: request,
       }),
-      invalidatesTags: [{ type: "Tag", id: "LIST" }],
+      invalidatesTags: [{ type: 'Tag', id: 'LIST' }],
+    }),
+
+    deleteQuestion: builder.mutation<any, { questionId: number }>({
+      query: (request) => ({
+        url: `/question/${request.questionId}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: [{ type: 'Question', id: 'LIST' }],
     }),
   }),
-});
+})
 
 export const {
   useSubmitPublishMutation,
   useSearchQuestionQuery,
   useSearchTagsQuery,
   useCreateTagMutation,
-} = questionApi;
+  useDeleteQuestionMutation,
+} = questionApi

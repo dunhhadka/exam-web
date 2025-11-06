@@ -16,4 +16,7 @@ public class JoinSessionMetaResponse {
     private Integer attemptRemaining;
     private Boolean canStart;
     private String message;
+
+    @Builder.Default
+    private Integer status = 200;
 }

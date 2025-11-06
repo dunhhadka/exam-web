@@ -6,6 +6,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -34,10 +35,10 @@ public class ExamSession extends AuditableEntity{
     private String joinToken; //Token dùng cho link/QR
 
     @Column(name = "start_time")
-    private Instant startTime; // Mở cổng vào (nếu null: mở ngay khi phát hành)
+    private LocalDateTime startTime; // Mở cổng vào (nếu null: mở ngay khi phát hành)
 
     @Column(name = "end_time")
-    private Instant endTime; // Đóng cổng vào/hoàn tất
+    private LocalDateTime endTime; // Đóng cổng vào/hoàn tất
 
     @Column(name = "duration_minutes")
     private Integer durationMinutes;

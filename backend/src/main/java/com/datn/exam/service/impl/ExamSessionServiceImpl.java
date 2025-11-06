@@ -3,7 +3,6 @@ package com.datn.exam.service.impl;
 import com.datn.exam.model.dto.ExamSessionSetting;
 import com.datn.exam.model.dto.PageDTO;
 import com.datn.exam.model.dto.mapper.ExamSessionMapper;
-import com.datn.exam.model.dto.mapper.ExamSessionSettingsMapper;
 import com.datn.exam.model.dto.request.ExamSessionFilterRequest;
 import com.datn.exam.model.dto.request.ExamSessionRequest;
 import com.datn.exam.model.dto.request.IdsRequest;
@@ -13,7 +12,6 @@ import com.datn.exam.model.entity.ExamSession;
 import com.datn.exam.repository.ExamRepository;
 import com.datn.exam.repository.ExamSessionRepository;
 import com.datn.exam.repository.data.dao.ExamSessionDao;
-import com.datn.exam.repository.data.dto.ExamDto;
 import com.datn.exam.repository.data.dto.ExamSessionDto;
 import com.datn.exam.service.ExamSessionService;
 import com.datn.exam.support.enums.error.AuthorizationError;
@@ -25,11 +23,13 @@ import com.datn.exam.support.util.JsonUtils;
 import com.datn.exam.support.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -115,7 +115,7 @@ public class ExamSessionServiceImpl implements ExamSessionService {
 
 
     @Override
-    public PageDTO<ExamSessionDto> filter(ExamSessionFilterRequest request) {
+    public PageDTO<ExamSessionResponse> filter(ExamSessionFilterRequest request) {
         Long count = this.examSessionDao.count(request);
 
         if (Objects.equals(count, 0L)) {
@@ -123,8 +123,20 @@ public class ExamSessionServiceImpl implements ExamSessionService {
         }
 
         List<ExamSessionDto> examSessionDtoList = this.examSessionDao.search(request);
+        var examSessionIds = examSessionDtoList.stream()
+                .map(ExamSessionDto::getId)
+                .toList();
 
-        return PageDTO.of(examSessionDtoList, request.getPageIndex(), request.getPageSize(), count);
+        return PageDTO.of(this.getResponseByIds(examSessionIds), request.getPageIndex(), request.getPageSize(), count);
+    }
+
+    private List<ExamSessionResponse> getResponseByIds(List<Long> examSessionIds) {
+        if (CollectionUtils.isEmpty(examSessionIds)) {
+            return List.of();
+        }
+        return this.examSessionRepository.findByIds(examSessionIds).stream()
+                .map(this.examSessionMapper::toExamSessionResponse)
+                .toList();
     }
 
     @Transactional
@@ -155,7 +167,7 @@ public class ExamSessionServiceImpl implements ExamSessionService {
         return examSessionMapper.toExamSessionResponse(examSession);
     }
 
-    private void validateWindow(Instant start, Instant end) {
+    private void validateWindow(LocalDateTime start, LocalDateTime end) {
         if (start != null && end != null && !end.isAfter(start)) {
             throw new ResponseException(BadRequestError.EXAM_SESSION_TIME_WINDOW_INVALID, start, end);
         }

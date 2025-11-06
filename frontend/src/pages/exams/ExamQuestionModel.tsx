@@ -99,6 +99,8 @@ export const ExamQuestionModel = ({
     onCancel()
   }
 
+  console.log('question data', data)
+
   return (
     <Modal
       open={open}
@@ -131,8 +133,8 @@ export const ExamQuestionModel = ({
           onChange: (page, pageSize) => {
             setFilter({
               ...filter,
-              pageIndex: page,
-              pageSize: pageSize,
+              pageIndex: page ?? 1,
+              pageSize: pageSize ?? 10,
             })
           },
         }}

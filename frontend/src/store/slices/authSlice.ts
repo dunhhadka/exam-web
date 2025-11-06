@@ -36,6 +36,8 @@ const authSlide = createSlice({
       state.refreshToken = refreshToken
       state.isAuthenticated = true
 
+      console.log(accessToken, refreshToken)
+
       // set to LocalStorage
       localStorage.setItem('accessToken', accessToken)
       localStorage.setItem('refreshToken', refreshToken)

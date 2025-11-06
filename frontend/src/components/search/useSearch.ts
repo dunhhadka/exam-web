@@ -82,8 +82,8 @@ export function useSearch<IFilter extends Record<string, any>, IResult>(
     isLoading,
     isFetching,
     refetch,
-    pageIndex: response?.pageIndex ?? 0,
-    pageSize: response?.pageSize ?? 0,
-    total: response?.total ?? 0,
+    pageIndex: finalFilter?.pageIndex ?? 0,
+    pageSize: finalFilter?.pageSize ?? 0,
+    total: response?.count ?? 0,
   }
 }

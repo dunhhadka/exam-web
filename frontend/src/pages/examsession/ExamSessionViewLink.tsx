@@ -1,26 +1,37 @@
 import styled from '@emotion/styled'
-import { ExamSession } from '../../types/examsession'
+import { QRCode } from 'react-qrcode-logo'
 import { CopyOutlined, ShareAltOutlined } from '@ant-design/icons'
+import { useMemo } from 'react'
 import { useToast } from '../../hooks/useToast'
+
+interface ExamSession {
+  code: string
+}
 
 interface Props {
   examsession: ExamSession
 }
 
 const ExamSessionViewLink = ({ examsession }: Props) => {
-  const toast = useToast()
   const baseInviteLink = 'http://localhost:3000/exam-checkin?code='
+  const fullLink = useMemo(
+    () => baseInviteLink + examsession.code,
+    [examsession.code]
+  )
+
+  const toast = useToast()
 
   const handleCopyLink = async () => {
     try {
-      await navigator.clipboard.writeText(baseInviteLink + examsession.code)
+      await navigator.clipboard.writeText(fullLink)
       toast.success('Sao chép link thành công')
     } catch (error) {
       toast.error('Sao chép link không thành công')
     }
   }
 
-  const handleCopyCode = async () => {
+  const handleCopyCode = async (e: React.MouseEvent) => {
+    e.stopPropagation()
     try {
       await navigator.clipboard.writeText(examsession.code)
       toast.success('Sao chép mã code thành công')
@@ -29,16 +40,23 @@ const ExamSessionViewLink = ({ examsession }: Props) => {
     }
   }
 
+  const qrCodeElement = useMemo(
+    () => (
+      <QRCode value={fullLink} size={180} bgColor="#ffffff" fgColor="#000000" />
+    ),
+    [fullLink]
+  )
+
   return (
     <Container>
-      <QRCodeContainer></QRCodeContainer>
+      <QRCodeContainer>{qrCodeElement}</QRCodeContainer>
 
       <InstructionText>
         Quét mã QR <br /> hoặc <br /> Sao chép đường link dưới đây
       </InstructionText>
 
-      <ActionsContainer onClick={handleCopyLink}>
-        <ActionButton>
+      <ActionsContainer>
+        <ActionButton onClick={handleCopyLink}>
           <ShareAltOutlined />
           <span>Sao chép link</span>
         </ActionButton>
@@ -73,9 +91,11 @@ const QRCodeContainer = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f5f5f5;
+  background: #ffffff;
   border-radius: 12px;
-  border: 2px dashed #d9d9d9;
+  border: 2px solid #e8e8e8;
+  padding: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 `
 
 const InstructionText = styled.span`
@@ -89,6 +109,7 @@ const ActionsContainer = styled.div`
   display: flex;
   flex-direction: row;
   justify-content: space-between;
+  gap: 12px;
   width: 100%;
 `
 

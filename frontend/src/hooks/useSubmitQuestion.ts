@@ -9,6 +9,7 @@ import { TrueFalseData } from '../pages/question/TrueFalse'
 import { OneChoiceData } from '../pages/question/OneChoice'
 import { useToast } from './useToast'
 import { MultiChoiceData } from '../pages/question/MultiChoice'
+import { useNavigate } from 'react-router-dom'
 
 // Type definitions for better clarity
 type SubmitResult = {
@@ -102,9 +103,10 @@ const parseToRequest = (
 
 // Custom hook for submitting questions
 export const useSubmitQuestion = (): SubmitResult => {
+  const navigate = useNavigate()
   const [submitPublish, { isLoading: isSubmitting }] =
     useSubmitPublishMutation()
-  const toast = useToast();
+  const toast = useToast()
 
   const submitQuestion = async (
     type: QuestionType,
@@ -118,9 +120,9 @@ export const useSubmitQuestion = (): SubmitResult => {
     try {
       await submitPublish(request).unwrap()
       toast.success('Xuất bản câu hỏi thành công')
+      navigate('/questions')
     } catch (error) {
       console.error('Failed to submit question:', error)
-      throw error
     }
   }
 

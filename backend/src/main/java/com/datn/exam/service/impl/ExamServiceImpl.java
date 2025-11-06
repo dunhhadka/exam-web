@@ -181,6 +181,11 @@ public class ExamServiceImpl implements ExamService {
         examRepository.deleteAllByIdInBatch(ids);
     }
 
+    @Override
+    public Integer count(ExamFilterRequest request) {
+        return this.examDao.count(request).intValue();
+    }
+
     private List<Tag> validateAndGetTags(List<Long> tagIds) {
         if (tagIds == null || tagIds.isEmpty()) {
             return new ArrayList<>();

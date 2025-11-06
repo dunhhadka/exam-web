@@ -34,7 +34,7 @@ public abstract class AuditableEntity implements Serializable {
 
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
-    protected Instant createdAt;
+    protected LocalDateTime createdAt;
 
     @LastModifiedBy
     @Column(name = "last_modified_by", insertable = false)
@@ -42,5 +42,5 @@ public abstract class AuditableEntity implements Serializable {
 
     @LastModifiedDate
     @Column(name = "last_modified_at", insertable = false)
-    protected Instant lastModifiedAt;
+    protected LocalDateTime lastModifiedAt;
 }
