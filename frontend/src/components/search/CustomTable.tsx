@@ -2,12 +2,8 @@ import styled from "@emotion/styled";
 import { Button, Flex, Input, Popover, Tag } from "antd";
 import Table, { ColumnType, TableProps } from "antd/es/table";
 import { TableRowSelection } from "antd/es/table/interface";
-import React, { useState } from "react";
-import {
-  FilterOutlined,
-  SearchOutlined,
-  CloseOutlined,
-} from "@ant-design/icons";
+import React from "react";
+import { FilterOutlined, SearchOutlined, CloseOutlined } from "@ant-design/icons";
 
 interface SearchApiConfig<T> {}
 
@@ -45,7 +41,7 @@ interface Props<T = any>
   onQueryChange?: (query: string) => void;
   placeholder?: string;
   labelItems?: LabelItem[];
-  openFilter?: boolean,
+  openFilter?: boolean;
   pagination?: {
     current: number;
     pageSize: number;
@@ -56,6 +52,9 @@ interface Props<T = any>
   onFilterClick?: (openFilter: boolean) => void;
   filterActive?: boolean;
   filterComponent?: React.ReactNode;
+
+  // thêm prop padding: nếu không truyền thì không có padding
+  padding?: string | number;
 }
 
 export const CustomTable = <T extends Record<string, any>>({
@@ -84,9 +83,9 @@ export const CustomTable = <T extends Record<string, any>>({
   filterActive = false,
   filterComponent,
   openFilter,
+  padding, // <- sử dụng prop mới
   ...restProps
 }: Props<T>) => {
-
   return (
     <Wrapper className={customClassName}>
       {(tableTitle || (actions && actions.length > 0)) && (
@@ -134,7 +133,9 @@ export const CustomTable = <T extends Record<string, any>>({
             >
               <FilterButton
                 icon={<FilterOutlined />}
-                onClick={() => {onFilterClick?.(!openFilter)}}
+                onClick={() => {
+                  onFilterClick?.(!openFilter);
+                }}
                 className={filterActive ? "active" : ""}
               >
                 Bộ lọc
@@ -167,7 +168,7 @@ export const CustomTable = <T extends Record<string, any>>({
         </LabelItemsSection>
       )}
 
-      <TableWrapper>
+      <TableWrapper contentPadding={padding}>
         <Table<T>
           columns={columns}
           dataSource={data ?? []}
@@ -188,203 +189,111 @@ export const CustomTable = <T extends Record<string, any>>({
   );
 };
 
-/* ==== Styled Components ==== */
+/* ==== Styled Components (simplified) ==== */
 const Wrapper = styled.div`
-  background: #ffffff;
+  background: #fff;
   overflow: hidden;
-  transition: box-shadow 0.3s ease;
-
-  &:hover {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06), 0 8px 24px rgba(0, 0, 0, 0.08);
-  }
+  border: 1px solid #eee;
+  border-radius: 6px;
 `;
 
 const HeaderBar = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 24px 16px;
-  gap: 20px;
-  flex-wrap: wrap;
+  padding: 12px 16px;
+  gap: 12px;
   border-bottom: 1px solid #f0f0f0;
-  background: linear-gradient(to bottom, #fafafa, #ffffff);
+  background: transparent;
 `;
 
 const LeftSection = styled.div`
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   flex: 1;
   min-width: 0;
 `;
 
 const Title = styled.h3`
   margin: 0;
-  font-size: 20px;
-  font-weight: 700;
-  color: #262626;
-  letter-spacing: -0.02em;
-  white-space: nowrap;
-  background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  font-size: 16px;
+  font-weight: 600;
+  color: #222;
 `;
 
 const ActionButtons = styled(Flex)`
-  gap: 10px;
+  gap: 8px;
 `;
 
 const StyledButton = styled(Button)`
-  border-radius: 8px;
+  border-radius: 6px;
+  height: 34px;
+  padding: 0 12px;
   font-weight: 500;
-  height: 38px;
-  padding: 0 18px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-
-  &:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
-  }
-
-  &:active:not(:disabled) {
-    transform: translateY(0);
-  }
+  box-shadow: none;
 
   &.ant-btn-primary {
-    background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
     border: none;
-
-    &:hover:not(:disabled) {
-      background: linear-gradient(135deg, #40a9ff 0%, #1890ff 100%);
-    }
-  }
-
-  &.ant-btn-dangerous {
-    &:hover:not(:disabled) {
-      box-shadow: 0 4px 12px rgba(255, 77, 79, 0.25);
-    }
   }
 `;
 
 const FilterActionStyled = styled.div`
   display: flex;
-  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid #f5f5f5;
   align-items: center;
-  gap: 16px;
-  padding: 16px 24px;
-  background: #fafafa;
-  border-bottom: 1px solid #f0f0f0;
+  background: transparent;
   flex-wrap: wrap;
 `;
 
 const SearchSection = styled.div`
   flex: 1;
-  min-width: 280px;
+  min-width: 220px;
 `;
 
 const SearchInput = styled(Input)`
-  max-width: 500px;
-  border-radius: 10px;
-  border: 2px solid transparent;
-  background: #ffffff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  transition: all 0.3s ease;
-
-  &:hover {
-    border-color: #d9d9d9;
-  }
-
-  &:focus,
-  &.ant-input-focused {
-    border-color: #1890ff;
-    box-shadow: 0 0 0 3px rgba(24, 144, 255, 0.08),
-      0 2px 8px rgba(0, 0, 0, 0.08);
-  }
+  max-width: 420px;
+  border-radius: 6px;
+  border: 1px solid #d9d9d9;
+  box-shadow: none;
 
   .ant-input-prefix {
     color: #8c8c8c;
-    font-size: 16px;
-    margin-right: 8px;
-  }
-
-  .ant-input {
-    font-size: 15px;
-
-    &::placeholder {
-      color: #bfbfbf;
-    }
-  }
-
-  .ant-input-clear-icon {
-    font-size: 14px;
-    color: #bfbfbf;
-
-    &:hover {
-      color: #8c8c8c;
-    }
   }
 `;
 
 const FilterSection = styled.div`
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
 `;
 
 const FilterButton = styled(Button)`
-  border-radius: 8px;
-  font-weight: 500;
-  height: 40px;
-  padding: 0 20px;
-  border: 2px solid #d9d9d9;
-  background: #ffffff;
-  color: #595959;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-
-  .anticon {
-    font-size: 16px;
-  }
-
-  &:hover {
-    border-color: #1890ff;
-    color: #1890ff;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(24, 144, 255, 0.15);
-  }
+  border-radius: 6px;
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid #d9d9d9;
+  background: #fff;
+  color: #444;
 
   &.active {
     border-color: #1890ff;
-    background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
-    color: #ffffff;
-    box-shadow: 0 2px 8px rgba(24, 144, 255, 0.3);
-
-    &:hover {
-      background: linear-gradient(135deg, #40a9ff 0%, #1890ff 100%);
-      box-shadow: 0 4px 12px rgba(24, 144, 255, 0.4);
-    }
-  }
-
-  &:active {
-    transform: translateY(0);
+    color: #1890ff;
   }
 `;
 
 const LabelItemsSection = styled.div`
-  padding: 12px 24px;
-  background: linear-gradient(to bottom, #f0f7ff, #fafafa);
-  border-bottom: 1px solid #e6f0ff;
+  padding: 8px 16px;
+  border-bottom: 1px solid #f5f5f5;
+  background: transparent;
 `;
 
 const LabelItemsWrapper = styled.div`
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
 `;
 
@@ -407,106 +316,67 @@ const StyledTag = styled(Tag)`
     border-color: #69c0ff;
     color: #096dd9; /* text đậm hơn một chút */
   }
-
   .anticon-close {
     font-size: 12px;
-    color: #1890ff;
-    transition: all 0.2s ease;
-    margin-left: 2px;
-    padding: 2px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    &:hover {
-      color: #fff;
-      background: #1890ff; /* hover icon close: trắng trên nền primary */
-    }
   }
 `;
 
 const TagContent = styled.div`
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 `;
 
 const TagLabel = styled.span`
-  color: #0050b3;
+  color: #555;
   font-weight: 500;
 `;
 
 const TagValue = styled.span`
-  color: #003a8c;
+  color: #333;
   font-weight: 600;
 `;
 
-const TableWrapper = styled.div`
-  padding: 0;
+const TableWrapper = styled.div<{ contentPadding?: string | number }>`
+  padding: ${(p) =>
+    p.contentPadding === undefined
+      ? "0"
+      : typeof p.contentPadding === "number"
+      ? `${p.contentPadding}px`
+      : p.contentPadding};
 
   .ant-table {
     background: transparent;
   }
 
   .ant-table-thead > tr > th {
-    background: #fafafa;
+    background: #fff;
     font-weight: 600;
-    color: #595959;
-    border-bottom: 2px solid #f0f0f0;
-    padding: 14px 16px;
-    font-size: 14px;
-    letter-spacing: 0.02em;
-    text-transform: uppercase;
+    color: #666;
+    border-bottom: 1px solid #f0f0f0;
+    padding: 10px 12px;
     font-size: 12px;
-
-    &:first-of-type {
-      padding-left: 24px;
-    }
-
-    &:last-of-type {
-      padding-right: 24px;
-    }
+    text-transform: none;
   }
 
-  .ant-table-tbody > tr {
-    transition: all 0.2s ease;
-
-    &:hover {
-      background: #f5f9ff !important;
-    }
-
-    > td {
-      border-bottom: 1px solid #f5f5f5;
-      padding: 16px;
-      color: #434343;
-      font-size: 14px;
-
-      &:first-of-type {
-        padding-left: 24px;
-      }
-
-      &:last-of-type {
-        padding-right: 24px;
-      }
-    }
-
-    &:last-child > td {
-      border-bottom: none;
-    }
+  .ant-table-tbody > tr > td {
+    border-bottom: 1px solid #f7f7f7;
+    padding: 10px 12px;
+    color: #333;
+    font-size: 13px;
   }
 
-  .ant-table-tbody > tr.ant-table-row-selected > td {
-    background: #e6f7ff;
+  .ant-table-tbody > tr:hover > td {
+    background: transparent;
   }
 
   .ant-pagination {
-    padding: 16px 24px;
+    padding: 10px 12px;
     margin: 0;
   }
 
   .ant-empty {
-    padding: 48px 24px;
+    padding: 24px;
   }
 
   .ant-empty-description {

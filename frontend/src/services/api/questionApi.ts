@@ -95,6 +95,16 @@ export const questionApi = authenticatedApi.injectEndpoints({
       }),
       invalidatesTags: [{ type: 'Question', id: 'LIST' }],
     }),
+
+    findById: builder.query<Question, { questionId: number }>({
+      query: (request) => ({
+        url: `/question/${request.questionId}`,
+        method: 'GET',
+      }),
+      providesTags: (result, error, arg) => [
+        { type: 'Question', id: arg.questionId },
+      ],
+    }),
   }),
 })
 
@@ -104,4 +114,6 @@ export const {
   useSearchTagsQuery,
   useCreateTagMutation,
   useDeleteQuestionMutation,
+  useFindByIdQuery,
+  useLazyFindByIdQuery
 } = questionApi

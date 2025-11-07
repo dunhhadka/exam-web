@@ -21,6 +21,34 @@ export interface Question {
 
   lastModifiedAt?: string;
   lastModifiedBy?: string;
+
+  answers: Answer[];
+}
+
+export interface Answer {
+  id: number;
+  orderIndex?: number | null;
+  value: string;
+  result?: boolean | null;
+  explanation?: string | null;
+  explanationHtml?: string | null;
+  mediaContents?: MediaContent[];
+  createdAt: string; // LocalDateTime -> ISO string
+  updatedAt: string;
+}
+
+export interface MediaContent {
+  id: number;
+  //type: MediaType;          // Enum tương ứng với backend
+  url: string;
+  fileName: string;
+  contentType: string;
+  fileSize?: number | null; // Long -> number, có thể null
+  displayOrder?: number | null;
+  thumbnailUrl?: string | null;
+  duration?: number | null;
+  width?: number | null;
+  height?: number | null;
 }
 
 export interface PagingRequest {
