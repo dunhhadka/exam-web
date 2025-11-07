@@ -6,6 +6,7 @@ import com.datn.exam.model.dto.request.QuestionCreateRequest;
 import com.datn.exam.model.dto.request.QuestionSearchRequest;
 import com.datn.exam.model.dto.request.QuestionUpdateRequest;
 import com.datn.exam.model.dto.response.QuestionResponse;
+import com.datn.exam.model.dto.response.Response;
 
 public interface QuestionService {
     QuestionResponse createPublish(QuestionCreateRequest request);
@@ -15,4 +16,6 @@ public interface QuestionService {
     PageDTO<QuestionResponse> search(QuestionSearchRequest request);
 
     Integer count(QuestionSearchRequest request);
+
+    QuestionResponse findById(long questionId);
 }

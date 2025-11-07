@@ -20,6 +20,8 @@ public interface QuestionController {
     @ResponseStatus(HttpStatus.CREATED)
     Response<QuestionResponse> createDraft(@RequestBody @Valid DraftCreateRequest request);
 
+    @GetMapping("/{questionId}")
+    Response<QuestionResponse> findById(@PathVariable long questionId);
 
     Response<QuestionResponse> update();
 

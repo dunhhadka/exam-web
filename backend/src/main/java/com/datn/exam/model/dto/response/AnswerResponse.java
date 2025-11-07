@@ -19,6 +19,6 @@ public class AnswerResponse {
     private String explanation;
     private String explanationHtml;
     private List<MediaContentResponse> mediaContents;
-    private Instant createdAt;
-    private Instant updatedAt;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 }

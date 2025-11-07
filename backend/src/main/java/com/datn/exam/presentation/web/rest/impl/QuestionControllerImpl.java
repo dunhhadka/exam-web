@@ -27,6 +27,11 @@ public class QuestionControllerImpl implements QuestionController {
     }
 
     @Override
+    public Response<QuestionResponse> findById(long questionId) {
+        return Response.of(questionService.findById(questionId));
+    }
+
+    @Override
     public Response<QuestionResponse> update() {
         return null;
     }

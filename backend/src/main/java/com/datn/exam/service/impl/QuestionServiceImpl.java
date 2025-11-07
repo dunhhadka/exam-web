@@ -26,6 +26,7 @@ import com.datn.exam.support.enums.error.BadRequestError;
 import com.datn.exam.support.enums.error.NotFoundError;
 import com.datn.exam.support.exception.DomainValidationException;
 import com.datn.exam.support.exception.ResponseException;
+import jakarta.validation.ConstraintViolationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
@@ -131,6 +132,13 @@ public class QuestionServiceImpl implements QuestionService {
     @Override
     public Integer count(QuestionSearchRequest request) {
         return this.questionDao.count(request).intValue();
+    }
+
+    @Override
+    public QuestionResponse findById(long questionId) {
+        var question = this.questionRepository.findById(questionId)
+                .orElseThrow(() -> new ConstraintViolationException("Không tìm thấy câu hỏi", null));
+        return this.questionMapper.toQuestionResponse(question);
     }
 
     private void validateDraft(DraftCreateRequest request) {
