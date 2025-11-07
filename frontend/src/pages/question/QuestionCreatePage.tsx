@@ -378,6 +378,13 @@ export const QuestionCreatePage = () => {
           requestInput.data = data;
           break;
         }
+        case QuestionType.TRUE_FALSE: {
+          const data: TrueFalseData = {
+            correctAnswer: !!result.answers[0].result,
+          };
+          requestInput.data = data;
+          break;
+        }
         default:
           break;
       }
