@@ -24,7 +24,8 @@ import java.time.LocalDateTime;
 @SuperBuilder
 @NoArgsConstructor
 @AllArgsConstructor
-public abstract class AuditableEntity implements Serializable {
+public abstract class AuditableEntity extends DomainEntity
+        implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
 

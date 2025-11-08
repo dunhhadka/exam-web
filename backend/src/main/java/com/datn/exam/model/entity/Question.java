@@ -1,5 +1,8 @@
 package com.datn.exam.model.entity;
 
+import com.datn.exam.model.entity.event.PropertiesChangeEvent;
+import com.datn.exam.model.entity.event.PropertyChange;
+import com.datn.exam.service.question.QuestionEditContextService;
 import com.datn.exam.support.converter.BaseQuestionConverter;
 import com.datn.exam.support.enums.ActiveStatus;
 import com.datn.exam.support.enums.Level;
@@ -9,13 +12,21 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.BooleanUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.hibernate.annotations.DynamicUpdate;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
+@Slf4j
 @Entity
 @Table(name = "questions")
 @Getter
@@ -23,6 +34,7 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@DynamicUpdate
 public class Question extends AuditableEntity {
 
     @Id
@@ -35,7 +47,7 @@ public class Question extends AuditableEntity {
     private String text;
 
     @Convert(converter = BaseQuestionConverter.class)
-    @Column(name = "question_value",columnDefinition = "JSON")
+    @Column(name = "question_value", columnDefinition = "JSON")
     private BaseQuestion questionValue; //Entity inner class
 
     @ManyToMany(fetch = FetchType.LAZY)
@@ -59,6 +71,16 @@ public class Question extends AuditableEntity {
 
     @Version
     private Integer version;
+
+    @Enumerated(value = EnumType.STRING)
+    @NotNull
+    private Status status;
+
+    @Enumerated(value = EnumType.STRING)
+    @NotNull
+    private Level level;
+
+    private boolean isPublic;
 
     public QuestionType getType() {
         return questionValue != null ? questionValue.getType() : null;
@@ -86,6 +108,120 @@ public class Question extends AuditableEntity {
 
     public boolean isArchived() {
         return this.getStatus() == Status.ARCHIVED;
+    }
+
+    public void updateBaseInfo(QuestionEditContextService.QuestionEditContext context) {
+        var changes = new ArrayList<PropertyChange>();
+
+        if (!Objects.equals(context.getLevel(), this.level)) {
+            changes.add(PropertyChange.builder()
+                    .name("Level")
+                    .oldValue(this.level)
+                    .currentValue(context.getLevel())
+                    .build());
+            this.level = context.getLevel();
+        }
+
+        if (!Objects.equals(context.getText(), this.text)) {
+            changes.add(PropertyChange.builder()
+                    .name("Text")
+                    .oldValue(this.text)
+                    .currentValue(context.getText())
+                    .build());
+            this.text = context.getText();
+        }
+
+        if (!Objects.equals(context.getPoint(), this.point)) {
+            changes.add(PropertyChange.builder()
+                    .name("Point")
+                    .oldValue(this.point)
+                    .currentValue(context.getPoint())
+                    .build());
+            this.point = context.getPoint();
+        }
+
+        if (!Objects.equals(context.isPublic(), this.isPublic)) {
+            changes.add(PropertyChange.builder()
+                    .name("IsPublic")
+                    .oldValue(this.isPublic)
+                    .currentValue(context.isPublic())
+                    .build());
+            this.isPublic = context.isPublic();
+        }
+
+        if (CollectionUtils.isNotEmpty(changes)) {
+            this.addEvent(new PropertiesChangeEvent(changes));
+        }
+    }
+
+    public void updateOneChoiceQuestion(QuestionEditContextService.OneChoiceContext context) {
+        this.clearAnswers();
+
+        this.answers.addAll(createNewAnswers(context.getAnswers()));
+    }
+
+    private void clearAnswers() {
+        // Delete reference to question
+        this.answers.forEach(answer -> answer.setQuestion(null));
+
+        if (CollectionUtils.isEmpty(this.answers)) {
+            this.answers = new ArrayList<>();
+        }
+
+        this.answers.clear();
+    }
+
+    private List<Answer> createNewAnswers(List<QuestionEditContextService.ChoiceAnswer> answers) {
+        if (CollectionUtils.isEmpty(answers)) {
+            log.warn("Answers require not empty");
+        }
+
+        return answers.stream()
+                .map(answer ->
+                        Answer.builder()
+                                .question(this)
+                                .orderIndex(answer.index())
+                                .value(answer.text())
+                                .result(answer.result())
+                                .build()
+                )
+                .collect(Collectors.toList());
+    }
+
+    public void updateMultiChoiceQuestion(QuestionEditContextService.MultiChoiceContext context) {
+        this.clearAnswers();
+
+        this.answers.addAll(createNewAnswers(context.getAnswers()));
+    }
+
+    public void updateTrueFalseQuestion(QuestionEditContextService.TrueFalseAnswerContext context) {
+        this.clearAnswers();
+
+        this.answers.addAll(this.createNewAnswers(context.getAnswer()));
+    }
+
+    private List<Answer> createNewAnswers(QuestionEditContextService.TrueFalseAnswer answer) {
+        var trueValue = Answer.builder()
+                .orderIndex(0)
+                .result(BooleanUtils.isTrue(answer.isCorrect()))
+                .question(this)
+                .build();
+        var falseValue = Answer.builder()
+                .orderIndex(1)
+                .result(BooleanUtils.isFalse(answer.isCorrect()))
+                .question(this)
+                .build();
+        return new ArrayList<>(List.of(trueValue, falseValue));
+    }
+
+    public void updateTextPlainQuestion(QuestionEditContextService.TextAnswerContext context) {
+        this.clearAnswers();
+
+        var answer = Answer.builder()
+                .question(this)
+                .explanation(context.getText())
+                .build();
+        this.answers.addAll(new ArrayList<>(List.of(answer)));
     }
 
 
@@ -192,6 +328,7 @@ public class Question extends AuditableEntity {
         public EssayQuestion(Level level, Status status, boolean isPublic) {
             super(QuestionType.ESSAY, level, status, isPublic);
         }
+
         public EssayQuestion(
                 Level level,
                 Status status,

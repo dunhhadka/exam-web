@@ -19,6 +19,19 @@ export const questionApi = authenticatedApi.injectEndpoints({
       }),
       invalidatesTags: [{ type: 'Question', id: 'LIST' }],
     }),
+    updateQuestion: builder.mutation<
+      Question,
+      { id: number; request: QuestionRequestSubmit }
+    >({
+      query: (data) => ({
+        url: `/question/${data.id}`,
+        method: 'PUT',
+        body: data.request,
+      }),
+      invalidatesTags(result, error, arg, meta) {
+        return [{ id: result?.id, type: 'Question' }]
+      },
+    }),
 
     searchQuestion: builder.query<
       { data: Question[]; count: number },
@@ -115,5 +128,6 @@ export const {
   useCreateTagMutation,
   useDeleteQuestionMutation,
   useFindByIdQuery,
-  useLazyFindByIdQuery
+  useLazyFindByIdQuery,
+  useUpdateQuestionMutation,
 } = questionApi

@@ -1,4 +1,7 @@
-import { useSubmitPublishMutation } from '../services/api/questionApi'
+import {
+  useSubmitPublishMutation,
+  useUpdateQuestionMutation,
+} from '../services/api/questionApi'
 import {
   AnswerCreateRequest,
   QuestionRequestInput,
@@ -16,7 +19,8 @@ type SubmitResult = {
   isSubmitting: boolean
   submitQuestion: (
     type: QuestionType,
-    formData: QuestionRequestInput
+    formData: QuestionRequestInput,
+    questionId?: number
   ) => Promise<void>
 }
 
@@ -108,13 +112,28 @@ export const useSubmitQuestion = (): SubmitResult => {
     useSubmitPublishMutation()
   const toast = useToast()
 
+  const [updateQuestion, { isLoading: isUpdateQuestionLoading }] =
+    useUpdateQuestionMutation()
+
   const submitQuestion = async (
     type: QuestionType,
-    formData: QuestionRequestInput
+    formData: QuestionRequestInput,
+    questionId?: number
   ) => {
     const request = parseToRequest(type, formData)
     if (!request) {
       throw new Error(`Unsupported question type: ${type}`)
+    }
+
+    if (questionId) {
+      try {
+        await updateQuestion({ id: questionId, request }).unwrap()
+        toast.success('Cập nhật câu hỏi thành công')
+        navigate('/questions')
+      } catch (error) {
+        console.error('Failed to submit question:', error)
+      }
+      return
     }
 
     try {
@@ -127,7 +146,7 @@ export const useSubmitQuestion = (): SubmitResult => {
   }
 
   return {
-    isSubmitting,
+    isSubmitting: isSubmitting || isUpdateQuestionLoading,
     submitQuestion,
   }
 }
