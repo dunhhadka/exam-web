@@ -13,4 +13,9 @@ public class DomainValidationException extends RuntimeException{
         super("INPUT_VALID");
         this.fieldErrors = fieldErrors;
     }
+
+    public DomainValidationException(InvalidFieldError fieldError) {
+        super("INPUT_VALID");
+        this.fieldErrors = List.of(fieldError);
+    }
 }

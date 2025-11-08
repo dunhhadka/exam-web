@@ -1,84 +1,88 @@
-import styled from "@emotion/styled";
-import { Button, Flex, Input, Popover, Tag } from "antd";
-import Table, { ColumnType, TableProps } from "antd/es/table";
-import { TableRowSelection } from "antd/es/table/interface";
-import React from "react";
-import { FilterOutlined, SearchOutlined, CloseOutlined } from "@ant-design/icons";
+import styled from '@emotion/styled'
+import { Button, Flex, Input, Popover, Tag } from 'antd'
+import Table, { ColumnType, TableProps } from 'antd/es/table'
+import { TableRowSelection } from 'antd/es/table/interface'
+import React from 'react'
+import {
+  FilterOutlined,
+  SearchOutlined,
+  CloseOutlined,
+} from '@ant-design/icons'
 
 interface SearchApiConfig<T> {}
 
 export interface LabelItem {
-  label: string;
-  value: string | number;
-  onClose?: () => void;
+  label: string
+  value: string | number
+  onClose?: () => void
 }
 
 interface ButtonAction {
-  title: string;
-  disabled?: boolean;
-  onClick: () => void;
-  icon?: React.ReactNode;
-  color?: "primary" | "secondary" | "danger";
+  title: string
+  disabled?: boolean
+  onClick: () => void
+  icon?: React.ReactNode
+  color?: 'primary' | 'secondary' | 'danger'
 }
 
 interface Props<T = any>
-  extends Omit<TableProps<T>, "columns" | "dataSource" | "title"> {
-  columns: ColumnType<T>[];
-  data?: T[];
-  variant?: "default" | "compact";
-  showHeader?: boolean;
-  stickyHeader?: boolean;
-  maxHeight?: number | string;
-  emptyText?: string;
-  onRowClick?: (record: T, index: number) => void;
-  onRowDoubleClick?: (record: T, index: number) => void;
-  customClassName?: string;
-  searchApiConfig?: SearchApiConfig<T>;
-  tableTitle?: string;
-  actions?: ButtonAction[];
-  showQuery?: boolean;
-  query?: string;
-  onQueryChange?: (query: string) => void;
-  placeholder?: string;
-  labelItems?: LabelItem[];
-  openFilter?: boolean;
+  extends Omit<TableProps<T>, 'columns' | 'dataSource' | 'title'> {
+  columns: ColumnType<T>[]
+  data?: T[]
+  variant?: 'default' | 'compact'
+  showHeader?: boolean
+  stickyHeader?: boolean
+  maxHeight?: number | string
+  emptyText?: string
+  onRowClick?: (record: T, index: number) => void
+  onRowDoubleClick?: (record: T, index: number) => void
+  customClassName?: string
+  searchApiConfig?: SearchApiConfig<T>
+  tableTitle?: string
+  actions?: ButtonAction[]
+  showQuery?: boolean
+  query?: string
+  onQueryChange?: (query: string) => void
+  placeholder?: string
+  labelItems?: LabelItem[]
+  openFilter?: boolean
   pagination?: {
-    current: number;
-    pageSize: number;
-    total: number;
-    onChange: (page: number, pageSize: number) => void;
-  };
-  rowSelection?: TableRowSelection<T>;
-  onFilterClick?: (openFilter: boolean) => void;
-  filterActive?: boolean;
-  filterComponent?: React.ReactNode;
+    current: number
+    pageSize: number
+    total: number
+    onChange: (page: number, pageSize: number) => void
+  }
+  rowSelection?: TableRowSelection<T>
+  onFilterClick?: (openFilter: boolean) => void
+  filterActive?: boolean
+  filterComponent?: React.ReactNode
 
   // thêm prop padding: nếu không truyền thì không có padding
-  padding?: string | number;
+  padding?: string | number
 }
 
 export const CustomTable = <T extends Record<string, any>>({
   columns,
   data,
-  variant = "default",
+  variant = 'default',
   showHeader = true,
   stickyHeader = false,
   maxHeight,
-  emptyText = "Không có dữ liệu",
+  emptyText = 'Không có dữ liệu',
   onRowClick,
   onRowDoubleClick,
   customClassName,
   loading = false,
-  size = "middle",
+  size = 'middle',
   pagination,
   tableTitle,
   actions,
   rowSelection,
   showQuery = false,
   labelItems,
-  query = "",
+  query = '',
   onQueryChange,
-  placeholder = "Tìm kiếm...",
+  placeholder = 'Tìm kiếm...',
   onFilterClick,
   filterActive = false,
   filterComponent,
@@ -99,8 +103,8 @@ export const CustomTable = <T extends Record<string, any>>({
                   icon={action.icon}
                   onClick={action.onClick}
                   disabled={action.disabled}
-                  type={action.color === "primary" ? "primary" : "default"}
-                  danger={action.color === "danger"}
+                  type={action.color === 'primary' ? 'primary' : 'default'}
+                  danger={action.color === 'danger'}
                 >
                   {action.title}
                 </StyledButton>
@@ -126,7 +130,7 @@ export const CustomTable = <T extends Record<string, any>>({
           <FilterSection>
             <Popover
               open={openFilter}
-              trigger={"click"}
+              trigger={'click'}
               placement="bottomRight"
               arrow={false}
               content={filterComponent}
@@ -134,9 +138,9 @@ export const CustomTable = <T extends Record<string, any>>({
               <FilterButton
                 icon={<FilterOutlined />}
                 onClick={() => {
-                  onFilterClick?.(!openFilter);
+                  onFilterClick?.(!openFilter)
                 }}
-                className={filterActive ? "active" : ""}
+                className={filterActive ? 'active' : ''}
               >
                 Bộ lọc
               </FilterButton>
@@ -153,8 +157,8 @@ export const CustomTable = <T extends Record<string, any>>({
                 key={`${item.value}-${idx}`}
                 closable={!!item.onClose}
                 onClose={(e) => {
-                  e.preventDefault();
-                  item.onClose?.();
+                  e.preventDefault()
+                  item.onClose?.()
                 }}
                 closeIcon={<CloseOutlined />}
               >
@@ -176,18 +180,26 @@ export const CustomTable = <T extends Record<string, any>>({
           loading={loading}
           size={size}
           locale={{ emptyText }}
-          pagination={pagination}
+          pagination={
+            pagination
+              ? {
+                  ...pagination,
+                  showSizeChanger: true,
+                  pageSizeOptions: ['5', '10', '20'],
+                }
+              : false
+          }
           rowSelection={rowSelection}
           scroll={{
-            x: "max-content",
+            x: 'max-content',
             y: maxHeight || undefined,
           }}
           {...restProps}
         />
       </TableWrapper>
     </Wrapper>
-  );
-};
+  )
+}
 
 /* ==== Styled Components (simplified) ==== */
 const Wrapper = styled.div`
@@ -195,7 +207,7 @@ const Wrapper = styled.div`
   overflow: hidden;
   border: 1px solid #eee;
   border-radius: 6px;
-`;
+`
 
 const HeaderBar = styled.div`
   display: flex;
@@ -205,7 +217,7 @@ const HeaderBar = styled.div`
   gap: 12px;
   border-bottom: 1px solid #f0f0f0;
   background: transparent;
-`;
+`
 
 const LeftSection = styled.div`
   display: flex;
@@ -213,18 +225,18 @@ const LeftSection = styled.div`
   gap: 12px;
   flex: 1;
   min-width: 0;
-`;
+`
 
 const Title = styled.h3`
   margin: 0;
   font-size: 16px;
   font-weight: 600;
   color: #222;
-`;
+`
 
 const ActionButtons = styled(Flex)`
   gap: 8px;
-`;
+`
 
 const StyledButton = styled(Button)`
   border-radius: 6px;
@@ -236,7 +248,7 @@ const StyledButton = styled(Button)`
   &.ant-btn-primary {
     border: none;
   }
-`;
+`
 
 const FilterActionStyled = styled.div`
   display: flex;
@@ -246,12 +258,12 @@ const FilterActionStyled = styled.div`
   align-items: center;
   background: transparent;
   flex-wrap: wrap;
-`;
+`
 
 const SearchSection = styled.div`
   flex: 1;
   min-width: 220px;
-`;
+`
 
 const SearchInput = styled(Input)`
   max-width: 420px;
@@ -262,13 +274,13 @@ const SearchInput = styled(Input)`
   .ant-input-prefix {
     color: #8c8c8c;
   }
-`;
+`
 
 const FilterSection = styled.div`
   display: flex;
   gap: 8px;
   align-items: center;
-`;
+`
 
 const FilterButton = styled(Button)`
   border-radius: 6px;
@@ -282,20 +294,20 @@ const FilterButton = styled(Button)`
     border-color: #1890ff;
     color: #1890ff;
   }
-`;
+`
 
 const LabelItemsSection = styled.div`
   padding: 8px 16px;
   border-bottom: 1px solid #f5f5f5;
   background: transparent;
-`;
+`
 
 const LabelItemsWrapper = styled.div`
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   align-items: center;
-`;
+`
 
 const StyledTag = styled(Tag)`
   margin: 0;
@@ -319,29 +331,29 @@ const StyledTag = styled(Tag)`
   .anticon-close {
     font-size: 12px;
   }
-`;
+`
 
 const TagContent = styled.div`
   display: flex;
   align-items: center;
   gap: 6px;
-`;
+`
 
 const TagLabel = styled.span`
   color: #555;
   font-weight: 500;
-`;
+`
 
 const TagValue = styled.span`
   color: #333;
   font-weight: 600;
-`;
+`
 
 const TableWrapper = styled.div<{ contentPadding?: string | number }>`
   padding: ${(p) =>
     p.contentPadding === undefined
-      ? "0"
-      : typeof p.contentPadding === "number"
+      ? '0'
+      : typeof p.contentPadding === 'number'
       ? `${p.contentPadding}px`
       : p.contentPadding};
 
@@ -383,4 +395,4 @@ const TableWrapper = styled.div<{ contentPadding?: string | number }>`
     color: #8c8c8c;
     font-size: 14px;
   }
-`;
+`

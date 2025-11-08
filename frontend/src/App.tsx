@@ -1,26 +1,29 @@
-import { Provider } from "react-redux";
-import "./App.css";
-import { store } from "./store";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import PublicRoute from "./routes/PublicRoute";
-import AuthLayout from "./components/layouts/AuthLayout";
-import Login from "./pages/auth/Login";
-import Register from "./pages/auth/Register";
-import ProtectedRoute from "./routes/ProtectedRoute";
-import MainLayout from "./components/layouts/MainLayout";
-import Home from "./pages/home/Home";
-import { QuestionList } from "./pages/question/QuestionList";
-import { QuestionCreatePage } from "./pages/question/QuestionCreatePage";
-import { ExamListPage } from "./pages/exams/ExamListPage";
-import { ExamCreatePage } from "./pages/exams/ExamCreatePage";
-import { ToastProvider } from "./ToastProvider";
-import ExamSessionListPage from "./pages/examsession/ExamSessionListPage";
-import CheckinExam from "./pages/take-exams/CheckinExam";
-import CheckinValidateToken from "./pages/take-exams/CheckinValidateToken";
-import CheckInInfo from "./pages/take-exams/CheckinInfo";
-import TakeExam from "./pages/take-exams/TakeExam";
-import FinishExam from "./pages/take-exams/FinishExam";
-import { App as AntdApp } from "antd";
+import { Provider } from 'react-redux'
+import './App.css'
+import { store } from './store'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import PublicRoute from './routes/PublicRoute'
+import AuthLayout from './components/layouts/AuthLayout'
+import Login from './pages/auth/Login'
+import Register from './pages/auth/Register'
+import ProtectedRoute from './routes/ProtectedRoute'
+import MainLayout from './components/layouts/MainLayout'
+import Home from './pages/home/Home'
+import { QuestionList } from './pages/question/QuestionList'
+import { QuestionCreatePage } from './pages/question/QuestionCreatePage'
+import { ExamListPage } from './pages/exams/ExamListPage'
+import { ExamCreatePage } from './pages/exams/ExamCreatePage'
+import { ToastProvider } from './ToastProvider'
+import ExamSessionListPage from './pages/examsession/ExamSessionListPage'
+import CheckinExam from './pages/take-exams/CheckinExam'
+import CheckinValidateToken from './pages/take-exams/CheckinValidateToken'
+import CheckInInfo from './pages/take-exams/CheckinInfo'
+import TakeExam from './pages/take-exams/TakeExam'
+import FinishExam from './pages/take-exams/FinishExam'
+import { App as AntdApp } from 'antd'
+import DefaultHomePage from './pages/home/DefaultHome'
+import CheckExamSystem from './pages/take-exams/CheckExamSystem'
+import CheckExamIdentity from './pages/take-exams/CheckExamIdentity'
 
 function App() {
   return (
@@ -35,6 +38,7 @@ function App() {
                   <Route path="/register" element={<Register />} />
                 </Route>
                 <Route>
+                  <Route path="/" element={<DefaultHomePage />} />
                   <Route path="/exam-checkin" element={<CheckinExam />} />
                   <Route
                     path="/exam-checkin-verify-code"
@@ -43,6 +47,14 @@ function App() {
                   <Route path="/exam-checkin-info" element={<CheckInInfo />} />
                   <Route path="/do-exam" element={<TakeExam />} />
                   <Route path="/finish-exam" element={<FinishExam />} />
+                  <Route
+                    path="/check-exam-system"
+                    element={<CheckExamSystem />}
+                  />
+                  <Route
+                    path="/identity-verification"
+                    element={<CheckExamIdentity />}
+                  />
                 </Route>
               </Route>
               <Route element={<ProtectedRoute />}>
@@ -72,7 +84,7 @@ function App() {
         </Provider>
       </ToastProvider>
     </AntdApp>
-  );
+  )
 }
 
-export default App;
+export default App

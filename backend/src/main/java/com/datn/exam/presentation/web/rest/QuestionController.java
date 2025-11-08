@@ -26,7 +26,7 @@ public interface QuestionController {
     Response<QuestionResponse> update();
 
     @DeleteMapping("/{questionId}")
-    boolean delete(@PathVariable int questionId);
+    Response<Boolean> delete(@PathVariable int questionId);
 
     @GetMapping("/filter")
     @ResponseStatus(HttpStatus.OK)

@@ -15,4 +15,6 @@ public interface ExamSessionService {
     PageDTO<ExamSessionResponse> filter(ExamSessionFilterRequest request);
     void delete(IdsRequest request);
     ExamSessionResponse getById(Long id);
+
+    int count(ExamSessionFilterRequest request);
 }

@@ -37,8 +37,8 @@ public class QuestionControllerImpl implements QuestionController {
     }
 
     @Override
-    public boolean delete(int questionId) {
-        return false;
+    public Response<Boolean> delete(int questionId) {
+        return Response.of(questionService.delete(questionId));
     }
 
     @Override

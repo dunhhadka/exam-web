@@ -10,7 +10,7 @@ import { TokenManager } from '../../utils/tokenManager'
 import { logout, setRefreshing, updateTokens } from './authSlice'
 import { getToastInstance } from '../../ToastProvider'
 
-export const BASE_URL = 'http://localhost:8082/api'
+export const BASE_URL = 'http://localhost:8888/api'
 
 const showNotification = (
   type: 'error' | 'success' | 'warning' | 'info',

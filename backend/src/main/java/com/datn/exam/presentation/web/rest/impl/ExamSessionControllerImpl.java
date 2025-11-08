@@ -42,4 +42,9 @@ public class ExamSessionControllerImpl implements ExamSessionController {
     public Response<ExamSessionResponse> getById(Long id) {
         return Response.of(examSessionService.getById(id));
     }
+
+    @Override
+    public Response<Integer> count(ExamSessionFilterRequest request) {
+        return Response.of(examSessionService.count(request));
+    }
 }

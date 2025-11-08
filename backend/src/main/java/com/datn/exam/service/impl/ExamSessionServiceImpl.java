@@ -167,6 +167,11 @@ public class ExamSessionServiceImpl implements ExamSessionService {
         return examSessionMapper.toExamSessionResponse(examSession);
     }
 
+    @Override
+    public int count(ExamSessionFilterRequest request) {
+        return this.examSessionDao.count(request).intValue();
+    }
+
     private void validateWindow(LocalDateTime start, LocalDateTime end) {
         if (start != null && end != null && !end.isAfter(start)) {
             throw new ResponseException(BadRequestError.EXAM_SESSION_TIME_WINDOW_INVALID, start, end);

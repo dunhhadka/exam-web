@@ -12,7 +12,7 @@ public interface QuestionService {
     QuestionResponse createPublish(QuestionCreateRequest request);
     QuestionResponse createDraft(DraftCreateRequest request);
     QuestionResponse update(QuestionUpdateRequest request);
-    void delete(long id);
+    boolean delete(long id);
     PageDTO<QuestionResponse> search(QuestionSearchRequest request);
 
     Integer count(QuestionSearchRequest request);

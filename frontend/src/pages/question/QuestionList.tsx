@@ -1,6 +1,6 @@
-import { Tag, Tooltip } from "antd";
-import { createColumn } from "../../components/search/createColumn";
-import { CustomTable } from "../../components/search/CustomTable";
+import { Tag, Tooltip } from 'antd'
+import { createColumn } from '../../components/search/createColumn'
+import { CustomTable } from '../../components/search/CustomTable'
 import {
   Level,
   LevelColor,
@@ -13,34 +13,34 @@ import {
   StatusColor,
   StatusLabel,
   Tag as QuestionTag,
-} from "../../types/question";
-import styled from "@emotion/styled";
-import { createActionColumns } from "../../components/search/createActionColumn";
+} from '../../types/question'
+import styled from '@emotion/styled'
+import { createActionColumns } from '../../components/search/createActionColumn'
 import {
   CopyOutlined,
   DeleteOutlined,
   DownloadOutlined,
   EditOutlined,
   PlusCircleOutlined,
-} from "@ant-design/icons";
-import { useNavigate } from "react-router-dom";
-import { useState } from "react";
-import { QuestionTypeCreate } from "./QuestionTypeCreate";
-import { QuestionFilter } from "./filter/QuestionFilter";
-import { useFilterQuestionQuery } from "../../hooks/useFilterQuestionQuery";
-import ConfirmModal from "../../components/common/ConfirmModal";
-import { useDeleteQuestionMutation } from "../../services/api/questionApi";
-import { useToast } from "../../hooks/useToast";
-import { formatDateTimeToRequest, formatInstant } from "../../utils/times";
+} from '@ant-design/icons'
+import { useNavigate } from 'react-router-dom'
+import { useState } from 'react'
+import { QuestionTypeCreate } from './QuestionTypeCreate'
+import { QuestionFilter } from './filter/QuestionFilter'
+import { useFilterQuestionQuery } from '../../hooks/useFilterQuestionQuery'
+import ConfirmModal from '../../components/common/ConfirmModal'
+import { useDeleteQuestionMutation } from '../../services/api/questionApi'
+import { useToast } from '../../hooks/useToast'
+import { formatDateTimeToRequest, formatInstant } from '../../utils/times'
 
 export const QuestionList = () => {
   const columns = [
-    createColumn<Question>("Cấp độ", "level", {
+    createColumn<Question>('Cấp độ', 'level', {
       render: (value: Level) =>
         value ? <Tag color={LevelColor[value]}>{LevelLabel[value]}</Tag> : null,
     }),
 
-    createColumn<Question>("Thẻ", "tags", {
+    createColumn<Question>('Thẻ', 'tags', {
       render: (value?: QuestionTag[]) =>
         value
           ? value.map((v) => (
@@ -51,7 +51,7 @@ export const QuestionList = () => {
           : null,
     }),
 
-    createColumn<Question>("Câu hỏi", "text", {
+    createColumn<Question>('Câu hỏi', 'text', {
       render: (value) =>
         value ? (
           <Tooltip title={value}>
@@ -60,58 +60,58 @@ export const QuestionList = () => {
         ) : null,
     }),
 
-    createColumn<Question>("Người tạo", "createdBy"),
+    createColumn<Question>('Người tạo', 'createdBy'),
 
-    createColumn<Question>("Loại", "type", {
+    createColumn<Question>('Loại', 'type', {
       render: (value?: QuestionType) =>
         value ? (
           <Tag color={QuestionTypeColor[value]}>{QuestionTypeLabel[value]}</Tag>
         ) : null,
     }),
 
-    createColumn<Question>("Trạng thái", "status", {
+    createColumn<Question>('Trạng thái', 'status', {
       render: (value: Status) =>
         value ? (
           <Tag color={StatusColor[value]}>{StatusLabel[value]}</Tag>
         ) : null,
     }),
 
-    createColumn<Question>("Người cập nhật", "lastModifiedBy"),
-    createColumn<Question>("Ngày tạo", "createdAt", {
+    createColumn<Question>('Người cập nhật', 'lastModifiedBy'),
+    createColumn<Question>('Ngày tạo', 'createdAt', {
       render: (value: string) => formatInstant(value),
     }),
 
     createActionColumns<Question>([
       {
-        label: "Sao chép",
+        label: 'Sao chép',
         icon: <CopyOutlined />,
         onClick: (record) => {
-          setShowQuestionCopyModal(true);
-          setQuestionSelectedId(record.id);
+          setShowQuestionCopyModal(true)
+          setQuestionSelectedId(record.id)
         },
       },
       {
-        label: "Cập nhật",
+        label: 'Cập nhật',
         icon: <EditOutlined />,
         onClick: (record) => {
-          setShowQuestionEditModal(true);
-          setQuestionSelectedId(record.id);
-          setQuestionSelected(record);
+          setShowQuestionEditModal(true)
+          setQuestionSelectedId(record.id)
+          setQuestionSelected(record)
         },
       },
       {
-        label: "Xoá",
+        label: 'Xoá',
         icon: <DeleteOutlined />,
         onClick: (record) => {
-          setShowModalDeleteQuestion(true);
-          setQuestionSelectedId(record.id);
+          setShowModalDeleteQuestion(true)
+          setQuestionSelectedId(record.id)
         },
         danger: true,
       },
     ]),
-  ];
+  ]
 
-  const [openFilter, setOpenFilter] = useState(false);
+  const [openFilter, setOpenFilter] = useState(false)
 
   const {
     query,
@@ -123,59 +123,61 @@ export const QuestionList = () => {
     count,
     isLoading: isQuestionLoading,
     isFetching: isQuestionFetching,
-  } = useFilterQuestionQuery({});
+  } = useFilterQuestionQuery({})
 
-  const navigate = useNavigate();
+  const navigate = useNavigate()
 
   const [deleteQuestion, { isLoading: isDeleteQuestionLoading }] =
-    useDeleteQuestionMutation();
+    useDeleteQuestionMutation()
 
-  const [showQuestionCreateModal, setShowQuestionCreateModal] = useState(false);
+  const [showQuestionCreateModal, setShowQuestionCreateModal] = useState(false)
 
-  const [showModalDeleteQuestion, setShowModalDeleteQuestion] = useState(false);
+  const [showModalDeleteQuestion, setShowModalDeleteQuestion] = useState(false)
   const [questionSeletedId, setQuestionSelectedId] = useState<
     number | undefined
-  >(undefined);
-  const [showQuestionCopyModal, setShowQuestionCopyModal] = useState(false);
-  const [showQuestionEditModal, setShowQuestionEditModal] = useState(false);
+  >(undefined)
+  const [showQuestionCopyModal, setShowQuestionCopyModal] = useState(false)
+  const [showQuestionEditModal, setShowQuestionEditModal] = useState(false)
   const [questionSelected, setQuestionSelected] = useState<
     Question | undefined
-  >(undefined);
+  >(undefined)
 
   const handleAddQuestionAction = () => {
-    setShowQuestionCreateModal(true);
-  };
+    setShowQuestionCreateModal(true)
+  }
 
   const handleDownloadExcel = () => {
-    console.log("handle download excel");
-  };
+    console.log('handle download excel')
+  }
 
   const handleTypeSelect = (type: QuestionType) => {
-    navigate("/questions/create", { state: { type } });
+    navigate('/questions/create', { state: { type } })
 
-    setShowQuestionCreateModal(false);
-  };
+    setShowQuestionCreateModal(false)
+  }
 
-  const toast = useToast();
+  const toast = useToast()
 
   const handleDeleteQuestion = async () => {
     if (!showModalDeleteQuestion || !questionSeletedId) {
-      return;
+      return
     }
 
     try {
       const res = await deleteQuestion({
         questionId: questionSeletedId,
-      }).unwrap();
+      }).unwrap()
 
-      toast.success("Xoá câu hỏi thành công");
+      toast.success('Xoá câu hỏi thành công')
 
-      setShowModalDeleteQuestion(false);
-      setQuestionSelectedId(undefined);
+      setShowModalDeleteQuestion(false)
+      setQuestionSelectedId(undefined)
     } catch (error) {
-      toast.error("Xoá câu hỏi không thành công");
+      console.log(error)
     }
-  };
+  }
+
+  console.log(filter)
 
   return (
     <div>
@@ -196,15 +198,15 @@ export const QuestionList = () => {
         openFilter={openFilter}
         onFilterClick={setOpenFilter}
         pagination={{
-          current: (filter.pageIndex ?? 0) + 1,
+          current: filter.pageIndex ?? 0,
           pageSize: filter.pageSize ?? 10,
           total: count,
           onChange: (page, pageSize) => {
             changeFilter({
               ...filter,
-              pageIndex: page - 1,
+              pageIndex: page,
               pageSize: pageSize,
-            });
+            })
           },
         }}
         filterComponent={
@@ -216,16 +218,16 @@ export const QuestionList = () => {
         }
         actions={[
           {
-            title: "Tải xuống",
+            title: 'Tải xuống',
             icon: <DownloadOutlined />,
             onClick: handleDownloadExcel,
-            color: "secondary",
+            color: 'secondary',
           },
           {
-            title: "Thêm câu hỏi mới",
+            title: 'Thêm câu hỏi mới',
             icon: <PlusCircleOutlined />,
             onClick: handleAddQuestionAction,
-            color: "primary",
+            color: 'primary',
           },
         ]}
       />
@@ -241,8 +243,8 @@ export const QuestionList = () => {
           open={showModalDeleteQuestion}
           onOk={handleDeleteQuestion}
           onCancel={() => {
-            setShowModalDeleteQuestion(false);
-            setQuestionSelectedId(undefined);
+            setShowModalDeleteQuestion(false)
+            setQuestionSelectedId(undefined)
           }}
           content={`Bạn có chắc chắn muốn xoá câu hỏi này`}
           danger
@@ -253,8 +255,8 @@ export const QuestionList = () => {
           open={showQuestionCopyModal}
           onOk={() => {}}
           onCancel={() => {
-            setShowQuestionCopyModal(false);
-            setQuestionSelectedId(undefined);
+            setShowQuestionCopyModal(false)
+            setQuestionSelectedId(undefined)
           }}
           content={`Bạn có chắc chắn muốn sao chép câu hỏi này`}
         />
@@ -266,20 +268,20 @@ export const QuestionList = () => {
             if (questionSelected) {
               navigate(`/questions/edit/${questionSelected.id}`, {
                 state: { type: questionSelected.type },
-              });
+              })
             }
           }}
           onCancel={() => {
-            setShowQuestionEditModal(false);
-            setQuestionSelectedId(undefined);
-            setQuestionSelected(undefined);
+            setShowQuestionEditModal(false)
+            setQuestionSelectedId(undefined)
+            setQuestionSelected(undefined)
           }}
           content={`Bạn có chắc chắn muốn chỉnh sửa câu hỏi này`}
         />
       )}
     </div>
-  );
-};
+  )
+}
 
 export const Truncate3Lines = styled.div`
   display: -webkit-box;
@@ -288,4 +290,4 @@ export const Truncate3Lines = styled.div`
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: normal; /* cho phép xuống dòng */
-`;
+`

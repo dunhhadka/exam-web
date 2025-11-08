@@ -8,7 +8,7 @@ import java.util.List;
 public interface QuestionDao {
     Long count(QuestionSearchRequest request);
 
-    public List<QuestionDto> search(QuestionSearchRequest request);
+    List<QuestionDto> search(QuestionSearchRequest request);
 
     List<QuestionDto> findByIds(List<Long> ids);
 }

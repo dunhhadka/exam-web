@@ -30,6 +30,9 @@ public interface ExamSessionController {
     @ResponseStatus(HttpStatus.OK)
     Response<ExamSessionResponse> getById(@PathVariable(name = "id") Long id);
 
+    @GetMapping("/filter/count")
+    Response<Integer> count(ExamSessionFilterRequest request);
+
 //    @GetMapping("/{id}/qr")
 //    @ResponseStatus(HttpStatus.OK)
 //    Response<ExamSessionMetaResponse> join(@RequestBody)

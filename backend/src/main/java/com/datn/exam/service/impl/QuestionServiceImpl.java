@@ -26,13 +26,16 @@ import com.datn.exam.support.enums.error.BadRequestError;
 import com.datn.exam.support.enums.error.NotFoundError;
 import com.datn.exam.support.exception.DomainValidationException;
 import com.datn.exam.support.exception.ResponseException;
+import com.datn.exam.support.util.SecurityUtils;
 import jakarta.validation.ConstraintViolationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.BooleanUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -78,6 +81,11 @@ public class QuestionServiceImpl implements QuestionService {
 
         Question draftQuestion = this.buildQuestionEntity(request, Status.DRAFT);
 
+        var userId = SecurityUtils.getCurrentUserId();
+
+        draftQuestion.setCreatedBy(userId.toString());
+        draftQuestion.setCreatedAt(LocalDateTime.now());
+
         questionRepository.save(draftQuestion);
 
         return questionMapper.toQuestionResponse(draftQuestion);
@@ -89,8 +97,17 @@ public class QuestionServiceImpl implements QuestionService {
     }
 
     @Override
-    public void delete(long id) {
+    public boolean delete(long id) {
+        return false;
+    }
 
+
+    private Question getById(long id) {
+        return this.questionRepository.findById(id)
+                .orElseThrow(() -> new DomainValidationException(
+                        InvalidFieldError.builder()
+                                .message("Không tỉm thấy câu hỏi với id là" + id)
+                                .build()));
     }
 
     @Override

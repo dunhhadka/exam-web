@@ -13,6 +13,15 @@ import {
   useRequestOtpMutation,
 } from '../../services/api/take-exam'
 import { useToast } from '../../hooks/useToast'
+import { useDispatch, useSelector } from 'react-redux'
+import { RootState } from '../../store'
+import {
+  ExamConfig,
+  loadExamConfig,
+  setLoading,
+  setStep,
+  setTakeExamCode,
+} from '../../store/slices/takeExamSlice'
 
 const CheckinExam = () => {
   const [searchParams] = useSearchParams()
@@ -23,9 +32,21 @@ const CheckinExam = () => {
   const navigate = useNavigate()
 
   const toast = useToast()
-  const [joinExamByCode, { isLoading }] = useJoinExamByCodeMutation()
+  const [joinExamByCode, { isLoading: isJoinExamLoading }] =
+    useJoinExamByCodeMutation()
   const [requestOtp, { isLoading: isRequestOtpLoading }] =
     useRequestOtpMutation()
+
+  const dispatch = useDispatch()
+  const {
+    currentStep,
+    examConfig,
+    error,
+    isLoading,
+    takeExamSession,
+    systemCheck,
+    identityVerification,
+  } = useSelector((state: RootState) => state.takeExam)
 
   const handleRequestOtp = async () => {
     if (!examCode || !email) {
@@ -63,11 +84,47 @@ const CheckinExam = () => {
     }
   }
 
+  const initalizeExam = async () => {
+    const code = searchParams.get('code')
+    if (!code) {
+      toast.error('Mã bài thi không hợp lệ.')
+      navigate('/')
+      return
+    }
+
+    dispatch(setTakeExamCode(code))
+    dispatch(setLoading(true))
+
+    //TODO: get config from server
+    const config: ExamConfig = {
+      requireCammera: true,
+      requireExtendedDisplayCheck: true,
+      requireIdentityVerification: true,
+      allowedExtendDisplays: 1,
+    }
+
+    dispatch(loadExamConfig(config))
+
+    if (
+      (config.requireCammera || config.requireExtendedDisplayCheck) &&
+      !systemCheck.isPassed &&
+      !identityVerification.isPassed
+    ) {
+      dispatch(setStep('system-check'))
+      //navigate('/identity-verification')
+      navigate('/check-exam-system')
+    }
+  }
+
   useEffect(() => {
     if (!!code) {
       setExamCode(code)
     }
   }, [code])
+
+  useEffect(() => {
+    initalizeExam()
+  }, [])
 
   return (
     <Container>
@@ -110,7 +167,7 @@ const CheckinExam = () => {
               type="primary"
               size="large"
               block
-              loading={isLoading || isRequestOtpLoading}
+              loading={isJoinExamLoading || isRequestOtpLoading}
               icon={<CheckOutlined />}
               onClick={handleRequestOtp}
             >

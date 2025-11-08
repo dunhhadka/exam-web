@@ -15,7 +15,11 @@ import {
   useUpdateExamSessionMutation,
 } from '../../services/api/examsession'
 import { Exam } from '../../types/exam'
-import { ExamSession, ExamSessionRequest } from '../../types/examsession'
+import {
+  ExamFilterRequest,
+  ExamSession,
+  ExamSessionRequest,
+} from '../../types/examsession'
 import { formatInstant } from '../../utils/times'
 import ExamSessionCreate from './ExamSessionCreate'
 import ExamSessionViewLink from './ExamSessionViewLink'
@@ -64,11 +68,18 @@ const ExamSessionListPage = () => {
     ]),
   ]
 
+  const [filter, setFilter] = useState<ExamFilterRequest>({
+    pageIndex: 1,
+    pageSize: 10,
+  })
+
   const {
     data: examSessionData,
     isLoading: isExamSessionLoading,
     isFetching: isExamSessionFetching,
-  } = useFilterExamSessionQuery({ pageIndex: 1, pageSize: 20 })
+  } = useFilterExamSessionQuery(filter)
+
+  const { data, count } = examSessionData ?? { data: [], count: 0 }
 
   const [examSessionUpdate, setExamSessionUpdate] = useState<
     ExamSession | undefined
@@ -134,7 +145,7 @@ const ExamSessionListPage = () => {
         columns={columns}
         tableTitle="Bài kiểm tra"
         filterActive
-        data={examSessionData ?? []}
+        data={data ?? []}
         actions={[
           {
             title: 'Giao bài',
@@ -144,7 +155,16 @@ const ExamSessionListPage = () => {
           },
         ]}
         loading={isExamSessionLoading || isExamSessionFetching}
+        pagination={{
+          current: filter.pageIndex ?? 0,
+          pageSize: filter.pageSize ?? 10,
+          total: count,
+          onChange: (page, pageSize) => {
+            setFilter({ ...filter, pageIndex: page, pageSize })
+          },
+        }}
       />
+
       {openCreateAssignmentModal && (
         <Modal
           open={openCreateAssignmentModal}
