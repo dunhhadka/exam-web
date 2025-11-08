@@ -4,6 +4,7 @@ import com.datn.exam.model.dto.request.QuestionSearchRequest;
 import com.datn.exam.repository.data.dto.QuestionDto;
 import com.datn.exam.repository.data.dto.TableChoiceValue;
 import com.datn.exam.support.enums.QuestionType;
+import com.datn.exam.support.util.SecurityUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -103,6 +104,13 @@ public class JdbcQuestionDao implements QuestionDao{
     private MapSqlParameterSource buildWhereConditions(QuestionSearchRequest request, StringBuilder whereFilter) {
         MapSqlParameterSource params = new MapSqlParameterSource();
 
+        var userName = SecurityUtils.getCurrentUser().orElseThrow();
+
+        // default condition
+        whereFilter.append(" AND (q.active_status = 'ACTIVE') ");
+        whereFilter.append(" AND (q.isPublic IS TRUE OR (q.created_by = :userName OR q.last_modified_by = :userName)) ");
+        params.addValue("userName", userName);
+
         if (StringUtils.isNotBlank(request.getKeyword())) {
             whereFilter.append(" AND LOWER(q.text) LIKE LOWER(CONCAT('%', :keyword, '%')) ");
             params.addValue("keyword", request.getKeyword());
@@ -114,18 +122,21 @@ public class JdbcQuestionDao implements QuestionDao{
         }
 
         if (request.getLevel() != null) {
-            whereFilter.append(" AND JSON_UNQUOTE(JSON_EXTRACT(q.question_value, '$.level')) = :level ");
+            //whereFilter.append(" AND JSON_UNQUOTE(JSON_EXTRACT(q.question_value, '$.level')) = :level ");
+            whereFilter.append(" AND q.level = :level ");
             params.addValue("level", request.getLevel().name());
         }
 
         if (request.getStatus() != null) {
-            whereFilter.append(" AND JSON_UNQUOTE(JSON_EXTRACT(q.question_value, '$.status')) = :status ");
-            params.addValue("status", request.getStatus().name());
+            //whereFilter.append(" AND JSON_UNQUOTE(JSON_EXTRACT(q.question_value, '$.status')) = :status ");
+            //params.addValue("status", request.getStatus().name());
         }
 
         if (request.getPublicFlag() != null) {
-            whereFilter.append(" AND JSON_UNQUOTE(JSON_EXTRACT(q.question_value, '$.public_flag')) = :isPublic ");
-            params.addValue("isPublic", request.getPublicFlag());
+            //whereFilter.append(" AND JSON_UNQUOTE(JSON_EXTRACT(q.question_value, '$.public_flag')) = :isPublic ");
+            //params.addValue("isPublic", request.getPublicFlag());
+
+            //whereFilter.append(" AND q.isPublic  ")
         }
 
         if (StringUtils.isNotBlank(request.getTagName())) {

@@ -98,7 +98,13 @@ public class QuestionServiceImpl implements QuestionService {
 
     @Override
     public boolean delete(long id) {
-        return false;
+        var question = this.getById(id);
+
+        question.setActiveStatus(ActiveStatus.INACTIVE);
+
+        this.questionRepository.save(question);
+
+        return true;
     }
 
 
@@ -181,6 +187,9 @@ public class QuestionServiceImpl implements QuestionService {
                 .point(request.getPoint())
                 .questionValue(questionValue)
                 .activeStatus(ActiveStatus.ACTIVE)
+                .isPublic(request.isPublic())
+                .level(request.getLevel())
+                .status(Status.PUBLISHED)
                 .build();
 
         this.buildTags(question, request.getTagIds());
