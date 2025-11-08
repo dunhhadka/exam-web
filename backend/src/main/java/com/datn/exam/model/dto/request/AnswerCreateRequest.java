@@ -7,7 +7,7 @@ import lombok.EqualsAndHashCode;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
-public class AnswerCreateRequest extends Request{
+public class AnswerCreateRequest extends Request {
     @Size(max = 2000, message = "ANSWER_MAX_VALUE")
     private String value;
 
