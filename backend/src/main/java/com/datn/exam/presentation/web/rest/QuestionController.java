@@ -3,6 +3,7 @@ package com.datn.exam.presentation.web.rest;
 import com.datn.exam.model.dto.request.DraftCreateRequest;
 import com.datn.exam.model.dto.request.QuestionCreateRequest;
 import com.datn.exam.model.dto.request.QuestionSearchRequest;
+import com.datn.exam.model.dto.request.question.QuestionEditRequest;
 import com.datn.exam.model.dto.response.PagingResponse;
 import com.datn.exam.model.dto.response.QuestionResponse;
 import com.datn.exam.model.dto.response.Response;
@@ -34,4 +35,7 @@ public interface QuestionController {
 
     @GetMapping("/filter/count")
     Response<Integer> count(QuestionSearchRequest request);
+
+    @PutMapping("/{questionId}")
+    Response<QuestionResponse> edit(@PathVariable int questionId, @RequestBody QuestionEditRequest request);
 }

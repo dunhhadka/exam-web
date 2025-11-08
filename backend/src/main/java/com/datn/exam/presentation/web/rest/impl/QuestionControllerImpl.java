@@ -3,11 +3,13 @@ package com.datn.exam.presentation.web.rest.impl;
 import com.datn.exam.model.dto.request.DraftCreateRequest;
 import com.datn.exam.model.dto.request.QuestionCreateRequest;
 import com.datn.exam.model.dto.request.QuestionSearchRequest;
+import com.datn.exam.model.dto.request.question.QuestionEditRequest;
 import com.datn.exam.model.dto.response.PagingResponse;
 import com.datn.exam.model.dto.response.QuestionResponse;
 import com.datn.exam.model.dto.response.Response;
 import com.datn.exam.presentation.web.rest.QuestionController;
 import com.datn.exam.service.QuestionService;
+import com.datn.exam.service.question.QuestionEditService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -15,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class QuestionControllerImpl implements QuestionController {
     private final QuestionService questionService;
+    private final QuestionEditService questionEditService;
 
     @Override
     public Response<QuestionResponse> createPublish(QuestionCreateRequest request) {
@@ -49,5 +52,10 @@ public class QuestionControllerImpl implements QuestionController {
     @Override
     public Response<Integer> count(QuestionSearchRequest request) {
         return Response.of(questionService.count(request));
+    }
+
+    @Override
+    public Response<QuestionResponse> edit(int questionId, QuestionEditRequest request) {
+        return Response.of(this.questionEditService.edit(questionId, request));
     }
 }
