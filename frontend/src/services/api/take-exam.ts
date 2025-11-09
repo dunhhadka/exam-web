@@ -3,6 +3,7 @@ import {
   JoinByCodeRequest,
   JoinSessionMetaResponse,
   OtpRequest,
+  SessionInfoResponse,
   SessionTokenResponse,
   StartAttemptRequest,
   SubmitAttemptRequest,
@@ -12,6 +13,12 @@ import { publicApi } from './baseApi'
 
 const takeExamApi = publicApi.injectEndpoints({
   endpoints: (builder) => ({
+    getSessionInfo: builder.query<SessionInfoResponse, string>({
+      query: (code) => ({
+        url: `/join/session-info/${code}`,
+        method: 'GET',
+      }),
+    }),
     joinExamByCode: builder.mutation<
       JoinSessionMetaResponse,
       JoinByCodeRequest
@@ -63,6 +70,8 @@ const takeExamApi = publicApi.injectEndpoints({
 })
 
 export const {
+  useGetSessionInfoQuery,
+  useLazyGetSessionInfoQuery,
   useJoinExamByCodeMutation,
   useRequestOtpMutation,
   useVerifyOtpMutation,

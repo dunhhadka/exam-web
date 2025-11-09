@@ -7,6 +7,7 @@ import com.datn.exam.model.dto.request.OtpRequest;
 import com.datn.exam.model.dto.request.VerifyOtpRequest;
 import com.datn.exam.model.dto.response.GuestAccess;
 import com.datn.exam.model.dto.response.Response;
+import com.datn.exam.model.dto.response.SessionInfoResponse;
 import com.datn.exam.model.dto.response.SessionTokenResponse;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -14,6 +15,9 @@ import org.springframework.web.bind.annotation.*;
 
 @RequestMapping("/api/join")
 public interface ExamJoinController {
+
+    @GetMapping("/session-info/{code}")
+    public Response<SessionInfoResponse> getSessionInfo(@PathVariable String code);
 
     @GetMapping("/{joinToken}")
     public Response<JoinSessionMetaResponse> joinByToken(@PathVariable String joinToken);

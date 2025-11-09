@@ -6,8 +6,10 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public enum AuthorizationError implements ResponseError{
+    UNAUTHORIZED(403000, "Chưa xác thực"),
     ACCESS_DENIED(403001, "Access denied"),
-    UNSUPPORTED_AUTHENTICATION(403002, "Unsupported authentication"),
+    FORBIDDEN(403002, "Không có quyền truy cập"),
+    UNSUPPORTED_AUTHENTICATION(403003, "Unsupported authentication")
     ;
 
     private final int code;

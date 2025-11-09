@@ -24,6 +24,9 @@ public class Exam extends AuditableEntity{
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
+    
+    @Column(name = "owner_id")
+    private Long ownerId;
 
     private String name;
 

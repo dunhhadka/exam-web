@@ -2,6 +2,16 @@ import { QuestionType } from './question'
 
 export interface JoinByCodeRequest {
   code: string
+  password?: string
+}
+
+export interface SessionInfoResponse {
+  sessionId: number
+  sessionName: string
+  accessMode: 'PUBLIC' | 'PASSWORD' | 'WHITELIST'
+  requiresPassword: boolean
+  requiresWhitelist: boolean
+  examName: string
 }
 
 export interface JoinSessionMetaResponse {

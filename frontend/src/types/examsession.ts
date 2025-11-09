@@ -21,7 +21,10 @@ export interface ExamSession {
   publicFlag: boolean
   attemptLimit: number
 
-  settings: ExamSessionSetting
+  settings?: ExamSessionSetting
+  accessMode: ExamSessionAccessMode
+  hasAccessPassword: boolean
+  whitelistEntries?: ExamSessionWhitelistEntry[]
 }
 
 export enum ExamSessionStatus {
@@ -35,15 +38,23 @@ export const ExamSessionStatusLabel: Record<ExamSessionStatus, String> = {
 }
 
 export interface ExamSessionSetting {
-  antiCheat: AntiCheat
+  antiCheat?: AntiCheat
   proctoring?: Proctoring
+  notifications?: Notifications
 }
 
 export interface AntiCheat {
   blockCopyPaste?: boolean
   blockDevTools?: boolean
-  maxWindowBlurAllowed?: boolean
-  maxExitFullscreenAllowed?: boolean
+  maxWindowBlurAllowed?: number | null
+  maxExitFullscreenAllowed?: number | null
+}
+
+export type ExamSessionAccessMode = 'PUBLIC' | 'WHITELIST' | 'PASSWORD'
+
+export interface ExamSessionWhitelistEntry {
+  email: string
+  avatarImages?: string[]
 }
 
 export interface Proctoring {
@@ -54,9 +65,9 @@ export interface Proctoring {
 }
 
 export enum IdentityMode {
-  WEBCAM,
-  UPLOAD,
-  NONE,
+  WEBCAM = 'WEBCAM',
+  UPLOAD = 'UPLOAD',
+  NONE = 'NONE',
 }
 
 export interface Notifications {
@@ -65,8 +76,9 @@ export interface Notifications {
 }
 
 export enum ReleasePolicy {
-  IMMEDIATE,
-  AFTER_EXAM_END,
+  IMMEDIATE = 'IMMEDIATE',
+  AFTER_EXAM_END = 'AFTER_EXAM_END',
+  AFTER_MARKING = 'AFTER_MARKING',
 }
 
 export interface ExamSessionRequest {
@@ -75,7 +87,7 @@ export interface ExamSessionRequest {
   startTime?: string
   endTime?: string
   durationMinutes?: number
-  lateJoinMinnutes?: number
+  lateJoinMinutes?: number
   shuffleQuestion?: boolean
   shuffleAnswers?: boolean
 
@@ -83,7 +95,13 @@ export interface ExamSessionRequest {
 
   isPublic?: boolean
 
+  accessMode?: ExamSessionAccessMode
+  password?: string
+
   settings?: ExamSessionSetting
+
+  whitelistEmails?: string[]
+  whitelistEntries?: ExamSessionWhitelistEntry[]
 }
 
 export interface ExamFilterRequest extends PagingRequest {

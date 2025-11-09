@@ -6,7 +6,7 @@ import lombok.Data;
 public class ExamSessionSetting {
     private AntiCheat antiCheat;
     private Proctoring proctoring;
-    private Notifications notifications;
+    private NotificationSetting notifications;
 
     @Data
     public static class AntiCheat {
@@ -22,17 +22,6 @@ public class ExamSessionSetting {
         private IdentityMode identityMode;
         private Boolean requireIdUpload; // yêu cầu upload giấy tờ tùy thân
         private Boolean screenRecording; // có quay màn hình không
-    }
-
-    @Data
-    public static class Notifications {
-        private Boolean sendResultEmail; // Có gửi mail thông báo kết quả không
-        private ReleasePolicy releasePolicy; // Chiến lược gửi mail
-    }
-
-    public enum ReleasePolicy {
-        IMMEDIATE,
-        AFTER_EXAM_END
     }
 
     public enum IdentityMode {

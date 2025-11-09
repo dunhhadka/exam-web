@@ -7,5 +7,6 @@ import lombok.Data;
 public class JoinByCodeRequest {
     @NotBlank(message = "SESSION_CODE_REQUIRED")
     private String code;
-
+    
+    private String password; // For PASSWORD mode
 }

@@ -51,6 +51,9 @@ public class ExamAttemptQuestion extends AuditableEntity{
 
     @Column(name = "manual_score")
     private BigDecimal manualScore;
+    
+    @Column(name = "feedback", columnDefinition = "TEXT")
+    private String feedback;
 
     private Boolean correct;
 

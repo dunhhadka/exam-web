@@ -30,6 +30,17 @@ public interface ExamSessionController {
     @ResponseStatus(HttpStatus.OK)
     Response<ExamSessionResponse> getById(@PathVariable(name = "id") Long id);
 
+    @GetMapping("/{id}/stats")
+    @ResponseStatus(HttpStatus.OK)
+    Response<SessionStatsResponse> getSessionStats(@PathVariable(name = "id") Long id);
+
+    @GetMapping("/{id}/users")
+    @ResponseStatus(HttpStatus.OK)
+    PagingResponse<SessionUserResponse> getSessionUsers(
+            @PathVariable(name = "id") Long id,
+            @Valid SessionUserFilterRequest request
+    );
+
     @GetMapping("/filter/count")
     Response<Integer> count(ExamSessionFilterRequest request);
 

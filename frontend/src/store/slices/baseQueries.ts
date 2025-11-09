@@ -194,14 +194,36 @@ export const authenticatedBaseQuery: BaseQueryFn<
 
   const rawBaseQuery = fetchBaseQuery({
     baseUrl: BASE_URL,
-    prepareHeaders: (headers) => {
-      headers.set('Authorization', `Bearer ${accessToken}`)
-      headers.set('Content-Type', 'application/json')
-      return headers
-    },
   })
 
-  const result = await rawBaseQuery(args, api, extraOptions)
+  let requestArgs: string | FetchArgs = args
+
+  if (typeof args === 'string') {
+    requestArgs = {
+      url: args,
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  } else {
+    const isFormData = args.body instanceof FormData
+    const headers = new Headers(args.headers as HeadersInit | undefined)
+
+    headers.set('Authorization', `Bearer ${accessToken}`)
+
+    if (!isFormData) {
+      headers.set('Content-Type', 'application/json')
+    } else {
+      headers.delete('Content-Type')
+    }
+
+    requestArgs = {
+      ...args,
+      headers,
+    }
+  }
+
+  const result = await rawBaseQuery(requestArgs, api, extraOptions)
 
   return transformResponse(result)
 }

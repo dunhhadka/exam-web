@@ -7,8 +7,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 
-import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -34,4 +34,9 @@ public class ExamSessionResponse {
     private Integer attemptLimit;
 
     private ExamSessionSetting settings;
+
+    private ExamSession.AccessMode accessMode;
+    @JsonProperty("hasAccessPassword")
+    private boolean hasAccessPassword;
+    private List<ExamSessionWhitelistEntryResponse> whitelistEntries;
 }

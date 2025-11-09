@@ -6,6 +6,7 @@ import com.datn.exam.model.dto.request.OtpRequest;
 import com.datn.exam.model.dto.request.VerifyOtpRequest;
 import com.datn.exam.model.dto.response.GuestAccess;
 import com.datn.exam.model.dto.response.Response;
+import com.datn.exam.model.dto.response.SessionInfoResponse;
 import com.datn.exam.model.dto.response.SessionTokenResponse;
 import com.datn.exam.presentation.web.rest.ExamJoinController;
 import com.datn.exam.service.ExamJoinService;
@@ -16,6 +17,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class ExamJoinControllerImpl implements ExamJoinController {
     private final ExamJoinService examJoinService;
+
+    @Override
+    public Response<SessionInfoResponse> getSessionInfo(String code) {
+        return Response.of(examJoinService.getSessionInfo(code));
+    }
 
     @Override
     public Response<JoinSessionMetaResponse> joinByToken(String joinToken) {

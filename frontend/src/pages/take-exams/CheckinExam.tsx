@@ -5,12 +5,14 @@ import {
   CheckOutlined,
   MailOutlined,
   SafetyOutlined,
+  ArrowRightOutlined,
 } from '@ant-design/icons'
 import styled from '@emotion/styled'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   useJoinExamByCodeMutation,
   useRequestOtpMutation,
+  useLazyGetSessionInfoQuery,
 } from '../../services/api/take-exam'
 import { useToast } from '../../hooks/useToast'
 import { useDispatch, useSelector } from 'react-redux'
@@ -28,14 +30,68 @@ const CheckinExam = () => {
   const code = searchParams.get('code')
 
   const [examCode, setExamCode] = useState('')
+  const [password, setPassword] = useState('')
   const [email, setEmail] = useState('')
-  const navigate = useNavigate()
+  const [emailValid, setEmailValid] = useState(false)
+  const [passwordValid, setPasswordValid] = useState(false)
+  const [requiresPassword, setRequiresPassword] = useState(false)
+  const [requiresWhitelist, setRequiresWhitelist] = useState(false)
+  const [sessionChecked, setSessionChecked] = useState(false)
 
+  const navigate = useNavigate()
   const toast = useToast()
-  const [joinExamByCode, { isLoading: isJoinExamLoading }] =
+
+  const [getSessionInfo, { isLoading: isLoadingInfo }] =
+    useLazyGetSessionInfoQuery()
+  const [joinExamByCode, { isLoading: isLoadingJoin }] =
     useJoinExamByCodeMutation()
   const [requestOtp, { isLoading: isRequestOtpLoading }] =
     useRequestOtpMutation()
+
+  // Validate email sau khi người dùng nhập xong
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setEmailValid(
+        email.length > 0 && /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(email)
+      )
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [email])
+
+  // Validate password
+  useEffect(() => {
+    setPasswordValid(password.length > 0)
+  }, [password])
+
+  // Check session info when exam code changes
+  useEffect(() => {
+    const checkSessionInfo = async () => {
+      if (examCode && examCode.length >= 6) {
+        try {
+          const response = await getSessionInfo(examCode).unwrap()
+          setRequiresPassword(response.requiresPassword)
+          setRequiresWhitelist(response.requiresWhitelist)
+          setSessionChecked(true)
+
+          if (response.requiresPassword) {
+            toast.info('Phiên thi này yêu cầu mật khẩu')
+          } else if (response.requiresWhitelist) {
+            toast.info('Phiên thi này chỉ cho phép email trong danh sách')
+          }
+        } catch (err: any) {
+          toast.error(err?.data?.message || 'Không tìm thấy phiên thi')
+          setSessionChecked(false)
+        }
+      } else {
+        setSessionChecked(false)
+        setRequiresPassword(false)
+        setRequiresWhitelist(false)
+      }
+    }
+
+    const timer = setTimeout(checkSessionInfo, 500)
+    return () => clearTimeout(timer)
+  }, [examCode, getSessionInfo, toast])
 
   const dispatch = useDispatch()
   const {
@@ -49,11 +105,55 @@ const CheckinExam = () => {
   } = useSelector((state: RootState) => state.takeExam)
 
   const handleRequestOtp = async () => {
-    if (!examCode || !email) {
-      toast.warning('Phải nhập đủ thông tin')
+    // Validate inputs
+    if (!examCode) {
+      toast.warning('Phải nhập mã truy cập bài thi')
       return
     }
 
+    if (!sessionChecked) {
+      toast.warning('Đang kiểm tra thông tin phiên thi, vui lòng đợi')
+      return
+    }
+
+    if (requiresPassword && !password) {
+      toast.warning('Phải nhập mật khẩu')
+      return
+    }
+
+    if (!email) {
+      toast.warning('Phải nhập email')
+      return
+    }
+
+    if (!emailValid) {
+      toast.warning('Email không hợp lệ')
+      return
+    }
+
+    try {
+      // Step 1: Verify session access (password check if needed)
+      const joinRequest: any = { code: examCode }
+      if (requiresPassword) {
+        joinRequest.password = password
+      }
+
+      await joinExamByCode(joinRequest).unwrap()
+
+      // Step 2: Request OTP
+      await requestOtp({ sessionCode: examCode, email: email }).unwrap()
+
+      // Step 3: Navigate to OTP verification
+      navigate('/exam-checkin-verify-code', {
+        state: {
+          examCode,
+          email,
+        },
+      })
+    } catch (err: any) {
+      const errorMessage =
+        err?.data?.message || 'Có lỗi xảy ra, vui lòng thử lại'
+      toast.error(errorMessage)
     navigate(`/candidate/${examCode}/${email}`)
 
     // try {
@@ -130,41 +230,117 @@ const CheckinExam = () => {
 
   return (
     <Container>
-      <BackgroundDecoration />
+      <BackgroundPattern />
       <ContentWrapper>
+        <LogoSection>
+          <LogoCircle>
+            <SafetyOutlined />
+          </LogoCircle>
+        </LogoSection>
+
         <Card>
-          <Header>
-            <IconWrapper>
-              <SafetyOutlined />
-            </IconWrapper>
+          <CardHeader>
+            <HeaderBadge>
+              <SafetyOutlined style={{ fontSize: '16px' }} />
+              <span>Xác thực an toàn</span>
+            </HeaderBadge>
             <Title>Truy cập bài thi</Title>
-            <Subtitle>Nhập thông tin để bắt đầu làm bài</Subtitle>
-          </Header>
+            <Subtitle>
+              Vui lòng nhập mã truy cập và email để bắt đầu làm bài kiểm tra
+            </Subtitle>
+          </CardHeader>
 
           <FormContent>
             <InputGroup>
-              <InputLabel>Mã truy cập bài thi</InputLabel>
+              <InputLabel>
+                <LockOutlined style={{ marginRight: '6px' }} />
+                Mã truy cập bài thi
+              </InputLabel>
               <StyledInput
-                prefix={<LockOutlined style={{ color: '#8c8c8c' }} />}
                 placeholder="Nhập mã truy cập"
                 value={examCode}
                 onChange={(e) => setExamCode(e.target.value)}
                 size="large"
+                suffix={
+                  sessionChecked && (
+                    <CheckCircle>
+                      <CheckOutlined style={{ fontSize: '12px' }} />
+                    </CheckCircle>
+                  )
+                }
               />
             </InputGroup>
 
+            {requiresPassword && (
+              <InputGroup>
+                <InputLabel>
+                  <LockOutlined style={{ marginRight: '6px' }} />
+                  Mật khẩu bài thi
+                </InputLabel>
+                <StyledInput
+                  type="password"
+                  placeholder="Nhập mật khẩu"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  size="large"
+                  suffix={
+                    passwordValid && (
+                      <CheckCircle>
+                        <CheckOutlined style={{ fontSize: '12px' }} />
+                      </CheckCircle>
+                    )
+                  }
+                />
+              </InputGroup>
+            )}
+
             <InputGroup>
-              <InputLabel>Email của bạn</InputLabel>
+              <InputLabel>
+                <MailOutlined style={{ marginRight: '6px' }} />
+                Email của bạn
+              </InputLabel>
               <StyledInput
-                prefix={<MailOutlined style={{ color: '#8c8c8c' }} />}
                 placeholder="email@example.com"
-                type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 size="large"
+                autoComplete="off"
+                suffix={
+                  emailValid && (
+                    <CheckCircle>
+                      <CheckOutlined style={{ fontSize: '12px' }} />
+                    </CheckCircle>
+                  )
+                }
               />
             </InputGroup>
 
+            <InfoBox>
+              <InfoIcon>ℹ️</InfoIcon>
+              <InfoText>
+                {requiresWhitelist
+                  ? 'Email của bạn phải có trong danh sách được phép. Mã OTP sẽ được gửi đến email để xác thực.'
+                  : 'Mã OTP sẽ được gửi đến email của bạn để xác thực danh tính'}
+              </InfoText>
+            </InfoBox>
+
+            <ButtonGroup>
+              <SubmitButton
+                type="primary"
+                size="large"
+                block
+                loading={isLoadingJoin || isRequestOtpLoading}
+                disabled={
+                  !sessionChecked ||
+                  !emailValid ||
+                  (requiresPassword && !passwordValid)
+                }
+                onClick={handleRequestOtp}
+              >
+                Tiếp tục
+                <ArrowRightOutlined style={{ marginLeft: '8px' }} />
+              </SubmitButton>
+            </ButtonGroup>
             <SubmitButton
               type="primary"
               size="large"
@@ -176,13 +352,15 @@ const CheckinExam = () => {
               Tiếp tục
             </SubmitButton>
           </FormContent>
-
-          <Footer>
-            <FooterText>
-              Bạn sẽ nhận được mã OTP qua email để xác thực
-            </FooterText>
-          </Footer>
         </Card>
+
+        <Footer>
+          <FooterText>
+            Bằng cách tiếp tục, bạn đồng ý với{' '}
+            <FooterLink href="#">Điều khoản sử dụng</FooterLink> và{' '}
+            <FooterLink href="#">Chính sách bảo mật</FooterLink>
+          </FooterText>
+        </Footer>
       </ContentWrapper>
     </Container>
   )
@@ -195,26 +373,19 @@ const Container = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 20px;
+  background: #fafafa;
+  padding: 24px;
   position: relative;
   overflow: hidden;
 `
 
-const BackgroundDecoration = styled.div`
+const BackgroundPattern = styled.div`
   position: absolute;
   width: 100%;
   height: 100%;
-  background: radial-gradient(
-      circle at 20% 50%,
-      rgba(255, 255, 255, 0.1) 0%,
-      transparent 50%
-    ),
-    radial-gradient(
-      circle at 80% 80%,
-      rgba(255, 255, 255, 0.1) 0%,
-      transparent 50%
-    );
+  background-image: radial-gradient(#e8e8e8 1px, transparent 1px);
+  background-size: 24px 24px;
+  opacity: 0.4;
   pointer-events: none;
 `
 
@@ -222,20 +393,13 @@ const ContentWrapper = styled.div`
   position: relative;
   z-index: 1;
   width: 100%;
-  max-width: 480px;
-`
+  max-width: 520px;
+  animation: fadeIn 0.6s ease-out;
 
-const Card = styled.div`
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  padding: 48px 40px;
-  animation: slideUp 0.5s ease-out;
-
-  @keyframes slideUp {
+  @keyframes fadeIn {
     from {
       opacity: 0;
-      transform: translateY(30px);
+      transform: translateY(20px);
     }
     to {
       opacity: 1;
@@ -244,36 +408,86 @@ const Card = styled.div`
   }
 `
 
-const Header = styled.div`
+const LogoSection = styled.div`
   text-align: center;
-  margin-bottom: 40px;
+  margin-bottom: 32px;
 `
 
-const IconWrapper = styled.div`
+const LogoCircle = styled.div`
   width: 72px;
   height: 72px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 20px;
+  background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   color: white;
   font-size: 32px;
-  margin-bottom: 20px;
-  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 8px 24px rgba(24, 144, 255, 0.25);
+  animation: float 3s ease-in-out infinite;
+
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+`
+
+const Card = styled.div`
+  background: white;
+  border-radius: 24px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+  padding: 48px;
+  border: 1px solid #f0f0f0;
+  transition: all 0.3s ease;
+
+  &:hover {
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  }
+
+  @media (max-width: 576px) {
+    padding: 32px 24px;
+  }
+`
+
+const CardHeader = styled.div`
+  text-align: center;
+  margin-bottom: 40px;
+`
+
+const HeaderBadge = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #f0f7ff;
+  color: #1890ff;
+  padding: 8px 16px;
+  border-radius: 100px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 24px;
+  border: 1px solid #d6e9ff;
 `
 
 const Title = styled.h1`
-  font-size: 28px;
+  font-size: 32px;
   font-weight: 700;
-  color: #1a1a1a;
-  margin: 0 0 8px 0;
+  color: #262626;
+  margin: 0 0 12px 0;
+  letter-spacing: -0.5px;
 `
 
 const Subtitle = styled.p`
   font-size: 15px;
   color: #8c8c8c;
   margin: 0;
+  line-height: 1.6;
+  max-width: 400px;
+  margin: 0 auto;
 `
 
 const FormContent = styled.div`
@@ -285,34 +499,33 @@ const FormContent = styled.div`
 const InputGroup = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 `
 
 const InputLabel = styled.label`
   font-size: 14px;
   font-weight: 600;
   color: #262626;
+  display: flex;
+  align-items: center;
 `
 
 const StyledInput = styled(Input)`
-  height: 48px;
-  border-radius: 8px;
+  height: 52px;
+  border-radius: 12px;
   border: 2px solid #f0f0f0;
   font-size: 15px;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 0 20px;
 
   &:hover {
-    border-color: #667eea;
+    border-color: #d9d9d9;
   }
 
   &:focus,
   &.ant-input-focused {
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-  }
-
-  .ant-input-prefix {
-    margin-right: 12px;
+    border-color: #1890ff;
+    box-shadow: 0 0 0 4px rgba(24, 144, 255, 0.08);
   }
 
   &::placeholder {
@@ -320,33 +533,84 @@ const StyledInput = styled(Input)`
   }
 `
 
+const CheckCircle = styled.div`
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #52c41a;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: scaleIn 0.3s ease;
+
+  @keyframes scaleIn {
+    from {
+      transform: scale(0);
+    }
+    to {
+      transform: scale(1);
+    }
+  }
+`
+
+const InfoBox = styled.div`
+  display: flex;
+  gap: 12px;
+  padding: 16px 20px;
+  background: #f6f8fa;
+  border-radius: 12px;
+  border: 1px solid #e8eaed;
+`
+
+const InfoIcon = styled.div`
+  font-size: 18px;
+  line-height: 1;
+  flex-shrink: 0;
+`
+
+const InfoText = styled.p`
+  font-size: 13px;
+  color: #595959;
+  margin: 0;
+  line-height: 1.6;
+`
+
+const ButtonGroup = styled.div`
+  margin-top: 8px;
+`
+
 const SubmitButton = styled(Button)`
-  height: 52px;
-  border-radius: 8px;
+  height: 56px;
+  border-radius: 14px;
   font-weight: 600;
   font-size: 16px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
   border: none;
-  margin-top: 8px;
-  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4px 16px rgba(24, 144, 255, 0.25);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
   &:hover:not(:disabled) {
-    background: linear-gradient(135deg, #5568d3 0%, #6941a0 100%);
+    background: linear-gradient(135deg, #096dd9 0%, #0050b3 100%);
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 8px 24px rgba(24, 144, 255, 0.35);
   }
 
   &:active:not(:disabled) {
     transform: translateY(0);
   }
 
-  transition: all 0.3s ease;
+  &:disabled {
+    background: #f5f5f5;
+    color: #bfbfbf;
+  }
 `
 
 const Footer = styled.div`
   margin-top: 32px;
-  padding-top: 24px;
-  border-top: 1px solid #f0f0f0;
   text-align: center;
 `
 
@@ -355,4 +619,16 @@ const FooterText = styled.p`
   color: #8c8c8c;
   margin: 0;
   line-height: 1.6;
+`
+
+const FooterLink = styled.a`
+  color: #1890ff;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s;
+
+  &:hover {
+    color: #096dd9;
+    text-decoration: underline;
+  }
 `

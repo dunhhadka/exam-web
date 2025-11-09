@@ -1,30 +1,18 @@
-import { useLocation, useNavigate } from 'react-router-dom'
-import { AnswerSubmission, StartAttemptRequest } from '../../types/take-exam'
-import {
-  useStartExamAttemptMutation,
-  useSubmitAttemptMutation,
-} from '../../services/api/take-exam'
-import { useEffect, useState, useCallback, useRef } from 'react'
-import {
-  Button,
-  Card,
-  Progress,
-  Modal,
-  Spin,
-  Radio,
-  Checkbox,
-  Input,
-} from 'antd'
+import { useLocation, useNavigate } from "react-router-dom"
+import type { AnswerSubmission, StartAttemptRequest } from "../../types/take-exam"
+import { useStartExamAttemptMutation, useSubmitAttemptMutation } from "../../services/api/take-exam"
+import { useEffect, useState, useCallback, useRef } from "react"
+import { Button, Card, Progress, Modal, Spin, Radio, Checkbox, Input } from "antd"
 import {
   ClockCircleOutlined,
   CheckCircleOutlined,
   ExclamationCircleOutlined,
   CloseCircleOutlined,
-} from '@ant-design/icons'
-import styled from '@emotion/styled'
-import { AttemptDetailResponse, QuestionResponse } from '../../types/take-exam'
-import { QuestionType } from '../../types/question'
-import { useToast } from '../../hooks/useToast'
+} from "@ant-design/icons"
+import styled from "@emotion/styled"
+import type { AttemptDetailResponse, QuestionResponse } from "../../types/take-exam"
+import { QuestionType } from "../../types/question"
+import { useToast } from "../../hooks/useToast"
 
 const TakeExam = () => {
   const location = useLocation()
@@ -38,11 +26,10 @@ const TakeExam = () => {
   const [timeRemaining, setTimeRemaining] = useState<number>(0)
   const [currentQuestion, setCurrentQuestion] = useState(0)
 
-  // Modal states
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false)
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false)
   const [isErrorModalOpen, setIsErrorModalOpen] = useState(false)
-  const [errorMessage, setErrorMessage] = useState('')
+  const [errorMessage, setErrorMessage] = useState("")
   const [submitResult, setSubmitResult] = useState<any>(null)
 
   const timerRef = useRef<NodeJS.Timeout | null>(null)
@@ -50,56 +37,72 @@ const TakeExam = () => {
   const startRequest = state?.startExamRequest satisfies StartAttemptRequest
   const tokenJoinStart = state?.tokenJoinStart as string
 
-  const [startExamAttempt, { isLoading: isStartAttemptLoading }] =
-    useStartExamAttemptMutation()
+  const [startExamAttempt, { isLoading: isStartAttemptLoading }] = useStartExamAttemptMutation()
 
-  const [submitAttempt, { isLoading: isSubmitLoading }] =
-    useSubmitAttemptMutation()
+  const [submitAttempt, { isLoading: isSubmitLoading }] = useSubmitAttemptMutation()
+
+  const hasStartedRef = useRef(false)
 
   const fetchExamAttempt = useCallback(async () => {
-    if (startRequest) {
+    if (startRequest && !hasStartedRef.current) {
+      hasStartedRef.current = true
+
       try {
         const res = await startExamAttempt(startRequest).unwrap()
         setData(res)
 
-        // Tính thời gian còn lại
-        const expireTime = new Date(res.expireAt).getTime()
+        // Parse datetime format: "09-11-2025 18:12" -> Date object
+        const parseDateTime = (dateTimeStr: string): Date => {
+          const [datePart, timePart] = dateTimeStr.split(" ")
+          const [day, month, year] = datePart.split("-")
+          const [hours, minutes] = timePart.split(":")
+          return new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hours), parseInt(minutes))
+        }
+
+        const expireTime = parseDateTime(res.expireAt).getTime()
         const now = new Date().getTime()
         const remaining = Math.floor((expireTime - now) / 1000)
+        console.log("Timer initialized:", {
+          expireAt: res.expireAt,
+          expireTime,
+          now,
+          remaining,
+        })
         setTimeRemaining(remaining > 0 ? remaining : 0)
       } catch (error: any) {
-        console.error('Failed to start exam:', error)
-        setErrorMessage(
-          error?.data?.message || 'Không thể tải bài thi. Vui lòng thử lại.'
-        )
+        hasStartedRef.current = false
+        console.error("Failed to start exam:", error)
+        setErrorMessage(error?.data?.message || "Không thể tải bài thi. Vui lòng thử lại.")
         setIsErrorModalOpen(true)
       }
     }
   }, [startRequest, startExamAttempt])
 
-  // Khởi tạo answers khi có data
   useEffect(() => {
     if (data && Object.keys(answers).length === 0) {
-      const initialAnswers = data.questions.reduce((acc, item) => {
-        acc[item.attemptQuestionId] = {
-          attemptQuestionId: item.attemptQuestionId,
-        }
-        return acc
-      }, {} as Record<number, AnswerSubmission>)
+      const initialAnswers = data.questions.reduce(
+        (acc, item) => {
+          acc[item.attemptQuestionId] = {
+            attemptQuestionId: item.attemptQuestionId,
+          }
+          return acc
+        },
+        {} as Record<number, AnswerSubmission>,
+      )
       setAnswers(initialAnswers)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data])
 
   useEffect(() => {
     fetchExamAttempt()
   }, [fetchExamAttempt])
 
-  // Submit exam function
   const submitExam = useCallback(async () => {
     if (!data) return
 
     const answersList = Object.values(answers)
-    console.log('Submitting answers:', answersList, tokenJoinStart)
+    console.log("Submitting answers:", answersList, tokenJoinStart)
 
     try {
       const result = await submitAttempt({
@@ -108,48 +111,48 @@ const TakeExam = () => {
         sessionToken: tokenJoinStart,
       }).unwrap()
 
-      console.log('Submit successful:', result)
-
-      // Hiển thị success modal
+      console.log("Submit successful:", result)
       setSubmitResult(result)
       setIsSuccessModalOpen(true)
     } catch (error: any) {
-      console.error('Failed to submit exam:', error)
-      setErrorMessage(
-        error?.data?.message || 'Không thể nộp bài. Vui lòng thử lại.'
-      )
+      console.error("Failed to submit exam:", error)
+      setErrorMessage(error?.data?.message || "Không thể nộp bài. Vui lòng thử lại.")
       setIsErrorModalOpen(true)
     }
   }, [data, answers, submitAttempt, tokenJoinStart])
 
-  // Submit trực tiếp khi hết giờ
   const submitExamDirectly = useCallback(async () => {
     if (!data) return
 
-    console.log('Auto-submitting (time up)')
+    console.log("Auto-submitting (time up)")
 
     try {
       await submitExam()
     } catch (error) {
-      console.error('Auto-submit failed:', error)
+      console.error("Auto-submit failed:", error)
     }
   }, [data, submitExam])
 
-  // Đếm ngược thời gian
   useEffect(() => {
+    // Only start timer when we have positive time remaining
     if (timeRemaining <= 0) {
-      if (timerRef.current) {
-        clearInterval(timerRef.current)
-      }
+      console.log("Timer not started - timeRemaining:", timeRemaining)
       return
     }
 
+    console.log("Starting timer with remaining time:", timeRemaining)
+
+    // Clear any existing interval before creating new one
+    if (timerRef.current) {
+      clearInterval(timerRef.current)
+    }
+
+    // Start countdown
     timerRef.current = setInterval(() => {
       setTimeRemaining((prev) => {
+        console.log("Timer tick - prev:", prev)
         if (prev <= 1) {
-          if (timerRef.current) {
-            clearInterval(timerRef.current)
-          }
+          // Time's up - submit exam
           submitExamDirectly()
           return 0
         }
@@ -157,94 +160,93 @@ const TakeExam = () => {
       })
     }, 1000)
 
+    // Cleanup on unmount
     return () => {
       if (timerRef.current) {
         clearInterval(timerRef.current)
+        timerRef.current = null
       }
     }
-  }, [timeRemaining, submitExamDirectly])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data?.attemptId, submitExamDirectly])
 
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600)
     const minutes = Math.floor((seconds % 3600) / 60)
     const secs = seconds % 60
-    return `${hours.toString().padStart(2, '0')}:${minutes
+    return `${hours.toString().padStart(2, "0")}:${minutes
       .toString()
-      .padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+      .padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
   }
 
-  const handleAnswerChange = useCallback(
-    (questionId: number, value: any, questionType: QuestionType) => {
-      setAnswers((prev) => {
-        const currentAnswer = prev[questionId] || {
-          attemptQuestionId: questionId,
-        }
+  const handleAnswerChange = useCallback((questionId: number, value: any, questionType: QuestionType) => {
+    setAnswers((prev) => {
+      const currentAnswer = prev[questionId] || {
+        attemptQuestionId: questionId,
+      }
 
-        switch (questionType) {
-          case QuestionType.ONE_CHOICE:
-            return {
-              ...prev,
-              [questionId]: {
-                ...currentAnswer,
-                selectedAnswerId: value,
-              },
-            }
-          case QuestionType.TRUE_FALSE:
-            return {
-              ...prev,
-              [questionId]: {
-                ...currentAnswer,
-                selectedAnswerId: value === 'True' ? 0 : 1,
-              },
-            }
-          case QuestionType.MULTI_CHOICE:
-            return {
-              ...prev,
-              [questionId]: {
-                ...currentAnswer,
-                selectedAnswerIds: value,
-              },
-            }
-          case QuestionType.PLAIN_TEXT:
-            return {
-              ...prev,
-              [questionId]: {
-                ...currentAnswer,
-                text: value,
-              },
-            }
-          default:
-            return prev
-        }
-      })
-    },
-    []
-  )
+      switch (questionType) {
+        case QuestionType.ONE_CHOICE:
+          return {
+            ...prev,
+            [questionId]: {
+              ...currentAnswer,
+              selectedAnswerId: value,
+            },
+          }
+        case QuestionType.TRUE_FALSE:
+          return {
+            ...prev,
+            [questionId]: {
+              ...currentAnswer,
+              selectedAnswerId: value,
+            },
+          }
+        case QuestionType.MULTI_CHOICE:
+          return {
+            ...prev,
+            [questionId]: {
+              ...currentAnswer,
+              selectedAnswerIds: value,
+            },
+          }
+        case QuestionType.PLAIN_TEXT:
+          return {
+            ...prev,
+            [questionId]: {
+              ...currentAnswer,
+              text: value,
+            },
+          }
+        default:
+          return prev
+      }
+    })
+  }, [])
 
   const handleSubmit = useCallback(() => {
-    console.log('Opening submit modal')
+    console.log("Opening submit modal")
     setIsSubmitModalOpen(true)
   }, [])
 
   const handleConfirmSubmit = useCallback(async () => {
-    console.log('Confirming submit')
+    console.log("Confirming submit")
     setIsSubmitModalOpen(false)
     await submitExam()
   }, [submitExam])
 
   const handleCancelSubmit = useCallback(() => {
-    console.log('Cancel submit')
+    console.log("Cancel submit")
     setIsSubmitModalOpen(false)
   }, [])
 
   const handleSuccessModalOk = useCallback(() => {
     setIsSuccessModalOpen(false)
-    navigate('/finish-exam', { state: { result: submitResult } })
+    navigate("/finish-exam", { state: { result: submitResult } })
   }, [navigate, submitResult])
 
   const handleErrorModalOk = useCallback(() => {
     setIsErrorModalOpen(false)
-    // Nếu là error khi load exam, quay lại
     if (!data) {
       navigate(-1)
     }
@@ -262,13 +264,7 @@ const TakeExam = () => {
         return (
           <Radio.Group
             value={answer.selectedAnswerId}
-            onChange={(e) =>
-              handleAnswerChange(
-                question.attemptQuestionId,
-                e.target.value,
-                QuestionType.ONE_CHOICE
-              )
-            }
+            onChange={(e) => handleAnswerChange(question.attemptQuestionId, e.target.value, QuestionType.ONE_CHOICE)}
           >
             <AnswerList>
               {question.answers.map((ans) => (
@@ -284,13 +280,7 @@ const TakeExam = () => {
         return (
           <Checkbox.Group
             value={answer.selectedAnswerIds || []}
-            onChange={(values) =>
-              handleAnswerChange(
-                question.attemptQuestionId,
-                values,
-                QuestionType.MULTI_CHOICE
-              )
-            }
+            onChange={(values) => handleAnswerChange(question.attemptQuestionId, values, QuestionType.MULTI_CHOICE)}
           >
             <AnswerList>
               {question.answers.map((ans) => (
@@ -306,14 +296,8 @@ const TakeExam = () => {
         return (
           <StyledInput
             placeholder="Nhập câu trả lời của bạn"
-            value={answer.text || ''}
-            onChange={(e) =>
-              handleAnswerChange(
-                question.attemptQuestionId,
-                e.target.value,
-                QuestionType.PLAIN_TEXT
-              )
-            }
+            value={answer.text || ""}
+            onChange={(e) => handleAnswerChange(question.attemptQuestionId, e.target.value, QuestionType.PLAIN_TEXT)}
             maxLength={500}
           />
         )
@@ -321,30 +305,16 @@ const TakeExam = () => {
       case QuestionType.TRUE_FALSE:
         return (
           <Radio.Group
-            value={
-              !!answer.selectedAnswerId
-                ? answer.selectedAnswerId === 0
-                  ? 'True'
-                  : 'False'
-                : undefined
-            }
-            onChange={(e) =>
-              handleAnswerChange(
-                question.attemptQuestionId,
-                e.target.value,
-                QuestionType.TRUE_FALSE
-              )
-            }
+            value={answer.selectedAnswerId}
+            onChange={(e) => handleAnswerChange(question.attemptQuestionId, e.target.value, QuestionType.TRUE_FALSE)}
           >
             <TrueFalseList>
               {question.answers.map((ans) => {
-                const isTrue = ans.value === 'True'
+                const isTrue = ans.value === "True"
 
                 return (
-                  <Radio key={ans.answerId} value={ans.value}>
-                    <TrueFalseLabel $isTrue={isTrue}>
-                      {isTrue ? 'Đúng' : 'Sai'}
-                    </TrueFalseLabel>
+                  <Radio key={ans.answerId} value={ans.answerId}>
+                    <TrueFalseLabel $isTrue={isTrue}>{isTrue ? "Đúng" : "Sai"}</TrueFalseLabel>
                   </Radio>
                 )
               })}
@@ -413,13 +383,9 @@ const TakeExam = () => {
         <Sidebar>
           <ProgressCard>
             <ProgressTitle>Tiến độ làm bài</ProgressTitle>
-            <Progress
-              percent={Math.round(getProgress())}
-              strokeColor="#667eea"
-              status="active"
-            />
+            <Progress percent={Math.round(getProgress())} strokeColor="#0066cc" status="active" />
             <ProgressStats>
-              <CheckCircleOutlined style={{ color: '#52c41a' }} />
+              <CheckCircleOutlined style={{ color: "#0066cc" }} />
               Đã làm: {getAnsweredCount()}/{data.questions.length}
             </ProgressStats>
           </ProgressCard>
@@ -440,13 +406,7 @@ const TakeExam = () => {
             </QuestionGrid>
           </QuestionNav>
 
-          <SubmitButton
-            type="primary"
-            size="large"
-            block
-            onClick={handleSubmit}
-            loading={isSubmitLoading}
-          >
+          <SubmitButton type="primary" size="large" block onClick={handleSubmit} loading={isSubmitLoading}>
             Nộp bài
           </SubmitButton>
         </Sidebar>
@@ -468,6 +428,7 @@ const TakeExam = () => {
               size="large"
               disabled={currentQuestion === 0}
               onClick={() => setCurrentQuestion((prev) => prev - 1)}
+              className="nav-btn"
             >
               Câu trước
             </Button>
@@ -476,6 +437,7 @@ const TakeExam = () => {
               type="primary"
               disabled={currentQuestion === data.questions.length - 1}
               onClick={() => setCurrentQuestion((prev) => prev + 1)}
+              className="nav-btn"
             >
               Câu tiếp theo
             </Button>
@@ -483,13 +445,10 @@ const TakeExam = () => {
         </QuestionContent>
       </MainContent>
 
-      {/* Submit Confirmation Modal */}
       <Modal
         title={
           <ModalTitle>
-            <ExclamationCircleOutlined
-              style={{ color: '#faad14', marginRight: 8 }}
-            />
+            <ExclamationCircleOutlined style={{ color: "#ff9d00", marginRight: 8 }} />
             Xác nhận nộp bài
           </ModalTitle>
         }
@@ -520,11 +479,10 @@ const TakeExam = () => {
         </ModalContent>
       </Modal>
 
-      {/* Success Modal */}
       <Modal
         title={
           <ModalTitle>
-            <CheckCircleOutlined style={{ color: '#52c41a', marginRight: 8 }} />
+            <CheckCircleOutlined style={{ color: "#00a86b", marginRight: 8 }} />
             Nộp bài thành công
           </ModalTitle>
         }
@@ -532,23 +490,20 @@ const TakeExam = () => {
         onOk={handleSuccessModalOk}
         onCancel={handleSuccessModalOk}
         okText="Xem kết quả"
-        cancelButtonProps={{ style: { display: 'none' } }}
+        cancelButtonProps={{ style: { display: "none" } }}
         centered
         width={480}
         closable={false}
       >
         <ModalContent>
-          <SuccessMessage>
-            Bài thi của bạn đã được nộp thành công!
-          </SuccessMessage>
+          <SuccessMessage>Bài thi của bạn đã được nộp thành công!</SuccessMessage>
         </ModalContent>
       </Modal>
 
-      {/* Error Modal */}
       <Modal
         title={
           <ModalTitle>
-            <CloseCircleOutlined style={{ color: '#ff4d4f', marginRight: 8 }} />
+            <CloseCircleOutlined style={{ color: "#d32f2f", marginRight: 8 }} />
             Lỗi
           </ModalTitle>
         }
@@ -556,7 +511,7 @@ const TakeExam = () => {
         onOk={handleErrorModalOk}
         onCancel={handleErrorModalOk}
         okText="Đóng"
-        cancelButtonProps={{ style: { display: 'none' } }}
+        cancelButtonProps={{ style: { display: "none" } }}
         centered
         width={480}
       >
@@ -570,16 +525,16 @@ const TakeExam = () => {
 
 export default TakeExam
 
-// Styles
+// Styles - Professional minimalist design with white background
 const Container = styled.div`
   min-height: 100vh;
-  background: #f5f7fa;
+  background: #ffffff;
 `
 
 const Header = styled.div`
-  background: white;
-  padding: 20px 40px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  background: #ffffff;
+  padding: 24px 40px;
+  border-bottom: 1px solid #e8e8e8;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -591,16 +546,18 @@ const Header = styled.div`
 const HeaderLeft = styled.div``
 
 const SessionName = styled.h1`
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 600;
   color: #1a1a1a;
   margin: 0;
+  letter-spacing: -0.5px;
 `
 
 const AttemptInfo = styled.p`
   font-size: 14px;
-  color: #666;
-  margin: 4px 0 0;
+  color: #757575;
+  margin: 6px 0 0;
+  font-weight: 400;
 `
 
 const HeaderRight = styled.div``
@@ -608,22 +565,49 @@ const HeaderRight = styled.div``
 const TimeWrapper = styled.div<{ $isWarning: boolean }>`
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 20px;
-  background: ${(props) => (props.$isWarning ? '#fff2e8' : '#f0f5ff')};
-  border: 2px solid ${(props) => (props.$isWarning ? '#ff7a45' : '#667eea')};
-  border-radius: 12px;
-  color: ${(props) => (props.$isWarning ? '#ff7a45' : '#667eea')};
-  font-size: 18px;
-  font-weight: 600;
+  gap: 12px;
+  padding: 14px 24px;
+  background: ${(props) => (props.$isWarning ? "#fff3e0" : "#f0f7ff")};
+  border: 2px solid ${(props) => (props.$isWarning ? "#ff9d00" : "#0066cc")};
+  border-radius: 10px;
+  color: ${(props) => (props.$isWarning ? "#ff9d00" : "#0066cc")};
+  font-size: 20px;
+  font-weight: 700;
+  transition: all 0.3s ease;
+  box-shadow: ${(props) =>
+    props.$isWarning ? "0 4px 12px rgba(255, 157, 0, 0.2)" : "0 2px 8px rgba(0, 102, 204, 0.15)"};
+  min-width: 160px;
+  justify-content: center;
+
+  ${(props) =>
+    props.$isWarning &&
+    `
+    animation: pulse 1.5s ease-in-out infinite;
+  `}
+
+  @keyframes pulse {
+    0%, 100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.02);
+    }
+  }
+
+  .anticon {
+    font-size: 22px;
+  }
 `
 
-const TimeText = styled.span``
+const TimeText = styled.span`
+  font-family: 'Courier New', monospace;
+  letter-spacing: 1px;
+`
 
 const MainContent = styled.div`
   display: flex;
-  gap: 24px;
-  padding: 24px 40px;
+  gap: 32px;
+  padding: 32px 40px;
   max-width: 1400px;
   margin: 0 auto;
 `
@@ -634,40 +618,74 @@ const Sidebar = styled.div`
 `
 
 const ProgressCard = styled(Card)`
-  margin-bottom: 16px;
-  border-radius: 12px;
+  margin-bottom: 20px;
+  border-radius: 8px;
+  border: 1px solid #e8e8e8;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+
+  .ant-card-body {
+    padding: 20px;
+  }
 `
 
 const ProgressTitle = styled.h3`
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
+  color: #1a1a1a;
 `
 
 const ProgressStats = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 12px;
+  margin-top: 14px;
   font-size: 14px;
   color: #666;
+  font-weight: 500;
 `
 
 const QuestionNav = styled(Card)`
-  margin-bottom: 16px;
-  border-radius: 12px;
+  margin-bottom: 20px;
+  border-radius: 8px;
+  border: 1px solid #e8e8e8;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+
+  .ant-card-body {
+    padding: 20px;
+  }
 `
 
 const NavTitle = styled.h3`
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   margin-bottom: 16px;
+  color: #1a1a1a;
 `
 
 const QuestionGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #d0d0d0;
+    border-radius: 3px;
+
+    &:hover {
+      background: #999;
+    }
+  }
 `
 
 const QuestionNavButton = styled.button<{
@@ -677,19 +695,23 @@ const QuestionNavButton = styled.button<{
   width: 40px;
   height: 40px;
   border: 2px solid
-    ${(props) =>
-      props.$isActive ? '#667eea' : props.$isAnswered ? '#52c41a' : '#d9d9d9'};
-  background: ${(props) =>
-    props.$isActive ? '#667eea' : props.$isAnswered ? '#f6ffed' : 'white'};
-  color: ${(props) =>
-    props.$isActive ? 'white' : props.$isAnswered ? '#52c41a' : '#666'};
-  border-radius: 8px;
+    ${(props) => (props.$isActive ? "#0066cc" : props.$isAnswered ? "#00a86b" : "#d0d0d0")};
+  background: ${(props) => (props.$isActive ? "#0066cc" : props.$isAnswered ? "#f0f8f5" : "#ffffff")};
+  color: ${(props) => (props.$isActive ? "#ffffff" : props.$isAnswered ? "#00a86b" : "#757575")};
+  border-radius: 6px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.2s ease;
+  font-size: 14px;
 
   &:hover {
-    transform: scale(1.05);
+    transform: ${(props) => (props.$isActive ? "none" : "translateY(-2px)")};
+    box-shadow: 0 2px 6px rgba(0, 102, 204, 0.1);
+    border-color: #0066cc;
+  }
+
+  &:disabled {
+    opacity: 0.5;
   }
 `
 
@@ -697,12 +719,20 @@ const SubmitButton = styled(Button)`
   height: 48px;
   font-size: 16px;
   font-weight: 600;
-  border-radius: 12px;
-  background: #52c41a;
+  border-radius: 8px;
+  background: #0066cc;
   border: none;
+  color: white;
+  transition: all 0.2s ease;
 
   &:hover {
-    background: #73d13d;
+    background: #0052a3;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 102, 204, 0.2);
+  }
+
+  &:active {
+    transform: translateY(0);
   }
 `
 
@@ -711,38 +741,48 @@ const QuestionContent = styled.div`
 `
 
 const QuestionCard = styled(Card)`
-  border-radius: 12px;
+  border-radius: 8px;
   margin-bottom: 24px;
   min-height: 500px;
+  border: 1px solid #e8e8e8;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+
+  .ant-card-body {
+    padding: 32px;
+  }
 `
 
 const QuestionHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  padding-bottom: 16px;
-  border-bottom: 2px solid #f0f0f0;
+  margin-bottom: 24px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #e8e8e8;
 `
 
 const QuestionNumber = styled.h2`
   font-size: 20px;
   font-weight: 600;
-  color: #667eea;
+  color: #0066cc;
   margin: 0;
 `
 
 const QuestionPoint = styled.span`
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
-  color: #52c41a;
+  color: #00a86b;
+  background: #f0f8f5;
+  padding: 4px 12px;
+  border-radius: 6px;
 `
 
 const QuestionText = styled.div`
   font-size: 16px;
   line-height: 1.8;
-  color: #1a1a1a;
-  margin-bottom: 24px;
+  color: #333;
+  margin-bottom: 28px;
+  font-weight: 500;
 `
 
 const AnswerSection = styled.div`
@@ -757,34 +797,39 @@ const AnswerList = styled.div`
   .ant-radio-wrapper,
   .ant-checkbox-wrapper {
     font-size: 15px;
-    padding: 12px 16px;
-    border: 2px solid #f0f0f0;
-    border-radius: 8px;
-    transition: all 0.3s;
+    padding: 14px 16px;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    transition: all 0.2s ease;
     margin: 0;
+    background: #ffffff;
+    color: #333;
 
     &:hover {
-      border-color: #667eea;
-      background: #f0f5ff;
+      border-color: #0066cc;
+      background: #f8fbff;
     }
   }
 
   .ant-radio-wrapper-checked,
   .ant-checkbox-wrapper-checked {
-    border-color: #667eea;
-    background: #f0f5ff;
+    border-color: #0066cc;
+    background: #f8fbff;
+    color: #0066cc;
   }
 `
 
 const StyledInput = styled(Input)`
   height: 48px;
-  border-radius: 8px;
-  border: 2px solid #f0f0f0;
+  border-radius: 6px;
+  border: 1px solid #e0e0e0;
   font-size: 15px;
+  transition: all 0.2s ease;
 
   &:hover,
   &:focus {
-    border-color: #667eea;
+    border-color: #0066cc;
+    box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.1);
   }
 `
 
@@ -796,33 +841,34 @@ const TrueFalseList = styled.div`
 
   .ant-radio-wrapper {
     font-size: 16px;
-    padding: 20px;
-    border: 2px solid #f0f0f0;
-    border-radius: 12px;
-    transition: all 0.3s;
+    padding: 18px;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    transition: all 0.2s ease;
     margin: 0;
     display: flex;
     align-items: center;
     justify-content: center;
+    background: #ffffff;
 
     &:hover {
-      border-color: #667eea;
-      background: #f0f5ff;
+      border-color: #0066cc;
+      background: #f8fbff;
       transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+      box-shadow: 0 2px 8px rgba(0, 102, 204, 0.1);
     }
   }
 
   .ant-radio-wrapper-checked {
-    border-color: #667eea;
-    background: #f0f5ff;
+    border-color: #0066cc;
+    background: #f8fbff;
   }
 `
 
 const TrueFalseLabel = styled.span<{ $isTrue: boolean }>`
   font-weight: 600;
   font-size: 16px;
-  color: ${(props) => (props.$isTrue ? '#52c41a' : '#ff4d4f')};
+  color: ${(props) => (props.$isTrue ? "#00a86b" : "#d32f2f")};
 `
 
 const NavigationButtons = styled.div`
@@ -830,12 +876,28 @@ const NavigationButtons = styled.div`
   justify-content: space-between;
   gap: 16px;
 
-  button {
+  .nav-btn {
     flex: 1;
     max-width: 200px;
     height: 44px;
-    border-radius: 8px;
+    border-radius: 6px;
     font-weight: 600;
+    border: 1px solid #d0d0d0;
+    transition: all 0.2s ease;
+
+    &:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    &[type='primary'] {
+      background: #0066cc;
+      border-color: #0066cc;
+
+      &:hover:not(:disabled) {
+        background: #0052a3;
+      }
+    }
   }
 `
 
@@ -845,13 +907,14 @@ const LoadingContainer = styled.div`
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: #f5f7fa;
+  background: #ffffff;
 `
 
 const LoadingText = styled.p`
   margin-top: 16px;
   font-size: 16px;
-  color: #666;
+  color: #757575;
+  font-weight: 500;
 `
 
 const ModalTitle = styled.div`
@@ -859,6 +922,7 @@ const ModalTitle = styled.div`
   align-items: center;
   font-size: 18px;
   font-weight: 600;
+  color: #1a1a1a;
 `
 
 const ModalContent = styled.div`
@@ -868,26 +932,29 @@ const ModalContent = styled.div`
     font-size: 16px;
     color: #333;
     margin-bottom: 16px;
+    font-weight: 500;
   }
 `
 
 const WarningText = styled.div`
-  background: #fff7e6;
-  border: 1px solid #ffd591;
-  border-radius: 8px;
+  background: #fff8f0;
+  border: 1px solid #ffd699;
+  border-radius: 6px;
   padding: 12px;
-  color: #ad6800;
+  color: #d87706;
   font-size: 14px;
   margin-bottom: 20px;
+  font-weight: 500;
 `
 
 const StatsInfo = styled.div`
-  background: #f5f7fa;
-  border-radius: 8px;
+  background: #fafafa;
+  border-radius: 6px;
   padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  border: 1px solid #e8e8e8;
 `
 
 const StatsItem = styled.div`
@@ -897,7 +964,8 @@ const StatsItem = styled.div`
   font-size: 14px;
 
   span {
-    color: #666;
+    color: #757575;
+    font-weight: 500;
   }
 
   strong {
@@ -911,10 +979,12 @@ const SuccessMessage = styled.p`
   color: #333;
   text-align: center;
   margin: 20px 0;
+  font-weight: 500;
 `
 
 const ErrorMessage = styled.p`
   font-size: 16px;
   color: #333;
   margin: 20px 0;
+  font-weight: 500;
 `
