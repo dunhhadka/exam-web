@@ -54,15 +54,17 @@ const CheckinExam = () => {
       return
     }
 
-    try {
-      await requestOtp({ sessionCode: examCode, email: email })
-      navigate('/exam-checkin-verify-code', {
-        state: {
-          examCode,
-          email,
-        },
-      })
-    } catch (err) {}
+    navigate(`/candidate/${examCode}/${email}`)
+
+    // try {
+    //   await requestOtp({ sessionCode: examCode, email: email })
+    //   navigate('/exam-checkin-verify-code', {
+    //     state: {
+    //       examCode,
+    //       email,
+    //     },
+    //   })
+    // } catch (err) {}
   }
 
   const handleSubmit = async () => {
@@ -112,7 +114,7 @@ const CheckinExam = () => {
     ) {
       dispatch(setStep('system-check'))
       //navigate('/identity-verification')
-      navigate('/check-exam-system')
+      // navigate('/check-exam-system')
     }
   }
 

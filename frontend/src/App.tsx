@@ -24,6 +24,9 @@ import { App as AntdApp } from 'antd'
 import DefaultHomePage from './pages/home/DefaultHome'
 import CheckExamSystem from './pages/take-exams/CheckExamSystem'
 import CheckExamIdentity from './pages/take-exams/CheckExamIdentity'
+import PrepareCheckCandidateSystem from './pages/take-exams/PrepareCheckCandidateSystem'
+import TakeExamV2 from './pages/take-exams/TakeExamV2'
+import ProctorTrackingSystem from './pages/take-exams/ProctorTrackingSystem'
 
 function App() {
   return (
@@ -45,7 +48,7 @@ function App() {
                     element={<CheckinValidateToken />}
                   />
                   <Route path="/exam-checkin-info" element={<CheckInInfo />} />
-                  <Route path="/do-exam" element={<TakeExam />} />
+                  <Route path="/do-exam" element={<TakeExamV2 />} />
                   <Route path="/finish-exam" element={<FinishExam />} />
                   <Route
                     path="/check-exam-system"
@@ -54,6 +57,10 @@ function App() {
                   <Route
                     path="/identity-verification"
                     element={<CheckExamIdentity />}
+                  />
+                  <Route
+                    path="/candidate/:roomId/:userId"
+                    element={<PrepareCheckCandidateSystem />}
                   />
                 </Route>
               </Route>
@@ -74,7 +81,10 @@ function App() {
                     path="/questions/edit/:id"
                     element={<QuestionCreatePage />}
                   />
-
+                  <Route
+                    path="/protor-tracking/:roomId/:userId"
+                    element={<ProctorTrackingSystem />}
+                  />
                   <Route path="/exams/create" element={<ExamCreatePage />} />
                   <Route path="/" element={<Navigate to="/home" replace />} />
                 </Route>
