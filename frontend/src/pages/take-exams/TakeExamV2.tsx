@@ -1,6 +1,40 @@
-// @ts-ignore
-import Tesseract from 'tesseract.js'
 import React, { useEffect, useRef, useState } from 'react'
+import { useParams } from 'react-router-dom'
+import {
+  Card,
+  Button,
+  Typography,
+  Row,
+  Col,
+  Tag,
+  Alert,
+  Input,
+  Space,
+  Badge,
+  Switch,
+  Progress,
+  List,
+  Statistic,
+} from 'antd'
+import {
+  PlayCircleOutlined,
+  PauseCircleOutlined,
+  StopOutlined,
+  MessageOutlined,
+  WarningOutlined,
+  RobotOutlined,
+  EyeOutlined,
+  AppstoreOutlined,
+  AudioOutlined,
+  VideoCameraOutlined,
+  VideoCameraFilled,
+  AudioMutedOutlined,
+  ShareAltOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  ReloadOutlined,
+} from '@ant-design/icons'
+import styled from '@emotion/styled'
 import { RecordingService } from './js/recording'
 import { SignalingClient } from './js/signaling'
 import {
@@ -11,6 +45,7 @@ import {
 } from './js/webrtc'
 import { useSelector } from 'react-redux'
 import { RootState } from '../../store'
+import { useScreenOCR } from './js/useScreen'
 
 const SIGNALING_BASE =
   //import.meta.env.VITE_SIGNALING_URL ||
@@ -62,6 +97,202 @@ interface ExtendedRTCPeerConnection extends RTCPeerConnection {
   _screenSender?: RTCRtpSender
 }
 
+// Types (giữ nguyên từ code gốc)
+interface Message {
+  from: string
+  text: string
+}
+
+interface Alert {
+  message: string
+  timestamp: number
+  severity?: string
+  type?: string
+}
+
+interface AIAnalysis {
+  result?: {
+    alert?: Alert
+  }
+}
+
+interface AIStatus {
+  candidate_id?: string
+  timestamp: number
+  scenario: string
+  analyses?: AIAnalysis[]
+}
+
+// Styled Components
+const CandidateContainer = styled.div`
+  padding: 24px;
+  background: #f5f5f5;
+  min-height: 100vh;
+`
+
+const MainGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+
+  @media (max-width: 1200px) {
+    grid-template-columns: 1fr;
+  }
+`
+
+const VideoCard = styled(Card)`
+  .ant-card-body {
+    padding: 16px;
+  }
+`
+
+const VideoContainer = styled.div<{ $isScreen?: boolean }>`
+  position: relative;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+  min-height: ${(props) => (props.$isScreen ? '240px' : '360px')};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`
+
+const VideoPlaceholder = styled.div`
+  color: #999;
+  text-align: center;
+  padding: 20px;
+
+  .anticon {
+    font-size: 32px;
+    margin-bottom: 8px;
+    display: block;
+  }
+`
+
+const StyledVideo = styled.video`
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+`
+
+const ControlBar = styled.div`
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.8);
+  padding: 12px 16px;
+  border-radius: 8px;
+  backdrop-filter: blur(10px);
+`
+
+const AudioLevel = styled.div<{ $level: number; $muted: boolean }>`
+  flex: 1;
+  height: 6px;
+  background: #333;
+  border-radius: 3px;
+  overflow: hidden;
+
+  &::after {
+    content: '';
+    display: block;
+    width: ${(props) => props.$level * 100}%;
+    height: 100%;
+    background: ${(props) => (props.$muted ? '#666' : '#52c41a')};
+    transition: width 0.1s;
+  }
+`
+
+const StatusBadge = styled.div<{
+  $status: 'connected' | 'disconnected' | 'recording'
+}>`
+  padding: 4px 12px;
+  background: ${(props) =>
+    props.$status === 'connected'
+      ? '#52c41a'
+      : props.$status === 'recording'
+      ? '#ff4d4f'
+      : '#faad14'};
+  color: white;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+`
+
+const AIStatusPanel = styled(Card)<{ $hasAlerts: boolean }>`
+  border-left: 4px solid
+    ${(props) => (props.$hasAlerts ? '#faad14' : '#52c41a')};
+  background: ${(props) => (props.$hasAlerts ? '#fffbe6' : '#f6ffed')};
+
+  .ant-card-body {
+    padding: 16px;
+  }
+`
+
+const ChecklistItem = styled.div<{ $checked: boolean }>`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  .anticon {
+    color: ${(props) => (props.$checked ? '#52c41a' : '#d9d9d9')};
+    font-size: 16px;
+  }
+`
+
+const ChatPanel = styled(Card)`
+  .ant-card-body {
+    padding: 0;
+  }
+`
+
+const MessageList = styled.div`
+  height: 200px;
+  overflow-y: auto;
+  padding: 16px;
+  border-bottom: 1px solid #f0f0f0;
+`
+
+const MessageItem = styled.div<{ $isOwn?: boolean }>`
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  background: ${(props) => (props.$isOwn ? '#e6f7ff' : '#f5f5f5')};
+  border-radius: 8px;
+  border: 1px solid ${(props) => (props.$isOwn ? '#91d5ff' : '#d9d9d9')};
+
+  .sender {
+    font-weight: bold;
+    font-size: 12px;
+    color: #1890ff;
+    margin-bottom: 4px;
+  }
+
+  .text {
+    font-size: 14px;
+  }
+`
+
+const ChatInputContainer = styled.div`
+  padding: 16px;
+  display: flex;
+  gap: 8px;
+`
+
+// Component chính (giữ nguyên logic, chỉ thay đổi JSX)
 export default function Candidate() {
   const { userId, userEmail, takeExamSession } = useSelector(
     (state: RootState) => state.takeExam
@@ -674,590 +905,380 @@ export default function Candidate() {
   }
 
   return (
-    <>
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.3; }
-        }
-      `}</style>
-      <div style={{ padding: 16, maxWidth: 1400, margin: '0 auto' }}>
+    <CandidateContainer>
+      {/* Header */}
+      <Card style={{ marginBottom: 24 }}>
         <div
           style={{
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            marginBottom: 16,
           }}
         >
-          <h2>Exam Session - Candidate: {userId}</h2>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <div
-              style={{
-                padding: '4px 12px',
-                background: connected ? '#28a745' : '#dc3545',
-                color: 'white',
-                borderRadius: 4,
-                fontSize: 12,
-              }}
-            >
-              {connected ? '● Connected' : '○ Disconnected'}
-            </div>
+          <div>
+            <Typography.Title level={2} style={{ margin: 0 }}>
+              Phiên Thi Trực Tuyến
+            </Typography.Title>
+            <Typography.Text type="secondary">
+              Thí sinh: {userId} • Phòng thi: {roomId}
+            </Typography.Text>
+          </div>
+          <Space>
+            <StatusBadge $status={connected ? 'connected' : 'disconnected'}>
+              {connected ? '● Đã kết nối' : '○ Đang kết nối'}
+            </StatusBadge>
             {recording && (
-              <div
-                style={{
-                  padding: '4px 12px',
-                  background: '#dc3545',
-                  color: 'white',
-                  borderRadius: 4,
-                  fontSize: 12,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4,
-                }}
-              >
-                <span>●</span> Recording
-              </div>
+              <StatusBadge $status="recording">
+                <div
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    background: 'white',
+                    animation: 'pulse 1s infinite',
+                  }}
+                ></div>
+                Đang ghi hình
+              </StatusBadge>
             )}
-          </div>
+          </Space>
         </div>
+      </Card>
 
-        {error && (
-          <div
-            style={{
-              padding: 16,
-              background: '#f8d7da',
-              color: '#721c24',
-              borderRadius: 4,
-              marginBottom: 16,
-              border: '1px solid #f5c6cb',
-            }}
-          >
-            <strong>Lỗi:</strong> {error}
-            <br />
-            <small>
-              Vui lòng đảm bảo backend đang chạy tại {SIGNALING_BASE}
-            </small>
-            <button
+      {error && (
+        <Alert
+          message="Lỗi kết nối"
+          description={
+            <div>
+              <div>{error}</div>
+              <div style={{ marginTop: 8, fontSize: 12 }}>
+                Vui lòng đảm bảo backend đang chạy tại {SIGNALING_BASE}
+              </div>
+            </div>
+          }
+          type="error"
+          action={
+            <Button
+              size="small"
+              danger
+              icon={<ReloadOutlined />}
               onClick={() => window.location.reload()}
-              style={{
-                marginLeft: 12,
-                padding: '6px 12px',
-                background: '#dc3545',
-                color: 'white',
-                border: 'none',
-                borderRadius: 4,
-                cursor: 'pointer',
-              }}
             >
-              Tải lại trang
-            </button>
-          </div>
-        )}
+              Tải lại
+            </Button>
+          }
+          style={{ marginBottom: 24 }}
+        />
+      )}
 
-        {loading && (
-          <div
-            style={{
-              padding: 24,
-              textAlign: 'center',
-              background: '#f8f9fa',
-              borderRadius: 8,
-              marginBottom: 16,
-            }}
-          >
-            <div style={{ fontSize: 18, marginBottom: 8 }}>
+      {loading && (
+        <Card style={{ marginBottom: 24 }}>
+          <div style={{ textAlign: 'center', padding: '40px 0' }}>
+            <Progress type="circle" percent={75} />
+            <Typography.Title level={4} style={{ marginTop: 16 }}>
               Đang khởi tạo kết nối...
-            </div>
-            <div style={{ fontSize: 12, color: '#666' }}>
+            </Typography.Title>
+            <Typography.Text type="secondary">
               Đang kết nối đến server và khởi động camera/mic
-            </div>
+            </Typography.Text>
           </div>
-        )}
+        </Card>
+      )}
 
-        {/* AI Monitoring Status Panel */}
-        {connected && aiStatus && (
-          <div
-            style={{
-              padding: 12,
-              background: recentAlerts.length > 0 ? '#fff3cd' : '#d4edda',
-              border: `1px solid ${
-                recentAlerts.length > 0 ? '#ffc107' : '#28a745'
-              }`,
-              borderRadius: 8,
-              marginBottom: 16,
-            }}
-          >
-            <div
+      {/* AI Monitoring Status Panel */}
+      {connected && aiStatus && (
+        <AIStatusPanel
+          $hasAlerts={recentAlerts.length > 0}
+          style={{ marginBottom: 24 }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <RobotOutlined
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                marginBottom: 8,
+                fontSize: 24,
+                color: recentAlerts.length > 0 ? '#faad14' : '#52c41a',
               }}
-            >
-              <span
-                style={{
-                  width: 10,
-                  height: 10,
-                  borderRadius: '50%',
-                  background: recentAlerts.length > 0 ? '#ff9800' : '#28a745',
-                  animation: 'pulse 2s infinite',
-                }}
-              ></span>
-              <strong style={{ fontSize: 14 }}>
-                🤖 AI đang theo dõi phiên thi của bạn
-              </strong>
-            </div>
-            <div style={{ fontSize: 12, color: '#666' }}>
-              Trạng thái:{' '}
-              <span style={{ fontWeight: 'bold' }}>
-                {aiStatus.scenario === 'normal'
-                  ? '✓ Bình thường'
-                  : `⚠ ${aiStatus.scenario}`}
-              </span>
+            />
+            <div style={{ flex: 1 }}>
+              <Typography.Text strong>
+                Hệ thống AI đang giám sát phiên thi của bạn
+              </Typography.Text>
+              <div style={{ marginTop: 4 }}>
+                <Tag color={recentAlerts.length > 0 ? 'orange' : 'green'}>
+                  {aiStatus.scenario === 'normal'
+                    ? '✓ Bình thường'
+                    : `⚠ ${aiStatus.scenario}`}
+                </Tag>
+              </div>
             </div>
             {recentAlerts.length > 0 && (
-              <div
-                style={{
-                  marginTop: 8,
-                  paddingTop: 8,
-                  borderTop: '1px solid #ffc107',
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 'bold',
-                    color: '#856404',
-                    marginBottom: 4,
-                  }}
-                >
-                  Cảnh báo gần đây:
-                </div>
-                {recentAlerts.slice(0, 3).map((alert, idx) => (
-                  <div
-                    key={idx}
-                    style={{ fontSize: 11, color: '#856404', marginBottom: 2 }}
-                  >
-                    • {alert.message}
-                  </div>
-                ))}
-              </div>
+              <Badge
+                count={recentAlerts.length}
+                style={{ backgroundColor: '#faad14' }}
+              />
             )}
           </div>
-        )}
 
-        {!loading && !error && (
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1.5fr 1fr',
-              gap: 16,
-            }}
-          >
-            {/* Left: Camera & Screen */}
-            <div>
-              <div style={{ marginBottom: 16 }}>
-                <h3 style={{ marginBottom: 8 }}>Camera View</h3>
-                <div
+          {recentAlerts.length > 0 && (
+            <div
+              style={{
+                marginTop: 12,
+                paddingTop: 12,
+                borderTop: '1px solid #ffe58f',
+              }}
+            >
+              <Typography.Text type="warning" strong>
+                Cảnh báo gần đây:
+              </Typography.Text>
+              <List
+                size="small"
+                dataSource={recentAlerts.slice(0, 3)}
+                renderItem={(alert, idx) => (
+                  <List.Item>
+                    <Typography.Text type="warning" style={{ fontSize: 12 }}>
+                      • {alert.message}
+                    </Typography.Text>
+                  </List.Item>
+                )}
+              />
+            </div>
+          )}
+        </AIStatusPanel>
+      )}
+
+      {!loading && !error && (
+        <MainGrid>
+          {/* Left Column */}
+          <div>
+            {/* Camera View */}
+            <VideoCard
+              title={
+                <Space>
+                  <VideoCameraOutlined />
+                  Camera View
+                </Space>
+              }
+              style={{ marginBottom: 16 }}
+            >
+              <VideoContainer>
+                <StyledVideo
+                  ref={localVideoRef}
+                  autoPlay
+                  playsInline
+                  muted
                   style={{
-                    position: 'relative',
-                    background: '#000',
-                    borderRadius: 8,
-                    overflow: 'hidden',
+                    display: camEnabled && !loading ? 'block' : 'none',
+                    transform: 'scaleX(-1)',
                   }}
-                >
-                  <video
-                    ref={localVideoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    style={{
-                      width: '100%',
-                      minHeight: 360,
-                      display: camEnabled && !loading ? 'block' : 'none',
-                      transform: 'scaleX(-1)',
-                    }}
-                  />
-                  {(!camEnabled || loading) && (
-                    <div
-                      style={{
-                        width: '100%',
-                        minHeight: 360,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        background: '#111',
-                        color: '#fff',
-                      }}
-                    >
-                      {loading ? 'Đang tải...' : 'Camera đã tắt'}
+                />
+                {(!camEnabled || loading) && (
+                  <VideoPlaceholder>
+                    <VideoCameraOutlined />
+                    <div>
+                      {loading ? 'Đang tải camera...' : 'Camera đã tắt'}
                     </div>
-                  )}
-                  {/* Audio level indicator */}
+                  </VideoPlaceholder>
+                )}
+
+                <ControlBar>
+                  <Button
+                    type={micMuted ? 'default' : 'primary'}
+                    icon={micMuted ? <AudioMutedOutlined /> : <AudioOutlined />}
+                    onClick={toggleMic}
+                    size="small"
+                  >
+                    {micMuted ? 'Đã tắt tiếng' : 'Mic'}
+                  </Button>
+
+                  <AudioLevel $level={audioLevel} $muted={micMuted} />
+
+                  <Button
+                    type={camEnabled ? 'primary' : 'default'}
+                    icon={
+                      camEnabled ? (
+                        <VideoCameraFilled />
+                      ) : (
+                        <VideoCameraOutlined />
+                      )
+                    }
+                    onClick={toggleCamera}
+                    size="small"
+                  >
+                    {camEnabled ? 'Camera' : 'Đã tắt'}
+                  </Button>
+                </ControlBar>
+              </VideoContainer>
+            </VideoCard>
+
+            {/* Screen Share */}
+            <VideoCard
+              title={
+                <Space>
+                  <AppstoreOutlined />
+                  Chia sẻ màn hình
+                </Space>
+              }
+              extra={
+                <Button
+                  type={isSharingScreen ? 'default' : 'primary'}
+                  icon={<ShareAltOutlined />}
+                  onClick={shareScreen}
+                  disabled={isSharingScreen}
+                >
+                  {isSharingScreen ? 'Đang chia sẻ' : 'Chia sẻ màn hình'}
+                </Button>
+              }
+              style={{ marginBottom: 16 }}
+            >
+              <VideoContainer $isScreen>
+                <StyledVideo
+                  ref={screenVideoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  style={{ display: isSharingScreen ? 'block' : 'none' }}
+                />
+                {!isSharingScreen && (
+                  <VideoPlaceholder>
+                    <AppstoreOutlined />
+                    <div>Chưa chia sẻ màn hình</div>
+                  </VideoPlaceholder>
+                )}
+                <canvas ref={canvasRef} style={{ display: 'none' }} />
+              </VideoContainer>
+            </VideoCard>
+
+            {/* Checklist */}
+            <Card
+              title={
+                <Space>
+                  <CheckCircleOutlined />
+                  Checklist
+                </Space>
+              }
+            >
+              <ChecklistItem $checked={checklist.cam}>
+                {checklist.cam ? (
+                  <CheckCircleOutlined />
+                ) : (
+                  <CloseCircleOutlined />
+                )}
+                <Typography.Text>Camera rõ mặt, ánh sáng đủ</Typography.Text>
+              </ChecklistItem>
+
+              <ChecklistItem $checked={checklist.screen}>
+                {checklist.screen ? (
+                  <CheckCircleOutlined />
+                ) : (
+                  <CloseCircleOutlined />
+                )}
+                <Typography.Text>Đang chia sẻ màn hình</Typography.Text>
+              </ChecklistItem>
+
+              <ChecklistItem $checked={checklist.oneDisplay}>
+                {checklist.oneDisplay ? (
+                  <CheckCircleOutlined />
+                ) : (
+                  <CloseCircleOutlined />
+                )}
+                <Typography.Text>Chỉ một màn hình</Typography.Text>
+              </ChecklistItem>
+
+              <ChecklistItem $checked={checklist.noHeadset}>
+                {checklist.noHeadset ? (
+                  <CheckCircleOutlined />
+                ) : (
+                  <CloseCircleOutlined />
+                )}
+                <Typography.Text>Không sử dụng tai nghe</Typography.Text>
+              </ChecklistItem>
+            </Card>
+          </div>
+
+          {/* Right Column */}
+          <div>
+            {/* Proctor View */}
+            <VideoCard
+              title={
+                <Space>
+                  <EyeOutlined />
+                  Góc nhìn giám thị
+                </Space>
+              }
+              style={{ marginBottom: 16 }}
+            >
+              <VideoContainer $isScreen>
+                <StyledVideo ref={remoteVideoRef} autoPlay playsInline />
+                {!connected && (
+                  <VideoPlaceholder>
+                    <EyeOutlined />
+                    <div>Chờ kết nối giám thị...</div>
+                  </VideoPlaceholder>
+                )}
+              </VideoContainer>
+              <div style={{ marginTop: 8 }}>
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  Giám thị đang xem:{' '}
+                  {isSharingScreen ? 'Màn hình của bạn' : 'Camera của bạn'} + Âm
+                  thanh
+                </Typography.Text>
+              </div>
+            </VideoCard>
+
+            {/* Chat Panel */}
+            <ChatPanel
+              title={
+                <Space>
+                  <MessageOutlined />
+                  Tin nhắn với giám thị
+                </Space>
+              }
+            >
+              <MessageList>
+                {msgs.length === 0 ? (
                   <div
                     style={{
-                      position: 'absolute',
-                      bottom: 12,
-                      left: 12,
-                      right: 12,
-                      display: 'flex',
-                      gap: 4,
-                      alignItems: 'center',
-                      background: 'rgba(0,0,0,0.7)',
-                      padding: '8px 12px',
-                      borderRadius: 4,
+                      textAlign: 'center',
+                      color: '#999',
+                      padding: '40px 0',
                     }}
                   >
-                    <button
-                      onClick={toggleMic}
-                      style={{
-                        padding: '6px 12px',
-                        background: micMuted ? '#dc3545' : '#28a745',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: 4,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {micMuted ? '🎤 Muted' : '🎤 Mic'}
-                    </button>
-                    <div
-                      style={{
-                        flex: 1,
-                        height: 4,
-                        background: '#333',
-                        borderRadius: 2,
-                        overflow: 'hidden',
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: `${audioLevel * 100}%`,
-                          height: '100%',
-                          background: micMuted ? '#666' : '#28a745',
-                          transition: 'width 0.1s',
-                        }}
-                      />
-                    </div>
-                    <button
-                      onClick={toggleCamera}
-                      style={{
-                        padding: '6px 12px',
-                        background: camEnabled ? '#28a745' : '#dc3545',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: 4,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {camEnabled ? '📹 Camera' : '📹 Off'}
-                    </button>
+                    <MessageOutlined
+                      style={{ fontSize: 24, marginBottom: 8 }}
+                    />
+                    <div>Chưa có tin nhắn nào</div>
                   </div>
-                </div>
-              </div>
-
-              {/* Screen Share */}
-              <div style={{ marginBottom: 16 }}>
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: 8,
-                  }}
-                >
-                  <h3>Screen Share</h3>
-                  <button
-                    onClick={shareScreen}
-                    disabled={isSharingScreen}
-                    style={{
-                      padding: '8px 16px',
-                      background: isSharingScreen ? '#28a745' : '#007bff',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: 4,
-                      cursor: isSharingScreen ? 'not-allowed' : 'pointer',
-                    }}
-                  >
-                    {isSharingScreen ? '● Đang chia sẻ' : 'Chia sẻ màn hình'}
-                  </button>
-                </div>
-                <div
-                  style={{
-                    position: 'relative',
-                    background: '#111',
-                    borderRadius: 8,
-                    overflow: 'hidden',
-                    minHeight: 240,
-                  }}
-                >
-                  <video
-                    ref={screenVideoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    style={{
-                      width: '100%',
-                      display: isSharingScreen ? 'block' : 'none',
-                    }}
-                  />
-                  {!isSharingScreen && (
-                    <div
-                      style={{
-                        width: '100%',
-                        minHeight: 240,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#666',
-                      }}
-                    >
-                      Chưa chia sẻ màn hình
-                    </div>
-                  )}
-                  <canvas ref={canvasRef} style={{ display: 'none' }} />
-                </div>
-              </div>
-
-              {/* Checklist */}
-              <div
-                style={{ padding: 16, background: '#f8f9fa', borderRadius: 8 }}
-              >
-                <h4 style={{ marginTop: 0 }}>Checklist</h4>
-                <label style={{ display: 'block', marginBottom: 8 }}>
-                  <input
-                    type="checkbox"
-                    checked={checklist.cam}
-                    onChange={(e) =>
-                      setChecklist((c) => ({ ...c, cam: e.target.checked }))
-                    }
-                  />{' '}
-                  Camera rõ mặt, ánh sáng đủ
-                </label>
-                <label style={{ display: 'block', marginBottom: 8 }}>
-                  <input
-                    type="checkbox"
-                    checked={checklist.screen}
-                    onChange={() => {}}
-                    disabled
-                  />{' '}
-                  Đang chia sẻ màn hình
-                </label>
-                <label style={{ display: 'block', marginBottom: 8 }}>
-                  <input
-                    type="checkbox"
-                    checked={checklist.oneDisplay}
-                    onChange={(e) =>
-                      setChecklist((c) => ({
-                        ...c,
-                        oneDisplay: e.target.checked,
-                      }))
-                    }
-                  />{' '}
-                  Chỉ một màn hình
-                </label>
-                <label style={{ display: 'block' }}>
-                  <input
-                    type="checkbox"
-                    checked={checklist.noHeadset}
-                    onChange={(e) =>
-                      setChecklist((c) => ({
-                        ...c,
-                        noHeadset: e.target.checked,
-                      }))
-                    }
-                  />{' '}
-                  Không tai nghe
-                </label>
-              </div>
-            </div>
-
-            {/* Right: Proctor View & Chat */}
-            <div>
-              <div style={{ marginBottom: 16 }}>
-                <h3 style={{ marginBottom: 8 }}>
-                  Proctor View (What Proctor Sees)
-                </h3>
-                <div
-                  style={{
-                    position: 'relative',
-                    background: '#000',
-                    borderRadius: 8,
-                    overflow: 'hidden',
-                    minHeight: 400,
-                  }}
-                >
-                  <video
-                    ref={remoteVideoRef}
-                    autoPlay
-                    playsInline
-                    style={{
-                      width: '100%',
-                      minHeight: 400,
-                    }}
-                  />
-                  {!connected && (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: '50%',
-                        left: '50%',
-                        transform: 'translate(-50%, -50%)',
-                        color: '#fff',
-                        textAlign: 'center',
-                      }}
-                    >
-                      Chờ kết nối Proctor...
-                    </div>
-                  )}
-                </div>
-                <div style={{ marginTop: 8, fontSize: 12, color: '#666' }}>
-                  Proctor sẽ thấy:{' '}
-                  {isSharingScreen ? 'Màn hình của bạn' : 'Camera của bạn'} +
-                  Audio
-                </div>
-              </div>
-
-              {/* Chat */}
-              <div style={{ marginTop: 16 }}>
-                <h4>Chat với Giám thị</h4>
-                <div
-                  style={{
-                    height: 200,
-                    overflow: 'auto',
-                    border: '1px solid #ddd',
-                    padding: 12,
-                    background: '#fff',
-                    borderRadius: 4,
-                    marginBottom: 8,
-                  }}
-                >
-                  {msgs.length === 0 ? (
-                    <div
-                      style={{
-                        color: '#999',
-                        textAlign: 'center',
-                        padding: 20,
-                      }}
-                    >
-                      Chưa có tin nhắn
-                    </div>
-                  ) : (
-                    msgs.map((m, i) => (
-                      <div key={i} style={{ marginBottom: 8 }}>
-                        <strong
-                          style={{
-                            color: m.from === userId ? '#007bff' : '#28a745',
-                          }}
-                        >
-                          {m.from === userId ? 'Bạn' : m.from}:
-                        </strong>
-                        <span style={{ marginLeft: 8 }}>{m.text}</span>
+                ) : (
+                  msgs.map((message, index) => (
+                    <MessageItem key={index} $isOwn={message.from === userId}>
+                      <div className="sender">
+                        {message.from === userId ? 'Bạn' : message.from}
                       </div>
-                    ))
-                  )}
-                </div>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input
-                    value={chat}
-                    onChange={(e) => setChat(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && sendChat()}
-                    placeholder="Nhập tin nhắn..."
-                    style={{
-                      flex: 1,
-                      padding: '8px 12px',
-                      border: '1px solid #ddd',
-                      borderRadius: 4,
-                    }}
-                  />
-                  <button
-                    onClick={sendChat}
-                    style={{
-                      padding: '8px 16px',
-                      background: '#007bff',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: 4,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Gửi
-                  </button>
-                </div>
-              </div>
-            </div>
+                      <div className="text">{message.text}</div>
+                    </MessageItem>
+                  ))
+                )}
+              </MessageList>
+              <ChatInputContainer>
+                <Input
+                  value={chat}
+                  onChange={(e) => setChat(e.target.value)}
+                  placeholder="Nhập tin nhắn..."
+                  onPressEnter={sendChat}
+                />
+                <Button
+                  type="primary"
+                  icon={<MessageOutlined />}
+                  onClick={sendChat}
+                >
+                  Gửi
+                </Button>
+              </ChatInputContainer>
+            </ChatPanel>
           </div>
-        )}
-      </div>
-    </>
+        </MainGrid>
+      )}
+    </CandidateContainer>
   )
 }
 
-// A5 OCR sampling loop
-function useScreenOCR({
-  screenVideoRef,
-  canvasRef,
-  sigRef,
-  userId,
-}: UseScreenOCRParams) {
-  useEffect(() => {
-    let timer: number
-    const blacklist = //import.meta.env.VITE_OCR_BLACKLIST ||
-      'cheat,answer,google,chatgpt,stack overflow'
-        .split(',')
-        .map((s) => s.trim().toLowerCase())
-        .filter(Boolean)
-
-    const run = async () => {
-      const video = screenVideoRef.current
-      if (!video || !video.srcObject) return
-      const canvas = canvasRef.current
-      if (!canvas) return
-
-      const w = Math.min(1280, video.videoWidth || 1280)
-      const h = Math.min(720, video.videoHeight || 720)
-      if (!w || !h) return
-
-      canvas.width = w
-      canvas.height = h
-      const ctx = canvas.getContext('2d')
-      if (!ctx) return
-
-      ctx.drawImage(video, 0, 0, w, h)
-      try {
-        const {
-          data: { text },
-        } = await Tesseract.recognize(canvas, 'eng')
-        const lower = (text || '').toLowerCase()
-        if (lower && blacklist.some((k) => lower.includes(k))) {
-          sigRef.current?.send({
-            type: 'incident',
-            tag: 'A5',
-            level: 'S2',
-            note: 'OCR match blacklist',
-            ts: Date.now(),
-            by: userId,
-          })
-        }
-      } catch (error) {
-        console.warn('OCR error:', error)
-      }
-    }
-
-    const loop = () => {
-      run()
-      timer = window.setTimeout(
-        loop,
-        parseInt(
-          //import.meta.env.VITE_OCR_INTERVAL_MS ||
-          '6000',
-          10
-        )
-      )
-    }
-
-    loop()
-    return () => window.clearTimeout(timer)
-  }, [screenVideoRef, canvasRef, sigRef, userId])
-}
+// Giữ nguyên hook useScreenOCR và các hàm logic khác

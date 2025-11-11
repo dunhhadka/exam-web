@@ -1,5 +1,35 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
+import {
+  Card,
+  Button,
+  Typography,
+  Row,
+  Col,
+  Tag,
+  Alert,
+  Input,
+  Space,
+  Badge,
+  List,
+  Switch,
+  Progress,
+} from 'antd'
+import {
+  PlayCircleOutlined,
+  PauseCircleOutlined,
+  StopOutlined,
+  PushpinOutlined,
+  PushpinFilled,
+  MessageOutlined,
+  WarningOutlined,
+  RobotOutlined,
+  EyeOutlined,
+  AppstoreOutlined,
+  OrderedListOutlined,
+  SendOutlined,
+} from '@ant-design/icons'
+import styled from '@emotion/styled'
 import { SignalingClient } from './js/signaling'
 import {
   createAndSetAnswer,
@@ -51,7 +81,7 @@ interface CandidateVideoProps {
       { camera?: HTMLVideoElement | null; screen?: HTMLVideoElement | null }
     >
   >
-  style: React.CSSProperties
+  style?: React.CSSProperties
 }
 
 interface Message {
@@ -103,6 +133,238 @@ interface TrackInfo {
   label: string
 }
 
+// Styled Components
+const ProctorContainer = styled.div`
+  padding: 24px;
+  background: #f5f5f5;
+  min-height: 100vh;
+`
+
+const MainContent = styled.div`
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+
+  @media (max-width: 1200px) {
+    grid-template-columns: 1fr;
+  }
+`
+
+const VideoGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+`
+
+const CandidateCard = styled(Card)<{
+  $selected?: boolean
+  $hasIncidents?: boolean
+}>`
+  border: 2px solid
+    ${(props) =>
+      props.$selected
+        ? '#1890ff'
+        : props.$hasIncidents
+        ? '#ff4d4f'
+        : '#f0f0f0'};
+  transition: all 0.3s ease;
+
+  &:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-color: #1890ff;
+  }
+
+  .ant-card-body {
+    padding: 16px;
+  }
+`
+
+const FocusedView = styled(Card)`
+  margin-bottom: 16px;
+  border: 2px solid #1890ff;
+
+  .ant-card-body {
+    padding: 16px;
+  }
+`
+
+const VideoContainer = styled.div<{ $isScreen?: boolean }>`
+  position: relative;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+  min-height: ${(props) => (props.$isScreen ? '240px' : '200px')};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`
+
+const VideoPlaceholder = styled.div`
+  color: #999;
+  text-align: center;
+  padding: 20px;
+
+  .anticon {
+    font-size: 24px;
+    margin-bottom: 8px;
+    display: block;
+  }
+`
+
+const StyledVideo = styled.video`
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+`
+
+const ControlPanel = styled.div`
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+`
+
+const StatusBadge = styled.div<{ $status: 'online' | 'warning' | 'error' }>`
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: ${(props) =>
+    props.$status === 'online'
+      ? '#52c41a'
+      : props.$status === 'warning'
+      ? '#faad14'
+      : '#ff4d4f'};
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: bold;
+  z-index: 10;
+`
+
+const AIBadge = styled.div<{ $hasAlerts?: boolean }>`
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: ${(props) =>
+    props.$hasAlerts ? '#faad14' : 'rgba(0, 0, 0, 0.7)'};
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  z-index: 10;
+`
+
+const IncidentIndicator = styled.div`
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 4px;
+  z-index: 10;
+`
+
+const ChatPanel = styled(Card)`
+  .ant-card-body {
+    padding: 0;
+  }
+`
+
+const MessageList = styled.div`
+  height: 200px;
+  overflow-y: auto;
+  padding: 16px;
+  border-bottom: 1px solid #f0f0f0;
+`
+
+const MessageItem = styled.div<{ $isOwn?: boolean }>`
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  background: ${(props) => (props.$isOwn ? '#e6f7ff' : '#f5f5f5')};
+  border-radius: 8px;
+  border: 1px solid ${(props) => (props.$isOwn ? '#91d5ff' : '#d9d9d9')};
+
+  .sender {
+    font-weight: bold;
+    font-size: 12px;
+    color: #1890ff;
+    margin-bottom: 4px;
+  }
+
+  .text {
+    font-size: 14px;
+  }
+`
+
+const ChatInputContainer = styled.div`
+  padding: 16px;
+  display: flex;
+  gap: 8px;
+`
+
+const Sidebar = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+`
+
+const AnalysisPanel = styled(Card)`
+  .ant-card-body {
+    padding: 16px;
+  }
+`
+
+const IncidentList = styled.div`
+  max-height: 400px;
+  overflow-y: auto;
+`
+
+const IncidentItem = styled.div<{ $level: string }>`
+  padding: 12px;
+  margin-bottom: 8px;
+  border-left: 4px solid
+    ${(props) =>
+      props.$level === 'S3'
+        ? '#ff4d4f'
+        : props.$level === 'S2'
+        ? '#faad14'
+        : '#1890ff'};
+  background: #fafafa;
+  border-radius: 4px;
+
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 4px;
+  }
+
+  .meta {
+    font-size: 11px;
+    color: #666;
+  }
+
+  .message {
+    font-size: 13px;
+    margin-top: 4px;
+  }
+`
+
+const ViewToggle = styled.div`
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+
+  .ant-btn {
+    flex: 1;
+  }
+`
+
 // Component để render video với auto-update khi stream thay đổi
 function CandidateVideo({
   candidateId,
@@ -138,44 +400,31 @@ function CandidateVideo({
 
     if (stream) {
       const currentStream = video.srcObject
-      // Check if stream has tracks
-      const tracks = stream.getTracks()
-      console.log(`Setting ${type} stream for ${candidateId}:`, {
-        streamId: stream.id,
-        tracks: tracks.length,
-        trackIds: tracks.map((t) => t.id),
-        trackStates: tracks.map((t) => t.readyState),
-      })
-
       if (currentStream !== stream) {
         video.srcObject = stream
-        // Force play
-        video
-          .play()
-          .then(() => {
-            console.log(`${type} video playing for ${candidateId}`)
-          })
-          .catch((e) => {
-            console.warn(`Failed to play ${type} video for ${candidateId}:`, e)
-          })
-      } else {
-        // Same stream but check if tracks are live
-        const hasLiveTracks = tracks.some((t) => t.readyState === 'live')
-        if (!hasLiveTracks) {
-          console.warn(`${type} stream for ${candidateId} has no live tracks`)
-        }
+        video.play().catch((e) => {
+          console.warn(`Failed to play ${type} video for ${candidateId}:`, e)
+        })
       }
     } else {
       video.srcObject = null
-      console.log(`Cleared ${type} stream for ${candidateId}`)
     }
   }, [stream, candidateId, type])
 
-  return <video ref={videoRef} autoPlay playsInline style={style} />
+  if (!stream) {
+    return (
+      <VideoPlaceholder>
+        {type === 'camera' ? <EyeOutlined /> : <AppstoreOutlined />}
+        <div>{type === 'camera' ? 'Chờ camera...' : 'Chưa share'}</div>
+      </VideoPlaceholder>
+    )
+  }
+
+  return <StyledVideo ref={videoRef} autoPlay playsInline style={style} />
 }
 
 const SIGNALING_BASE =
-  // import.meta.env.VITE_SIGNALING_URL ||
+  //import.meta.env.VITE_SIGNALING_URL ||
   'http://localhost:8000'
 
 const INCIDENT_TAGS = [
@@ -192,7 +441,14 @@ const INCIDENT_TAGS = [
   { code: 'A11', name: 'Không phản hồi', level: 'S1' },
 ]
 
-export default function ProctorTrackingSystem() {
+interface ProctorParams {
+  roomId: string
+  userId: string
+}
+
+const { Title, Text } = Typography
+
+export default function Proctor() {
   const { roomId, userId } = useParams()
   const [msgs, setMsgs] = useState<Message[]>([])
   const [chat, setChat] = useState<string>('')
@@ -713,51 +969,56 @@ export default function ProctorTrackingSystem() {
             })
             pc = peer.pc
 
-            // Monitor connection state
-            pc.onconnectionstatechange = () => {
-              console.log(
-                `PC connection state for ${candidateId}:`,
-                pc.connectionState
-              )
-              if (pc.connectionState === 'connected') {
-                // Check for existing tracks
-                const transceivers = pc.getTransceivers()
-                transceivers.forEach((transceiver) => {
-                  if (
-                    transceiver.receiver.track &&
-                    transceiver.receiver.track.readyState === 'live'
-                  ) {
-                    console.log('Found existing track after connection:', {
-                      trackId: transceiver.receiver.track.id,
-                      kind: transceiver.receiver.track.kind,
-                      label: transceiver.receiver.track.label,
-                    })
-                    // Process existing tracks manually
-                    const track = transceiver.receiver.track
-                    const ev: RTCTrackEvent = {
-                      track: track,
-                      streams:
-                        transceiver.receiver.track.streams?.length > 0
-                          ? transceiver.receiver.track.streams
-                          : [new MediaStream([track])],
-                      transceiver: transceiver,
-                      receiver: transceiver.receiver,
-                    } as RTCTrackEvent
-                    // Re-use the onTrack handler logic
-                    if (peer.pc.ontrack) {
-                      peer.pc.ontrack(ev)
-                    }
-                  }
-                })
-              }
-            }
+            pc = peer.pc
 
-            // Monitor ICE connection state
-            pc.oniceconnectionstatechange = () => {
-              console.log(
-                `ICE connection state for ${candidateId}:`,
-                pc.iceConnectionState
-              )
+            // Thêm null check ở đây
+            if (pc) {
+              // Monitor connection state
+              pc.onconnectionstatechange = () => {
+                if (pc && pc.connectionState === 'connected') {
+                  // Check for existing tracks
+                  const transceivers = pc.getTransceivers()
+                  transceivers.forEach((transceiver) => {
+                    if (
+                      transceiver.receiver.track &&
+                      transceiver.receiver.track.readyState === 'live'
+                    ) {
+                      console.log('Found existing track after connection:', {
+                        trackId: transceiver.receiver.track.id,
+                        kind: transceiver.receiver.track.kind,
+                        label: transceiver.receiver.track.label,
+                      })
+                      // Process existing tracks manually
+                      const track = transceiver.receiver.track
+                      const streams =
+                        transceiver.receiver.track.readyState === 'live'
+                          ? [new MediaStream([track])]
+                          : []
+
+                      const ev: RTCTrackEvent = new RTCTrackEvent('track', {
+                        track: track,
+                        streams: streams,
+                        transceiver: transceiver,
+                        receiver: transceiver.receiver,
+                      })
+                      // Re-use the onTrack handler logic
+                      if (peer.pc.ontrack) {
+                        peer.pc.ontrack(ev)
+                      }
+                    }
+                  })
+                }
+              }
+
+              // Monitor ICE connection state
+              pc.oniceconnectionstatechange = () => {
+                console.log(
+                  `ICE connection state for ${candidateId}:`,
+                  pc && pc.iceConnectionState
+                )
+              }
+            } else {
+              console.error('Failed to create peer connection for', candidateId)
             }
 
             // Store PC immediately BEFORE handling offer, so onTrack can access it
@@ -778,34 +1039,36 @@ export default function ProctorTrackingSystem() {
 
           // Log transceivers after answer and check for tracks
           setTimeout(() => {
-            const transceivers = pc.getTransceivers()
-            console.log(
-              'Transceivers after answer for',
-              candidateId,
-              ':',
-              transceivers.map((t) => ({
-                mid: t.mid,
-                kind: t.receiver.track?.kind,
-                trackId: t.receiver.track?.id,
-                trackLabel: t.receiver.track?.label,
-                trackState: t.receiver.track?.readyState,
-              }))
-            )
+            if (pc) {
+              const transceivers = pc.getTransceivers()
+              // console.log(
+              //   'Transceivers after answer for',
+              //   candidateId,
+              //   ':',
+              //   transceivers.map((t) => ({
+              //     mid: t.mid,
+              //     kind: t.receiver.track?.kind,
+              //     trackId: t.receiver.track?.id,
+              //     trackLabel: t.receiver.track?.label,
+              //     trackState: t.receiver.track?.readyState,
+              //   }))
+              // )
 
-            // Check if we have tracks but streams not set
-            transceivers.forEach((transceiver) => {
-              if (
-                transceiver.receiver.track &&
-                transceiver.receiver.track.readyState === 'live'
-              ) {
-                const track = transceiver.receiver.track
-                const streamMap = streamMapsRef.current.get(candidateId)
-                if (streamMap) {
-                  // Process this track
-                  console.log('Processing existing track:', track.id)
+              // Check if we have tracks but streams not set
+              transceivers.forEach((transceiver) => {
+                if (
+                  transceiver.receiver.track &&
+                  transceiver.receiver.track.readyState === 'live'
+                ) {
+                  const track = transceiver.receiver.track
+                  const streamMap = streamMapsRef.current.get(candidateId)
+                  if (streamMap) {
+                    // Process this track
+                    console.log('Processing existing track:', track.id)
+                  }
                 }
-              }
-            })
+              })
+            }
           }, 1000)
         })
 
@@ -883,11 +1146,13 @@ export default function ProctorTrackingSystem() {
       try {
         sigRef.current?.close()
       } catch {}
-      for (const pc of pcsRef.current.values()) {
+
+      pcsRef.current.forEach((pc) => {
         try {
           pc.close()
         } catch {}
-      }
+      })
+
       pcsRef.current.clear()
     }
   }, [roomId, userId])
@@ -932,41 +1197,14 @@ export default function ProctorTrackingSystem() {
     setChat('')
   }
 
-  const tagIncident = (tag: (typeof INCIDENT_TAGS)[0]) => {
-    const payload = {
-      type: 'incident',
-      tag: tag.code,
-      level: tag.level,
-      note,
-      ts: Date.now(),
-      by: userId,
-    }
-    sigRef.current?.send(payload)
-    setIncidents((list) => [...list, { ...payload, roomId }])
-    setNote('')
-  }
-
-  const macros: { [key: string]: string } = {
-    S1: 'Đây là nhắc nhở cấp S1, vui lòng tuân thủ ngay.',
-    S2: 'Đây là cảnh báo cấp S2. Nếu tái diễn sẽ tạm dừng/kết thúc phiên.',
-    S3: 'Phiên có thể bị kết thúc do vi phạm nghiêm trọng.',
-  }
-
-  const sendMacro = (level: string) => {
-    const text = macros[level]
-    if (!text) return
-    sigRef.current?.send({ type: 'chat', text })
-    setMsgs((m) => [...m, { from: userId || 'proctor', text }])
-  }
-
   const controlCandidate = (candidateId: string, action: string) => {
     sigRef.current?.send({ type: 'control', action, to: candidateId })
   }
 
   const getSeverityColor = (level: string): string => {
-    if (level === 'S3') return '#dc3545'
-    if (level === 'S2') return '#ffc107'
-    return '#17a2b8'
+    if (level === 'S3') return '#ff4d4f'
+    if (level === 'S2') return '#faad14'
+    return '#1890ff'
   }
 
   const getIncidentsByCandidate = (candidateId: string): Incident[] => {
@@ -983,578 +1221,375 @@ export default function ProctorTrackingSystem() {
     return acc
   }, {} as { [candidateId: string]: Incident[] })
 
+  const macros = {
+    S1: 'Đây là nhắc nhở cấp S1, vui lòng tuân thủ ngay.',
+    S2: 'Đây là cảnh báo cấp S2. Nếu tái diễn sẽ tạm dừng/kết thúc phiên.',
+    S3: 'Phiên có thể bị kết thúc do vi phạm nghiêm trọng.',
+  }
+
+  const sendMacro = (level: string) => {
+    const text = macros[level as keyof typeof macros]
+    if (!text) return
+    sigRef.current?.send({ type: 'chat', text })
+    setMsgs((m) => [...m, { from: userId || 'proctor', text }])
+  }
+
+  const getCandidateStatus = (
+    candidateId: string
+  ): 'online' | 'warning' | 'error' => {
+    const candIncidents = groupedIncidents[candidateId] || []
+    if (candIncidents.some((i) => i.level === 'S3')) return 'error'
+    if (candIncidents.some((i) => i.level === 'S2')) return 'warning'
+    return 'online'
+  }
+
   return (
-    <>
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.3; }
-        }
-      `}</style>
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
+    <ProctorContainer>
+      <MainContent>
+        {/* Main Video Area */}
         <div>
-          <h3>Proctor: {userId}</h3>
-          {focusedId ? (
-            <div>
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: remoteStreams[focusedId]?.screen
-                    ? '1fr 1fr'
-                    : '1fr',
-                  gap: 12,
-                  marginBottom: 12,
-                }}
+          <Card>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 16,
+              }}
+            >
+              <Title level={3} style={{ margin: 0 }}>
+                Proctor Dashboard
+              </Title>
+              <Text type="secondary">
+                Room: {roomId} | User: {userId}
+              </Text>
+            </div>
+
+            {focusedId ? (
+              <FocusedView
+                title={
+                  <Space>
+                    <PushpinFilled style={{ color: '#1890ff' }} />
+                    Đang theo dõi: {focusedId}
+                  </Space>
+                }
+                extra={
+                  <Button
+                    icon={<PushpinOutlined />}
+                    onClick={() => setFocusedId(null)}
+                  >
+                    Bỏ pin
+                  </Button>
+                }
               >
-                {/* Camera View */}
-                <div>
-                  <div style={{ fontSize: 12, marginBottom: 4, color: '#666' }}>
-                    Camera - {focusedId}
-                  </div>
-                  <CandidateVideo
-                    candidateId={focusedId}
-                    stream={remoteStreams[focusedId]?.camera || null}
-                    type="camera"
-                    videoRefsRef={videoRefsRef}
-                    style={{
-                      width: '100%',
-                      background: '#000',
-                      minHeight: 320,
-                      borderRadius: 4,
-                    }}
-                  />
-                  {!remoteStreams[focusedId]?.camera && (
-                    <div
-                      style={{
-                        width: '100%',
-                        minHeight: 320,
-                        background: '#111',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#999',
-                        borderRadius: 4,
-                      }}
-                    >
-                      Chưa nhận được camera stream
-                    </div>
-                  )}
-                </div>
-                {/* Screen View */}
-                {remoteStreams[focusedId]?.screen && (
-                  <div>
-                    <div
-                      style={{ fontSize: 12, marginBottom: 4, color: '#666' }}
-                    >
-                      Screen Share
-                    </div>
-                    <CandidateVideo
-                      candidateId={focusedId}
-                      stream={remoteStreams[focusedId]?.screen}
-                      type="screen"
-                      videoRefsRef={videoRefsRef}
-                      style={{
-                        width: '100%',
-                        background: '#000',
-                        minHeight: 320,
-                        borderRadius: 4,
-                      }}
+                <Row gutter={16}>
+                  <Col span={12}>
+                    <Text strong>Camera View</Text>
+                    <VideoContainer>
+                      <CandidateVideo
+                        candidateId={focusedId}
+                        stream={remoteStreams[focusedId]?.camera || null}
+                        type="camera"
+                        videoRefsRef={videoRefsRef}
+                      />
+                    </VideoContainer>
+                  </Col>
+                  <Col span={12}>
+                    <Text strong>Screen Share</Text>
+                    <VideoContainer $isScreen>
+                      <CandidateVideo
+                        candidateId={focusedId}
+                        stream={remoteStreams[focusedId]?.screen || null}
+                        type="screen"
+                        videoRefsRef={videoRefsRef}
+                      />
+                    </VideoContainer>
+                  </Col>
+                </Row>
+                <ControlPanel>
+                  <Button
+                    icon={<PauseCircleOutlined />}
+                    onClick={() => controlCandidate(focusedId, 'pause')}
+                  >
+                    Tạm dừng
+                  </Button>
+                  <Button
+                    icon={<StopOutlined />}
+                    danger
+                    onClick={() => controlCandidate(focusedId, 'end')}
+                  >
+                    Kết thúc
+                  </Button>
+                </ControlPanel>
+              </FocusedView>
+            ) : (
+              <>
+                <div style={{ marginBottom: 16 }}>
+                  <Space>
+                    <Switch
+                      checked={filterIncidents}
+                      onChange={setFilterIncidents}
                     />
+                    <Text>Chỉ hiển thị thí sinh có sự cố</Text>
+                  </Space>
+                </div>
+
+                <VideoGrid>
+                  {Object.entries(remoteStreams)
+                    .filter(
+                      ([uid]) =>
+                        !filterIncidents ||
+                        incidents.some(
+                          (it) =>
+                            it.from === uid ||
+                            it.by === uid ||
+                            it.userId === uid
+                        )
+                    )
+                    .map(([uid, streams]) => {
+                      const candIncidents = groupedIncidents[uid] || []
+                      const s3Count = candIncidents.filter(
+                        (i) => i.level === 'S3'
+                      ).length
+                      const s2Count = candIncidents.filter(
+                        (i) => i.level === 'S2'
+                      ).length
+                      const analysis = aiAnalysis[uid]
+                      const hasAlerts = analysis?.analyses?.some(
+                        (a) => a.result?.alert
+                      )
+
+                      return (
+                        <CandidateCard
+                          key={uid}
+                          $selected={selectedCandidate === uid}
+                          $hasIncidents={candIncidents.length > 0}
+                          title={
+                            <Space>
+                              <Text strong>{uid}</Text>
+                              {s3Count > 0 && (
+                                <Badge
+                                  count={s3Count}
+                                  style={{ backgroundColor: '#ff4d4f' }}
+                                />
+                              )}
+                              {s2Count > 0 && (
+                                <Badge
+                                  count={s2Count}
+                                  style={{ backgroundColor: '#faad14' }}
+                                />
+                              )}
+                            </Space>
+                          }
+                          extra={
+                            <Space>
+                              <Button
+                                size="small"
+                                icon={<PushpinOutlined />}
+                                onClick={() => setFocusedId(uid)}
+                              >
+                                Pin
+                              </Button>
+                              <Button
+                                size="small"
+                                type={
+                                  selectedCandidate === uid
+                                    ? 'primary'
+                                    : 'default'
+                                }
+                                onClick={() =>
+                                  setSelectedCandidate(
+                                    uid === selectedCandidate ? null : uid
+                                  )
+                                }
+                              >
+                                Chọn
+                              </Button>
+                            </Space>
+                          }
+                        >
+                          <div style={{ position: 'relative' }}>
+                            <StatusBadge $status={getCandidateStatus(uid)}>
+                              {getCandidateStatus(uid).toUpperCase()}
+                            </StatusBadge>
+
+                            {analysis && (
+                              <AIBadge $hasAlerts={hasAlerts}>
+                                <RobotOutlined />
+                                AI
+                              </AIBadge>
+                            )}
+
+                            <Row gutter={8}>
+                              <Col span={12}>
+                                <VideoContainer>
+                                  <CandidateVideo
+                                    candidateId={uid}
+                                    stream={streams.camera}
+                                    type="camera"
+                                    videoRefsRef={videoRefsRef}
+                                  />
+                                </VideoContainer>
+                              </Col>
+                              <Col span={12}>
+                                <VideoContainer $isScreen>
+                                  <CandidateVideo
+                                    candidateId={uid}
+                                    stream={streams.screen}
+                                    type="screen"
+                                    videoRefsRef={videoRefsRef}
+                                  />
+                                </VideoContainer>
+                              </Col>
+                            </Row>
+                          </div>
+                        </CandidateCard>
+                      )
+                    })}
+                </VideoGrid>
+
+                {Object.keys(remoteStreams).length === 0 && (
+                  <Alert
+                    message="Chưa có thí sinh nào kết nối"
+                    description="Các thí sinh sẽ xuất hiện ở đây khi họ tham gia phòng thi"
+                    type="info"
+                    showIcon
+                  />
+                )}
+              </>
+            )}
+
+            {/* Chat Panel */}
+            <ChatPanel title="Tin nhắn" style={{ marginTop: 16 }}>
+              <MessageList>
+                {msgs.map((message, index) => (
+                  <MessageItem key={index} $isOwn={message.from === userId}>
+                    <div className="sender">{message.from}</div>
+                    <div className="text">{message.text}</div>
+                  </MessageItem>
+                ))}
+                {msgs.length === 0 && (
+                  <div
+                    style={{
+                      textAlign: 'center',
+                      color: '#999',
+                      padding: '40px 0',
+                    }}
+                  >
+                    <MessageOutlined
+                      style={{ fontSize: 24, marginBottom: 8 }}
+                    />
+                    <div>Chưa có tin nhắn nào</div>
                   </div>
                 )}
-              </div>
-              <div style={{ margin: '6px 0' }}>
-                <button onClick={() => controlCandidate(focusedId, 'pause')}>
-                  Pause
-                </button>
-                <button
-                  onClick={() => controlCandidate(focusedId, 'end')}
-                  style={{ marginLeft: 8 }}
+              </MessageList>
+              <ChatInputContainer>
+                <Input
+                  value={chat}
+                  onChange={(e) => setChat(e.target.value)}
+                  placeholder="Nhập tin nhắn..."
+                  onPressEnter={sendChat}
+                />
+                <Button
+                  type="primary"
+                  icon={<SendOutlined />}
+                  onClick={sendChat}
                 >
-                  End
-                </button>
-                <button
-                  onClick={() => setFocusedId(null)}
-                  style={{ marginLeft: 8 }}
-                >
-                  Unpin
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-                gap: 12,
-              }}
-            >
-              {Object.entries(remoteStreams)
-                .filter(
-                  ([uid]) =>
-                    !filterIncidents ||
-                    incidents.some(
-                      (it) =>
-                        it.from === uid || it.by === uid || it.userId === uid
-                    )
-                )
-                .map(([uid, streams]) => {
-                  const candIncidents = groupedIncidents[uid] || []
-                  const s3Count = candIncidents.filter(
-                    (i) => i.level === 'S3'
-                  ).length
-                  const s2Count = candIncidents.filter(
-                    (i) => i.level === 'S2'
-                  ).length
-                  const cameraStream = streams?.camera || null
-                  const screenStream = streams?.screen || null
-                  const analysis = aiAnalysis[uid]
-
-                  return (
-                    <div
-                      key={uid}
-                      style={{
-                        position: 'relative',
-                        border:
-                          selectedCandidate === uid
-                            ? '2px solid #007bff'
-                            : '1px solid #ddd',
-                        borderRadius: 8,
-                        padding: 8,
-                        background: '#f8f9fa',
-                      }}
-                    >
-                      <div
-                        style={{
-                          marginBottom: 4,
-                          fontSize: 12,
-                          fontWeight: 'bold',
-                        }}
-                      >
-                        Candidate: {uid}
-                      </div>
-                      {/* AI Analysis Status Badge */}
-                      {analysis && (
-                        <div
-                          style={{
-                            position: 'absolute',
-                            top: 8,
-                            left: 8,
-                            background: 'rgba(0,0,0,0.7)',
-                            color: 'white',
-                            padding: '4px 8px',
-                            borderRadius: 4,
-                            fontSize: 10,
-                            zIndex: 20,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 4,
-                          }}
-                        >
-                          <span
-                            style={{
-                              width: 6,
-                              height: 6,
-                              borderRadius: '50%',
-                              background: '#4ade80',
-                              animation: 'pulse 2s infinite',
-                            }}
-                          ></span>
-                          AI: {analysis.scenario || 'unknown'}
-                        </div>
-                      )}
-                      <div
-                        style={{
-                          display: 'grid',
-                          gridTemplateColumns: screenStream ? '1fr 1fr' : '1fr',
-                          gap: 8,
-                        }}
-                      >
-                        {/* Camera View */}
-                        <div style={{ position: 'relative' }}>
-                          <div
-                            style={{
-                              fontSize: 11,
-                              marginBottom: 4,
-                              color: '#666',
-                            }}
-                          >
-                            Camera
-                          </div>
-                          <CandidateVideo
-                            candidateId={uid}
-                            stream={cameraStream}
-                            type="camera"
-                            videoRefsRef={videoRefsRef}
-                            style={{
-                              width: '100%',
-                              background: '#000',
-                              minHeight: 150,
-                              borderRadius: 4,
-                            }}
-                          />
-                          {!cameraStream && (
-                            <div
-                              style={{
-                                width: '100%',
-                                minHeight: 150,
-                                background: '#111',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                color: '#999',
-                                fontSize: 12,
-                                borderRadius: 4,
-                                position: 'absolute',
-                                top: 20,
-                                left: 0,
-                                right: 0,
-                              }}
-                            >
-                              Chờ camera...
-                            </div>
-                          )}
-                        </div>
-                        {/* Screen Share View */}
-                        {screenStream ? (
-                          <div style={{ position: 'relative' }}>
-                            <div
-                              style={{
-                                fontSize: 11,
-                                marginBottom: 4,
-                                color: '#666',
-                              }}
-                            >
-                              Screen
-                            </div>
-                            <CandidateVideo
-                              candidateId={uid}
-                              stream={screenStream}
-                              type="screen"
-                              videoRefsRef={videoRefsRef}
-                              style={{
-                                width: '100%',
-                                background: '#000',
-                                minHeight: 150,
-                                borderRadius: 4,
-                              }}
-                            />
-                          </div>
-                        ) : (
-                          <div style={{ position: 'relative' }}>
-                            <div
-                              style={{
-                                fontSize: 11,
-                                marginBottom: 4,
-                                color: '#666',
-                              }}
-                            >
-                              Screen
-                            </div>
-                            <div
-                              style={{
-                                width: '100%',
-                                minHeight: 150,
-                                background: '#111',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                color: '#666',
-                                fontSize: 11,
-                                borderRadius: 4,
-                              }}
-                            >
-                              Chưa share
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                      <div
-                        style={{
-                          position: 'absolute',
-                          top: 10,
-                          right: 10,
-                          display: 'flex',
-                          gap: 4,
-                          zIndex: 10,
-                        }}
-                      >
-                        {s3Count > 0 && (
-                          <span
-                            style={{
-                              background: '#dc3545',
-                              color: 'white',
-                              padding: '2px 6px',
-                              borderRadius: 3,
-                              fontSize: 10,
-                            }}
-                          >
-                            S3:{s3Count}
-                          </span>
-                        )}
-                        {s2Count > 0 && (
-                          <span
-                            style={{
-                              background: '#ffc107',
-                              color: 'black',
-                              padding: '2px 6px',
-                              borderRadius: 3,
-                              fontSize: 10,
-                            }}
-                          >
-                            S2:{s2Count}
-                          </span>
-                        )}
-                      </div>
-                      <div style={{ display: 'flex', gap: 4, marginTop: 8 }}>
-                        <button
-                          onClick={() => setFocusedId(uid)}
-                          style={{ flex: 1, fontSize: 11, padding: '4px 8px' }}
-                        >
-                          Pin
-                        </button>
-                        <button
-                          onClick={() =>
-                            setSelectedCandidate(
-                              uid === selectedCandidate ? null : uid
-                            )
-                          }
-                          style={{ flex: 1, fontSize: 11, padding: '4px 8px' }}
-                        >
-                          Select
-                        </button>
-                      </div>
-                    </div>
-                  )
-                })}
-              {Object.keys(remoteStreams).length === 0 && (
-                <div
-                  style={{ padding: 24, textAlign: 'center', color: '#666' }}
-                >
-                  Chưa có thí sinh nào kết nối
-                </div>
-              )}
-            </div>
-          )}
-          <div
-            style={{ marginTop: 8, fontSize: 12, color: '#666' }}
-            ref={localVideoRef}
-          ></div>
-          <div style={{ marginTop: 12 }}>
-            <div
-              style={{
-                height: 160,
-                overflow: 'auto',
-                border: '1px solid #ddd',
-                padding: 8,
-              }}
-            >
-              {msgs.map((m, i) => (
-                <div key={i}>
-                  <b>{m.from}:</b> {m.text}
-                </div>
-              ))}
-            </div>
-            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-              <input
-                value={chat}
-                onChange={(e) => setChat(e.target.value)}
-                placeholder="Chat"
-                style={{ flex: 1 }}
-              />
-              <button onClick={sendChat}>Send</button>
-              <button onClick={() => sendMacro('S1')} title="Ctrl+1">
-                S1
-              </button>
-              <button onClick={() => sendMacro('S2')} title="Ctrl+2">
-                S2
-              </button>
-              <button onClick={() => sendMacro('S3')} title="Ctrl+3">
-                S3
-              </button>
-            </div>
-            <label
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                marginTop: 8,
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={filterIncidents}
-                onChange={(e) => setFilterIncidents(e.target.checked)}
-              />
-              Only candidates with incidents
-            </label>
-          </div>
+                  Gửi
+                </Button>
+                <Space>
+                  <Button size="small" onClick={() => sendMacro('S1')}>
+                    S1
+                  </Button>
+                  <Button size="small" onClick={() => sendMacro('S2')}>
+                    S2
+                  </Button>
+                  <Button size="small" danger onClick={() => sendMacro('S3')}>
+                    S3
+                  </Button>
+                </Space>
+              </ChatInputContainer>
+            </ChatPanel>
+          </Card>
         </div>
-        <div>
-          <h4>AI Analysis & Incidents</h4>
 
-          {/* AI Analysis Status Panel */}
-          <div
-            style={{
-              marginBottom: 12,
-              padding: 8,
-              background: '#f0f8ff',
-              border: '1px solid #b3d9ff',
-              borderRadius: 4,
-            }}
+        {/* Sidebar */}
+        <Sidebar>
+          {/* AI Analysis Panel */}
+          <AnalysisPanel
+            title={
+              <Space>
+                <RobotOutlined />
+                AI Monitoring
+              </Space>
+            }
           >
-            <div
-              style={{
-                fontSize: 12,
-                fontWeight: 'bold',
-                marginBottom: 6,
-                color: '#0066cc',
-              }}
-            >
-              🤖 AI Monitoring Status
-            </div>
             {Object.keys(aiAnalysis).length === 0 ? (
-              <div style={{ fontSize: 11, color: '#666' }}>
-                Chờ thí sinh kết nối...
-              </div>
+              <Alert
+                message="Đang chờ kết nối"
+                description="AI sẽ bắt đầu giám sát khi thí sinh tham gia"
+                type="info"
+                showIcon
+              />
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <Space direction="vertical" style={{ width: '100%' }}>
                 {Object.entries(aiAnalysis).map(([candidateId, analysis]) => {
-                  const hasAlert = analysis?.analyses?.some(
-                    (a) => a.result?.alert
-                  )
                   const alertCount =
                     analysis?.analyses?.filter((a) => a.result?.alert).length ||
                     0
                   return (
-                    <div
+                    <Alert
                       key={candidateId}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        padding: 6,
-                        background: hasAlert ? '#fff3cd' : 'white',
-                        borderRadius: 4,
-                        fontSize: 11,
-                      }}
-                    >
-                      <span
-                        style={{
-                          width: 8,
-                          height: 8,
-                          borderRadius: '50%',
-                          background: hasAlert ? '#ff9800' : '#4ade80',
-                          animation: 'pulse 2s infinite',
-                        }}
-                      ></span>
-                      <span style={{ fontWeight: 'bold' }}>{candidateId}</span>
-                      <span style={{ color: '#666' }}>→</span>
-                      <span>{analysis?.scenario || 'unknown'}</span>
-                      {alertCount > 0 && (
-                        <span
-                          style={{
-                            marginLeft: 'auto',
-                            color: '#ff9800',
-                            fontWeight: 'bold',
-                          }}
-                        >
-                          ⚠️ {alertCount} alert{alertCount > 1 ? 's' : ''}
-                        </span>
-                      )}
-                    </div>
+                      message={candidateId}
+                      description={
+                        <Space direction="vertical" size={0}>
+                          <Text type="secondary">
+                            {analysis.scenario || 'Unknown scenario'}
+                          </Text>
+                          {alertCount > 0 && (
+                            <Text type="warning">
+                              <WarningOutlined /> {alertCount} cảnh báo
+                            </Text>
+                          )}
+                        </Space>
+                      }
+                      type={alertCount > 0 ? 'warning' : 'info'}
+                      showIcon
+                    />
                   )
                 })}
-              </div>
+              </Space>
             )}
-          </div>
-          <div style={{ marginBottom: 8 }}>
-            <button
-              onClick={() => setViewMode('grid')}
-              style={{
-                marginRight: 4,
-                background: viewMode === 'grid' ? '#007bff' : '#f0f0f0',
-              }}
-            >
-              Grid
-            </button>
-            <button
-              onClick={() => setViewMode('timeline')}
-              style={{
-                background: viewMode === 'timeline' ? '#007bff' : '#f0f0f0',
-              }}
-            >
-              Timeline
-            </button>
-          </div>
-          {viewMode === 'timeline' ? (
-            <div
-              style={{
-                height: 300,
-                overflow: 'auto',
-                border: '1px solid #eee',
-                padding: 8,
-              }}
-            >
-              {incidents
-                .sort((a, b) => (b.ts || 0) - (a.ts || 0))
-                .map((it) => (
-                  <div
-                    key={it.id || it.ts}
-                    style={{
-                      padding: 8,
-                      marginBottom: 8,
-                      borderLeft: `4px solid ${getSeverityColor(it.level)}`,
-                      background: '#f9f9f9',
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                      }}
-                    >
-                      <div>
-                        <strong>{it.tag || it.type}</strong>{' '}
-                        <span
-                          style={{
-                            color: getSeverityColor(it.level),
-                            fontWeight: 'bold',
-                          }}
-                        >
-                          ({it.level})
-                        </span>
-                        <div style={{ fontSize: 11, color: '#666' }}>
-                          by {it.by || it.from || it.userId}
-                        </div>
-                      </div>
-                      <div style={{ fontSize: 11, color: '#999' }}>
-                        {new Date(
-                          it.ts || it.timestamp || Date.now()
-                        ).toLocaleTimeString()}
-                      </div>
-                    </div>
-                    <div style={{ fontSize: 12, marginTop: 4 }}>
-                      {it.message || it.note}
-                    </div>
-                    {it.escalated && (
-                      <div style={{ fontSize: 11, color: '#999' }}>
-                        Escalated: {it.escalated}x
-                      </div>
-                    )}
-                  </div>
-                ))}
-            </div>
-          ) : (
-            <div
-              style={{
-                height: 300,
-                overflow: 'auto',
-                border: '1px solid #eee',
-                padding: 8,
-              }}
-            >
+          </AnalysisPanel>
+
+          {/* Incidents Panel */}
+          <Card
+            title={
+              <Space>
+                <WarningOutlined />
+                Sự cố & Cảnh báo
+              </Space>
+            }
+            extra={<Text type="secondary">{incidents.length} sự cố</Text>}
+          >
+            <ViewToggle>
+              <Button
+                type={viewMode === 'grid' ? 'primary' : 'default'}
+                icon={<AppstoreOutlined />}
+                onClick={() => setViewMode('grid')}
+              >
+                Grid
+              </Button>
+              <Button
+                type={viewMode === 'timeline' ? 'primary' : 'default'}
+                icon={<OrderedListOutlined />}
+                onClick={() => setViewMode('timeline')}
+              >
+                Timeline
+              </Button>
+            </ViewToggle>
+
+            <IncidentList>
               {incidents
                 .filter(
                   (it) =>
@@ -1563,39 +1598,56 @@ export default function ProctorTrackingSystem() {
                     it.by === selectedCandidate ||
                     it.userId === selectedCandidate
                 )
-                .map((it) => (
-                  <div
-                    key={it.id || it.ts}
-                    style={{
-                      padding: 6,
-                      borderBottom: '1px solid #f0f0f0',
-                      borderLeft: `3px solid ${getSeverityColor(it.level)}`,
-                    }}
+                .sort((a, b) => (b.ts || 0) - (a.ts || 0))
+                .map((incident, index) => (
+                  <IncidentItem
+                    key={incident.id || index}
+                    $level={incident.level}
                   >
-                    <div>
-                      <b>{it.tag || it.type}</b>{' '}
-                      <span
-                        style={{
-                          color: getSeverityColor(it.level),
-                          fontWeight: 'bold',
-                        }}
+                    <div className="header">
+                      <Tag
+                        color={
+                          incident.level === 'S3'
+                            ? 'red'
+                            : incident.level === 'S2'
+                            ? 'orange'
+                            : 'blue'
+                        }
                       >
-                        ({it.level})
-                      </span>{' '}
-                      by {it.by || it.from || it.userId}
+                        {incident.level}
+                      </Tag>
+                      <Text type="secondary" style={{ fontSize: 11 }}>
+                        {new Date(
+                          incident.ts || incident.timestamp || Date.now()
+                        ).toLocaleTimeString()}
+                      </Text>
                     </div>
-                    <div style={{ fontSize: 12, color: '#555' }}>
-                      {new Date(
-                        it.ts || it.timestamp || Date.now()
-                      ).toLocaleTimeString()}{' '}
-                      - {it.message || it.note}
+                    <div className="meta">
+                      {incident.tag || incident.type} •{' '}
+                      {incident.by || incident.from || incident.userId}
                     </div>
-                  </div>
+                    <div className="message">
+                      {incident.message || incident.note || 'Không có mô tả'}
+                    </div>
+                  </IncidentItem>
                 ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </>
+
+              {incidents.length === 0 && (
+                <div
+                  style={{
+                    textAlign: 'center',
+                    color: '#999',
+                    padding: '40px 0',
+                  }}
+                >
+                  <WarningOutlined style={{ fontSize: 24, marginBottom: 8 }} />
+                  <div>Chưa có sự cố nào</div>
+                </div>
+              )}
+            </IncidentList>
+          </Card>
+        </Sidebar>
+      </MainContent>
+    </ProctorContainer>
   )
 }
