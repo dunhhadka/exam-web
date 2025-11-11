@@ -1,4 +1,28 @@
 import React, { useState, useRef } from 'react'
+import {
+  Card,
+  Button,
+  Progress,
+  Steps,
+  Typography,
+  Row,
+  Col,
+  Image,
+  Space,
+  Alert,
+  Result,
+} from 'antd'
+import {
+  UploadOutlined,
+  CameraOutlined,
+  SafetyCertificateOutlined,
+  ArrowLeftOutlined,
+  CheckCircleFilled,
+  CloseCircleFilled,
+} from '@ant-design/icons'
+import styled from '@emotion/styled'
+
+const { Title, Text } = Typography
 
 interface VerificationResult {
   faceMatch: number
@@ -12,12 +36,90 @@ interface KYCFlowProps {
   onCancel?: () => void
 }
 
+const FlowContainer = styled.div`
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 24px;
+`
+
+const StepContent = styled(Card)`
+  margin-top: 24px;
+  text-align: center;
+`
+
+const PreviewImage = styled(Image)`
+  border-radius: 8px;
+  border: 2px solid #f0f0f0;
+  margin: 16px 0;
+`
+
+const VideoContainer = styled.div`
+  position: relative;
+  margin: 16px 0;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 2px solid #f0f0f0;
+`
+
+const SelfieVideo = styled.video`
+  width: 100%;
+  max-width: 400px;
+  display: block;
+  margin: 0 auto;
+`
+
+const ActionButtons = styled.div`
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 24px;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+  }
+`
+
+const ResultCard = styled(Card)<{ $passed: boolean }>`
+  margin: 24px 0;
+  border-left: 4px solid ${(props) => (props.$passed ? '#52c41a' : '#ff4d4f')};
+`
+
+const ScoreItem = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+
+  &:last-child {
+    border-bottom: none;
+  }
+`
+
+const steps = [
+  {
+    title: 'Upload ID',
+    icon: <UploadOutlined />,
+    description: 'CMND/CCCD',
+  },
+  {
+    title: 'Chụp Selfie',
+    icon: <CameraOutlined />,
+    description: 'Xác thực khuôn mặt',
+  },
+  {
+    title: 'Xác minh',
+    icon: <SafetyCertificateOutlined />,
+    description: 'So khớp thông tin',
+  },
+]
+
 /**
  * KYC Flow: ID upload + selfie + face match (mock)
  * Theo thiết kế: ID + selfie → ArcFace match → Liveness
  */
 export default function KYCFlow({ onComplete, onCancel }: KYCFlowProps) {
-  const [step, setStep] = useState<number>(1) // 1: ID, 2: Selfie, 3: Verify
+  const [currentStep, setCurrentStep] = useState<number>(0)
   const [idImage, setIdImage] = useState<string | null>(null)
   const [selfieImage, setSelfieImage] = useState<string | null>(null)
   const [verifying, setVerifying] = useState<boolean>(false)
@@ -42,7 +144,14 @@ export default function KYCFlow({ onComplete, onCancel }: KYCFlowProps) {
 
   const captureSelfie = async (): Promise<void> => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true })
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          facingMode: 'user',
+        },
+      })
+
       if (selfieVideoRef.current) {
         selfieVideoRef.current.srcObject = stream
         await new Promise<void>((resolve) => {
@@ -50,6 +159,7 @@ export default function KYCFlow({ onComplete, onCancel }: KYCFlowProps) {
             selfieVideoRef.current.onloadedmetadata = () => resolve()
           }
         })
+
         // Capture frame
         const canvas = selfieCanvasRef.current
         const video = selfieVideoRef.current
@@ -65,7 +175,7 @@ export default function KYCFlow({ onComplete, onCancel }: KYCFlowProps) {
         }
         // Stop stream
         stream.getTracks().forEach((t) => t.stop())
-        setStep(3)
+        setCurrentStep(2)
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error'
@@ -91,108 +201,235 @@ export default function KYCFlow({ onComplete, onCancel }: KYCFlowProps) {
     }
   }
 
+  const handleRetakeSelfie = () => {
+    setSelfieImage(null)
+    setCurrentStep(1)
+  }
+
+  const handleBackToID = () => {
+    setIdImage(null)
+    setCurrentStep(0)
+  }
+
   return (
-    <div
-      style={{
-        maxWidth: 600,
-        margin: '0 auto',
-        padding: 24,
-        border: '1px solid #ddd',
-        borderRadius: 8,
-      }}
-    >
-      <h2>Xác thực danh tính (KYC)</h2>
-
-      {step === 1 && (
-        <div>
-          <h3>Bước 1: Upload ảnh CMND/CCCD</h3>
-          <input
-            type="file"
-            accept="image/*"
-            ref={idInputRef}
-            onChange={handleIDUpload}
-            style={{ marginBottom: 12 }}
-          />
-          {idImage && (
-            <div>
-              <img
-                src={idImage}
-                alt="ID"
-                style={{ maxWidth: '100%', border: '1px solid #ccc' }}
-              />
-              <button onClick={() => setStep(2)} style={{ marginTop: 12 }}>
-                Tiếp tục
-              </button>
-            </div>
-          )}
+    <FlowContainer>
+      <Card>
+        <div style={{ textAlign: 'center', marginBottom: 32 }}>
+          <Title level={2}>Xác thực danh tính (KYC)</Title>
+          <Text type="secondary">
+            Hoàn thành 3 bước đơn giản để xác minh danh tính của bạn
+          </Text>
         </div>
-      )}
 
-      {step === 2 && (
-        <div>
-          <h3>Bước 2: Chụp ảnh selfie</h3>
-          <video
-            ref={selfieVideoRef}
-            autoPlay
-            playsInline
-            style={{ width: '100%', maxWidth: 400 }}
-          />
-          <canvas ref={selfieCanvasRef} style={{ display: 'none' }} />
-          <div style={{ marginTop: 12 }}>
-            <button onClick={captureSelfie}>Chụp ảnh</button>
-            <button onClick={() => setStep(1)} style={{ marginLeft: 8 }}>
-              Quay lại
-            </button>
-          </div>
-        </div>
-      )}
+        <Steps
+          current={currentStep}
+          items={steps}
+          style={{ marginBottom: 32 }}
+        />
 
-      {step === 3 && (
-        <div>
-          <h3>Bước 3: Xác minh</h3>
-          {selfieImage && (
-            <img
-              src={selfieImage}
-              alt="Selfie"
-              style={{
-                maxWidth: '100%',
-                border: '1px solid #ccc',
-                marginBottom: 12,
-              }}
-            />
-          )}
-          {!verifying && !result && (
-            <div>
-              <button onClick={verify}>Xác minh</button>
-              <button onClick={() => setStep(2)} style={{ marginLeft: 8 }}>
-                Chụp lại
-              </button>
-            </div>
-          )}
-          {verifying && <div>Đang xác minh...</div>}
-          {result && (
-            <div
-              style={{
-                padding: 12,
-                background: result.passed ? '#d4edda' : '#f8d7da',
-                borderRadius: 4,
-              }}
+        {/* Step 1: ID Upload */}
+        {currentStep === 0 && (
+          <StepContent>
+            <Title level={3}>📷 Upload ảnh CMND/CCCD</Title>
+            <Text
+              type="secondary"
+              style={{ display: 'block', marginBottom: 24 }}
             >
-              <div>
-                <strong>{result.message}</strong>
-              </div>
-              <div>Face Match: {(result.faceMatch * 100).toFixed(1)}%</div>
-              <div>Liveness: {(result.livenessScore * 100).toFixed(1)}%</div>
-            </div>
-          )}
-        </div>
-      )}
+              Vui lòng upload ảnh chụp rõ mặt trước và mặt sau CMND/CCCD của bạn
+            </Text>
 
-      {onCancel && (
-        <button onClick={onCancel} style={{ marginTop: 12 }}>
-          Hủy
-        </button>
-      )}
-    </div>
+            <input
+              type="file"
+              accept="image/*"
+              ref={idInputRef}
+              onChange={handleIDUpload}
+              style={{ display: 'none' }}
+            />
+
+            {!idImage ? (
+              <div>
+                <Button
+                  type="primary"
+                  icon={<UploadOutlined />}
+                  size="large"
+                  onClick={() => idInputRef.current?.click()}
+                >
+                  Chọn ảnh CMND/CCCD
+                </Button>
+                <div style={{ marginTop: 16 }}>
+                  <Text type="secondary">
+                    Định dạng: JPG, PNG • Dung lượng tối đa: 5MB
+                  </Text>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <PreviewImage src={idImage} alt="ID Document" width={300} />
+                <ActionButtons>
+                  <Button
+                    type="primary"
+                    onClick={() => setCurrentStep(1)}
+                    size="large"
+                  >
+                    Tiếp tục
+                  </Button>
+                  <Button
+                    onClick={() => idInputRef.current?.click()}
+                    size="large"
+                  >
+                    Chọn ảnh khác
+                  </Button>
+                </ActionButtons>
+              </div>
+            )}
+          </StepContent>
+        )}
+
+        {/* Step 2: Selfie Capture */}
+        {currentStep === 1 && (
+          <StepContent>
+            <Title level={3}>📸 Chụp ảnh selfie</Title>
+            <Text
+              type="secondary"
+              style={{ display: 'block', marginBottom: 24 }}
+            >
+              Đảm bảo khuôn mặt được nhìn thấy rõ ràng trong khung hình
+            </Text>
+
+            <VideoContainer>
+              <SelfieVideo ref={selfieVideoRef} autoPlay playsInline />
+            </VideoContainer>
+            <canvas ref={selfieCanvasRef} style={{ display: 'none' }} />
+
+            <ActionButtons>
+              <Button
+                type="primary"
+                icon={<CameraOutlined />}
+                onClick={captureSelfie}
+                size="large"
+              >
+                Chụp ảnh
+              </Button>
+              <Button
+                icon={<ArrowLeftOutlined />}
+                onClick={handleBackToID}
+                size="large"
+              >
+                Quay lại
+              </Button>
+            </ActionButtons>
+          </StepContent>
+        )}
+
+        {/* Step 3: Verification */}
+        {currentStep === 2 && (
+          <StepContent>
+            <Title level={3}>🔍 Xác minh thông tin</Title>
+
+            <Row gutter={[24, 24]} justify="center">
+              <Col xs={24} md={12}>
+                <Text strong>Ảnh CMND/CCCD</Text>
+                <PreviewImage
+                  src={idImage ?? ''}
+                  alt="ID Document"
+                  width={200}
+                />
+              </Col>
+              <Col xs={24} md={12}>
+                <Text strong>Ảnh Selfie</Text>
+                <PreviewImage
+                  src={selfieImage ?? ''}
+                  alt="Selfie"
+                  width={200}
+                />
+              </Col>
+            </Row>
+
+            {!verifying && !result && (
+              <ActionButtons>
+                <Button
+                  type="primary"
+                  icon={<SafetyCertificateOutlined />}
+                  onClick={verify}
+                  size="large"
+                >
+                  Bắt đầu xác minh
+                </Button>
+                <Button onClick={handleRetakeSelfie} size="large">
+                  Chụp lại selfie
+                </Button>
+                <Button
+                  icon={<ArrowLeftOutlined />}
+                  onClick={handleBackToID}
+                  size="large"
+                >
+                  Thay đổi ID
+                </Button>
+              </ActionButtons>
+            )}
+
+            {verifying && (
+              <div style={{ textAlign: 'center', padding: '40px 0' }}>
+                <Progress type="circle" percent={75} />
+                <Title level={4} style={{ marginTop: 24 }}>
+                  Đang xác minh...
+                </Title>
+                <Text type="secondary">
+                  Đang so khớp khuôn mặt và kiểm tra tính xác thực
+                </Text>
+              </div>
+            )}
+
+            {result && (
+              <ResultCard $passed={result.passed}>
+                <div style={{ textAlign: 'center' }}>
+                  {result.passed ? (
+                    <CheckCircleFilled
+                      style={{ fontSize: 48, color: '#52c41a' }}
+                    />
+                  ) : (
+                    <CloseCircleFilled
+                      style={{ fontSize: 48, color: '#ff4d4f' }}
+                    />
+                  )}
+                  <Title level={3} style={{ marginTop: 16 }}>
+                    {result.message}
+                  </Title>
+
+                  <div style={{ maxWidth: 300, margin: '0 auto' }}>
+                    <ScoreItem>
+                      <Text>Độ khớp khuôn mặt:</Text>
+                      <Text strong>{(result.faceMatch * 100).toFixed(1)}%</Text>
+                    </ScoreItem>
+                    <ScoreItem>
+                      <Text>Độ tin cậy:</Text>
+                      <Text strong>
+                        {(result.livenessScore * 100).toFixed(1)}%
+                      </Text>
+                    </ScoreItem>
+                  </div>
+
+                  {result.passed && (
+                    <Alert
+                      message="Xác thực thành công"
+                      description="Bạn đã hoàn thành quá trình xác thực danh tính"
+                      type="success"
+                      showIcon
+                      style={{ marginTop: 16 }}
+                    />
+                  )}
+                </div>
+              </ResultCard>
+            )}
+          </StepContent>
+        )}
+
+        {onCancel && (
+          <div style={{ textAlign: 'center', marginTop: 24 }}>
+            <Button onClick={onCancel}>Hủy bỏ</Button>
+          </div>
+        )}
+      </Card>
+    </FlowContainer>
   )
 }
