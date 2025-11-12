@@ -36,3 +36,24 @@ export interface RegisterTransformedRequest {
   confirmPassword: string
   isTeacher: boolean
 }
+
+export interface UserProfile {
+  email: string
+  firstName: string
+  lastName: string
+  phone: string
+  dateOfBirth: string // Instant trong Java thường map sang string ISO trong TS
+  avatarUrl: string
+  gender: Gender
+  address: string
+  deleted: boolean
+  permissions: string[]
+  roles: string[]
+}
+
+// Nếu Gender cũng là enum Java, bạn có thể định nghĩa enum TS tương ứng
+export enum Gender {
+  MALE = 'MALE',
+  FEMALE = 'FEMALE',
+  OTHER = 'OTHER',
+}

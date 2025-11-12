@@ -1,9 +1,11 @@
 import { Dayjs } from 'dayjs'
 import dayjs from 'dayjs' // Import dayjs để sử dụng
 import customParseFormat from 'dayjs/plugin/customParseFormat' // Plugin để parse custom pattern
+import isBetween from 'dayjs/plugin/isBetween'
 
 // Kích hoạt plugin
 dayjs.extend(customParseFormat)
+dayjs.extend(isBetween)
 
 export function formatInstant(instant: string): string {
   // Parse string "dd-MM-yyyy HH:mm" thành Dayjs (local time)
@@ -43,4 +45,21 @@ export function formatDateTimeToRequest(
   if (!dateTime) throw new Error()
 
   return dateTime.format('DD-MM-YYYY HH:mm')
+}
+
+export function isNowBetween(startTime: string, endTime: string): boolean {
+  const format = 'DD-MM-YYYY HH:mm'
+  const now = dayjs()
+  const start = dayjs(startTime, format)
+  const end = dayjs(endTime, format)
+
+  if (!start.isValid() || !end.isValid()) {
+    console.warn('Invalid date format in isNowBetween()', {
+      startTime,
+      endTime,
+    })
+    return false
+  }
+
+  return now.isBetween(start, end, null, '[]') // [] bao gồm cả biên
 }

@@ -1,6 +1,7 @@
 import {
   DeleteOutlined,
   EditOutlined,
+  EyeOutlined,
   ShareAltOutlined,
 } from '@ant-design/icons'
 import { Modal } from 'antd'
@@ -20,9 +21,11 @@ import {
   ExamSession,
   ExamSessionRequest,
 } from '../../types/examsession'
-import { formatInstant } from '../../utils/times'
+import { formatInstant, isNowBetween } from '../../utils/times'
 import ExamSessionCreate from './ExamSessionCreate'
 import ExamSessionViewLink from './ExamSessionViewLink'
+import ConfirmModal from '../../components/common/ConfirmModal'
+import { useNavigate } from 'react-router-dom'
 
 const ExamSessionListPage = () => {
   const columns = [
@@ -65,6 +68,15 @@ const ExamSessionListPage = () => {
         onClick: (record) => console.log('delete', record),
         danger: true,
       },
+      {
+        label: 'Giám sát làm bài',
+        icon: <EyeOutlined />,
+        onClick: (record) => {
+          setShowMonitorExam(true)
+          setCurrentExamSession(record)
+        },
+        disabled: (record) => !isNowBetween(record.startTime, record.endTime),
+      },
     ]),
   ]
 
@@ -90,6 +102,12 @@ const ExamSessionListPage = () => {
   const [viewLinkExamSession, setViewLinkExamSession] = useState<
     ExamSession | undefined
   >(undefined)
+  const [showMonitorExam, setShowMonitorExam] = useState<boolean>(false)
+
+  const navigate = useNavigate()
+
+  const [currentExamSession, setCurrentExamSession] =
+    useState<ExamSession | null>(null)
 
   const [createExamSession, { isLoading: isCreateExamSessionLoading }] =
     useCreateExamSessionMutation()
@@ -191,6 +209,24 @@ const ExamSessionListPage = () => {
         >
           <ExamSessionViewLink examsession={viewLinkExamSession} />
         </Modal>
+      )}
+      {showMonitorExam && currentExamSession && (
+        <ConfirmModal
+          open={showMonitorExam}
+          onOk={() => {
+            navigate(
+              `/protor-tracking/${currentExamSession?.code}/${'proctor'}`
+            )
+          }}
+          onCancel={() => {
+            setShowMonitorExam(false)
+            setCurrentExamSession(null)
+          }}
+          title="Giám sát làm bài"
+          content={`Bắt đầu giám sát làm bài cho bài kiểm tra: ${
+            currentExamSession?.name ?? ''
+          }`}
+        />
       )}
     </div>
   )

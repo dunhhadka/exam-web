@@ -1,4 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit'
+import { set } from 'react-hook-form'
 
 interface ExamSystemCheck {
   checkCamera?: boolean
@@ -53,6 +54,8 @@ interface TakeExamSate {
   takeExamSession: TakeExamSession
   error?: string | null
   isLoading: boolean
+  userId?: string | null
+  userEmail?: string | null
 }
 
 const initialState: TakeExamSate = {
@@ -190,6 +193,14 @@ const takeExamSlice = createSlice({
     setError: (state, action: PayloadAction<string | null>) => {
       state.error = action.payload
     },
+
+    setUserId: (state, action: PayloadAction<string | null>) => {
+      state.userId = action.payload
+    },
+
+    setUserEmail: (state, action: PayloadAction<string | null>) => {
+      state.userEmail = action.payload
+    },
   },
 })
 
@@ -209,6 +220,8 @@ export const {
   setLoading,
   setStep,
   setError,
+  setUserId,
+  setUserEmail,
 } = takeExamSlice.actions
 
 export default takeExamSlice.reducer

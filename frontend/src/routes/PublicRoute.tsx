@@ -5,7 +5,7 @@ import { Navigate, Outlet } from 'react-router-dom'
 const PublicRoute = () => {
   const { isAuthenticated } = useSelector((root: RootState) => root.auth)
 
-  return !isAuthenticated ? <Outlet /> : <Navigate to="/" replace />
+  return !isAuthenticated ? <Outlet /> : <Navigate to="/home" replace />
 }
 
 export default PublicRoute

@@ -5,6 +5,8 @@ import { UserOutlined } from '@ant-design/icons'
 import styled from '@emotion/styled'
 import { useStartExamAttemptMutation } from '../../services/api/take-exam'
 import { StartAttemptRequest } from '../../types/take-exam'
+import { useDispatch } from 'react-redux'
+import { setUserEmail, setUserId } from '../../store/slices/takeExamSlice'
 
 const CheckInInfo = () => {
   const navigate = useNavigate()
@@ -17,6 +19,8 @@ const CheckInInfo = () => {
   const tokenJoinStart = state?.tokenJoinStart
   const sessionId = state?.sessionId
   const email = state?.email
+
+  const dispatch = useDispatch()
 
   const handleSubmit = async () => {
     if (!name.trim()) {
@@ -32,6 +36,9 @@ const CheckInInfo = () => {
         email: email,
         name: name,
       }
+
+      dispatch(setUserId(name.trim()))
+      dispatch(setUserEmail(email))
 
       navigate('/do-exam', { state: { startExamRequest, tokenJoinStart } })
       // Navigate đến trang làm bài
