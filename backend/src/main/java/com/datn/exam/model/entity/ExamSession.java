@@ -65,6 +65,9 @@ public class ExamSession extends AuditableEntity{
     @Column(name = "deleted")
     private Boolean deleted = false;
 
+    @Column(name = "access_password")
+    private String accessPassword;
+
     @ManyToOne
     @JoinColumn(name = "exam_id")
     private Exam exam;

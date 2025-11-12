@@ -1,5 +1,6 @@
 package com.datn.exam.model.dto.request;
 
+import com.datn.exam.model.dto.NotificationSetting;
 import com.datn.exam.support.enums.Level;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
@@ -34,4 +35,6 @@ public class ExamUpdateRequest extends Request{
 
     @JsonProperty("isPublic")
     private boolean isPublic;
+
+    private NotificationSetting notificationSetting;
 }

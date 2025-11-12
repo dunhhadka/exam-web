@@ -6,6 +6,7 @@ spring:
     url: ${DB_URL:jdbc:mysql://localhost:3306/exam?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:password}
+
   jpa:
     hibernate:
       ddl-auto: update
@@ -48,6 +49,7 @@ spring:
           starttls:
             enable: true
           auth: true
+
 custom:
   cache:
     custom-cache:
@@ -69,3 +71,12 @@ security:
       refresh-token-expires-in: ${REFRESH_TOKEN_EXPIRES_IN:1d}
       refresh-token-long-expires-in: ${REFRESH_TOKEN_LONG_EXPIRES_IN:30d}
 
+# AWS S3 Configuration
+aws:
+  s3:
+    access-key: ${AWS_S3_ACCESS_KEY:minioadmin}
+    secret-key: ${AWS_S3_SECRET_KEY:minioadmin}
+    region: ${AWS_S3_REGION:us-east-1}
+    bucket-name: ${AWS_S3_BUCKET_NAME:exam-bucket}
+    presigned-url-expiration-minutes: ${AWS_S3_PRESIGNED_URL_EXPIRATION_MINUTES:1440}
+    base-url: ${AWS_S3_BASE_URL:http://localhost:9000}

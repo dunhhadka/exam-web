@@ -1,6 +1,7 @@
 package com.datn.exam.model.dto.request;
 
 import com.datn.exam.model.dto.ExamSessionSetting;
+import com.datn.exam.model.entity.ExamSession;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -8,6 +9,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -34,4 +36,8 @@ public class ExamSessionRequest {
 
     private ExamSessionSetting settings;
 
+    private ExamSession.AccessMode accessMode;
+    private String password;
+    private List<String> whitelistEmails;
+    private List<ExamSessionWhitelistEntryRequest> whitelistEntries;
 }

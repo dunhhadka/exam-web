@@ -52,6 +52,17 @@ export const examSessionApi = authenticatedApi.injectEndpoints({
             ]
       },
     }),
+    getExamSessionById: builder.query<ExamSession, number>({
+      query: (id) => ({
+        url: `/exam-session/${id}`,
+        method: 'GET',
+      }),
+      providesTags(result, error, id) {
+        return result
+          ? [{ type: 'ExamSession' as const, id: result.id }]
+          : [{ type: 'ExamSession' as const, id }]
+      },
+    }),
     updateExamSession: builder.mutation<
       ExamSession,
       { id: number; request: ExamSessionRequest }
@@ -80,6 +91,8 @@ export const examSessionApi = authenticatedApi.injectEndpoints({
 export const {
   useCreateExamSessionMutation,
   useFilterExamSessionQuery,
+  useGetExamSessionByIdQuery,
+  useLazyGetExamSessionByIdQuery,
   useUpdateExamSessionMutation,
   useDeleteExamSessionMutation,
 } = examSessionApi

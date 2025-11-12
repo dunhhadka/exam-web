@@ -83,7 +83,21 @@ public enum BadRequestError implements ResponseError {
     INVALID_SESSION_TOKEN(400099, "Mã phiên (session token) không hợp lệ hoặc đã hết hạn"),
     INVALID_OTP(400101, "Mã OTP không hợp lệ hoặc đã hết hạn"),
     OTP_RESEND_TOO_EARLY(400102, "Gửi lại OTP quá sớm. Vui lòng đợi %s giây trước khi thử lại."),
-    TEACHER_CANNOT_JOIN(400103, "Email của giáo viên không được phép tham gia phiên thi này.");
+    TEACHER_CANNOT_JOIN(400103, "Email của giáo viên không được phép tham gia phiên thi này."),
+    SESSION_IDENTIFIER_REQUIRED(400104, "Yêu cầu sessionId hoặc sessionCode"),
+    FILE_EMPTY(400200, "File trống"),
+    INVALID_FILE_FORMAT(400201, "Định dạng file không hợp lệ. Chỉ cho phép .xlsx hoặc .xls"),
+    INVALID_EXCEL_FILE(400202, "Không thể đọc file Excel"),
+    WHITELIST_REQUIRED(400203, "Yêu cầu danh sách whitelist khi chọn chế độ WHITELIST"),
+    INVALID_EMAIL_FORMAT(400204, "Một hoặc nhiều email có định dạng không hợp lệ"),
+    PASSWORD_REQUIRED(400205, "Yêu cầu mật khẩu để vào bài thi"),
+    INVALID_PASSWORD(400206, "Mật khẩu không đúng"),
+    INVALID_BASE64_DATA(400207, "Dữ liệu Base64 không hợp lệ"),
+    MAX_AVATARS_REACHED(400210, "Đã đạt giới hạn tối đa số lượng ảnh cho email này"),
+    INVALID_AVATAR_INDEX(400211, "Chỉ số ảnh không hợp lệ"),
+    FILE_UPLOAD_FAILED(400212, "Upload file thất bại"),
+    EXAM_ATTEMPT_NOT_SUBMITTED(400213, "Bài thi chưa được nộp"),
+    INVALID_SCORE_VALUE(400214, "Điểm số không hợp lệ")
     ;
 
     private final int code;

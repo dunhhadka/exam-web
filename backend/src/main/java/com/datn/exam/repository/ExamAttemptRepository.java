@@ -25,4 +25,16 @@ public interface ExamAttemptRepository extends JpaRepository<ExamAttempt, Long> 
             """)
     List<ExamAttempt> findByExamSessionIdAndStudentEmailAndStatus(Long sessionId, String email, ExamAttempt.AttemptStatus status);
 
+    @Query("""
+            SELECT a FROM ExamAttempt a
+                   LEFT JOIN FETCH a.attemptQuestions aq
+                   LEFT JOIN FETCH aq.answer
+                   WHERE a.examSession.id = :sessionId
+                   ORDER BY a.submittedAt DESC, a.createdAt DESC
+            """)
+    List<ExamAttempt> findByExamSessionIdOrderBySubmittedAtDesc(Long sessionId);
+
+    @Query("SELECT a FROM ExamAttempt a WHERE a.examSession.id = :sessionId")
+    List<ExamAttempt> findByExamSessionId(Long sessionId);
+
 }

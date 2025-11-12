@@ -1,6 +1,6 @@
 import styled from "@emotion/styled";
 import { Select, SelectProps, Spin } from "antd";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 
 interface Props<T = any> extends Omit<SelectProps, "options" | "onSearch"> {
   fetchData: (params: {
@@ -59,7 +59,7 @@ const DropdownLoadMore = <T,>({
     }
   };
 
-  const loadData = async (currentPage: number, search?: string) => {
+  const loadData = useCallback(async (currentPage: number, search?: string) => {
     try {
       if (currentPage === 1) {
         setLoading(true);
@@ -87,15 +87,19 @@ const DropdownLoadMore = <T,>({
       setLoading(false);
       setLoadingMore(false);
     }
-  };
+  }, [fetchData, pageSize, renderOption]);
 
   useEffect(() => {
     loadData(1);
-  }, []);
+  }, [loadData]);
 
   return (
     <StyledSelect
       {...selectProps}
+      getPopupContainer={
+        selectProps.getPopupContainer ??
+        ((triggerNode) => triggerNode?.parentElement ?? document.body)
+      }
       options={options}
       loading={loading}
       showSearch
@@ -167,34 +171,4 @@ const LoadMoreWrapper = styled.div`
   font-size: 13px;
 `;
 
-const LoadMoreButton = styled.button`
-  width: 100%;
-  padding: 8px;
-  border: none;
-  border-top: 1px solid #f0f0f0;
-  background: #fff;
-  color: #1890ff;
-  cursor: pointer;
-  font-size: 13px;
-
-  &:hover:not(:disabled) {
-    background: #f5f5f5;
-  }
-
-  &:disabled {
-    color: #999;
-    cursor: not-allowed;
-  }
-`;
-
-const FormRow = styled.div`
-  margin-bottom: 20px;
-`;
-
-const Label = styled.label`
-  display: block;
-  font-size: 14px;
-  font-weight: 500;
-  margin-bottom: 8px;
-  color: #333;
-`;
+// Additional styled wrappers for dropdown state messaging

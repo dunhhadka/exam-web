@@ -15,7 +15,9 @@ public abstract class ExamSessionMapper {
     @Mapping(source = "settings", target = "settings")
     @Mapping(source = "public", target = "publicFlag")
     @Mapping(source = "joinToken", target = "joinPath", qualifiedByName = "toJoinPath")
+    @Mapping(source = "shuffleQuestions", target = "shuffleQuestion")
     public abstract ExamSessionResponse toExamSessionResponse(ExamSession examSession);
 
+    @Mapping(target = "shuffleQuestions", source = "shuffleQuestion")
     public abstract void updateExamSession(@MappingTarget ExamSession examSession, ExamSessionRequest request);
 }
