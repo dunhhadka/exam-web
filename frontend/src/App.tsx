@@ -27,6 +27,7 @@ import CheckExamIdentity from './pages/take-exams/CheckExamIdentity'
 import PrepareCheckCandidateSystem from './pages/take-exams/PrepareCheckCandidateSystem'
 import TakeExamV2 from './pages/take-exams/TakeExamV2'
 import ProctorTrackingSystem from './pages/take-exams/ProctorTrackingSystem'
+import TakeExamV3 from './pages/take-exams/TakeExamV3'
 
 function App() {
   return (
@@ -48,7 +49,7 @@ function App() {
                     element={<CheckinValidateToken />}
                   />
                   <Route path="/exam-checkin-info" element={<CheckInInfo />} />
-                  <Route path="/do-exam" element={<TakeExamV2 />} />
+                  <Route path="/do-exam" element={<TakeExamV3 />} />
                   <Route path="/finish-exam" element={<FinishExam />} />
                   <Route
                     path="/check-exam-system"
