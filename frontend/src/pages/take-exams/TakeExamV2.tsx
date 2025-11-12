@@ -370,9 +370,29 @@ export default function Candidate() {
         signaling.on('answer', async (data: any) => {
           // Accept answer from server (SFU mode) or from proctor (P2P mode)
           if (data.to && data.to !== userId && data.from !== 'server') return
+
           if (pcRef.current) {
-            console.log('Received answer from:', data.from)
-            await setRemoteDescription(pcRef.current, data.sdp)
+            console.log(
+              'Received answer from:',
+              data.from,
+              'Current state:',
+              pcRef.current.signalingState
+            )
+
+            // Chỉ set remote description nếu đang trong trạng thái chờ answer
+            if (pcRef.current.signalingState === 'have-local-offer') {
+              try {
+                await setRemoteDescription(pcRef.current, data.sdp)
+                console.log('Successfully set remote description')
+              } catch (error) {
+                console.error('Failed to set remote description:', error)
+              }
+            } else {
+              console.warn(
+                'Ignoring answer - wrong signaling state:',
+                pcRef.current.signalingState
+              )
+            }
           }
         })
         signaling.on('ice', async (data: any) => {
