@@ -43,7 +43,7 @@ const CheckinExam = () => {
 
   const [getSessionInfo, { isLoading: isLoadingInfo }] =
     useLazyGetSessionInfoQuery()
-  const [joinExamByCode, { isLoading: isLoadingJoin }] =
+  const [joinExamByCode, { isLoading: isJoinExamLoading }] =
     useJoinExamByCodeMutation()
   const [requestOtp, { isLoading: isRequestOtpLoading }] =
     useRequestOtpMutation()
@@ -131,40 +131,40 @@ const CheckinExam = () => {
       return
     }
 
+    navigate(`/candidate/${examCode}/${email}`)
+
     try {
       // Step 1: Verify session access (password check if needed)
-      const joinRequest: any = { code: examCode }
-      if (requiresPassword) {
-        joinRequest.password = password
-      }
-
-      await joinExamByCode(joinRequest).unwrap()
-
-      // Step 2: Request OTP
-      await requestOtp({ sessionCode: examCode, email: email }).unwrap()
-
-      // Step 3: Navigate to OTP verification
-      navigate('/exam-checkin-verify-code', {
-        state: {
-          examCode,
-          email,
-        },
-      })
+      // const joinRequest: any = { code: examCode }
+      // if (requiresPassword) {
+      //   joinRequest.password = password
+      // }
+      // await joinExamByCode(joinRequest).unwrap()
+      // // Step 2: Request OTP
+      // await requestOtp({ sessionCode: examCode, email: email }).unwrap()
+      // // Step 3: Navigate to OTP verification
+      // navigate('/exam-checkin-verify-code', {
+      //   state: {
+      //     examCode,
+      //     email,
+      //   },
+      // })
     } catch (err: any) {
       const errorMessage =
         err?.data?.message || 'Có lỗi xảy ra, vui lòng thử lại'
       toast.error(errorMessage)
-    navigate(`/candidate/${examCode}/${email}`)
+      navigate(`/candidate/${examCode}/${email}`)
 
-    // try {
-    //   await requestOtp({ sessionCode: examCode, email: email })
-    //   navigate('/exam-checkin-verify-code', {
-    //     state: {
-    //       examCode,
-    //       email,
-    //     },
-    //   })
-    // } catch (err) {}
+      // try {
+      //   await requestOtp({ sessionCode: examCode, email: email })
+      //   navigate('/exam-checkin-verify-code', {
+      //     state: {
+      //       examCode,
+      //       email,
+      //     },
+      //   })
+      // } catch (err) {}
+    }
   }
 
   const handleSubmit = async () => {
@@ -329,7 +329,7 @@ const CheckinExam = () => {
                 type="primary"
                 size="large"
                 block
-                loading={isLoadingJoin || isRequestOtpLoading}
+                loading={isJoinExamLoading || isRequestOtpLoading}
                 disabled={
                   !sessionChecked ||
                   !emailValid ||
@@ -341,7 +341,7 @@ const CheckinExam = () => {
                 <ArrowRightOutlined style={{ marginLeft: '8px' }} />
               </SubmitButton>
             </ButtonGroup>
-            <SubmitButton
+            {/* <SubmitButton
               type="primary"
               size="large"
               block
@@ -350,7 +350,7 @@ const CheckinExam = () => {
               onClick={handleRequestOtp}
             >
               Tiếp tục
-            </SubmitButton>
+            </SubmitButton> */}
           </FormContent>
         </Card>
 

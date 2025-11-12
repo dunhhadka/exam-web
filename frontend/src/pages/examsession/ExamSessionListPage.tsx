@@ -35,6 +35,7 @@ import ExamSessionViewLink from './ExamSessionViewLink'
 import { UserManagementModal } from './UserManagementModal'
 import ConfirmModal from '../../components/common/ConfirmModal'
 import { useNavigate } from 'react-router-dom'
+import { createActionColumns } from '../../components/search/createActionColumn'
 
 const ExamSessionListPage = () => {
   const [selectedSession, setSelectedSession] = useState<ExamSession | null>(
@@ -156,58 +157,60 @@ const ExamSessionListPage = () => {
             </button>
           </Dropdown>
           {/* Các action buttons khác */}
-          {[
-            {
-              label: 'Mời qua link',
-              icon: <ShareAltOutlined />,
-              onClick: () => setViewLinkExamSession(record),
-            },
-            {
-              label: 'Cập nhật',
-              icon: <EditOutlined />,
-              onClick: () => handleEditExamSession(record),
-            },
-            {
-              label: 'Xoá',
-              icon: <DeleteOutlined />,
-              onClick: () => console.log('delete', record),
-              danger: true,
-            },
-            {
-              label: 'Giám sát làm bài',
-              icon: <EyeOutlined />,
-              onClick: (record) => {
-                setShowMonitorExam(true)
-                setCurrentExamSession(record)
-              },
-              disabled: (record) => !isNowBetween(record.startTime, record.endTime),
-            },
-          ].map((action, index) => (
-            <button
-              key={index}
-              onClick={action.onClick}
-              title={action.label}
-              style={{
-                width: 32,
-                height: 32,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                border: 'none',
-                background: 'transparent',
-                color: action.danger ? '#ff4d4f' : '#1890ff',
-                cursor: 'pointer',
-                borderRadius: '4px',
-                fontSize: '16px',
-              }}
-            >
-              {action.icon}
-            </button>
-          ))}
         </div>
       ),
-    }
+    },
+    createActionColumns<ExamSession>([
+      {
+        label: 'Mời qua link',
+        icon: <ShareAltOutlined />,
+        onClick: (record) => setViewLinkExamSession(record),
+      },
+      {
+        label: 'Cập nhật',
+        icon: <EditOutlined />,
+        onClick: (record) => handleEditExamSession(record),
+      },
+      {
+        label: 'Xoá',
+        icon: <DeleteOutlined />,
+        onClick: (record) => console.log('delete', record),
+        danger: true,
+      },
+      {
+        label: 'Giám sát làm bài',
+        icon: <EyeOutlined />,
+        onClick: (record) => {
+          setShowMonitorExam(true)
+          setCurrentExamSession(record)
+        },
+        disabled: (record) => !isNowBetween(record.startTime, record.endTime),
+      },
+    ]),
   ]
+
+  // .map((action, index) => (
+  //       <button
+  //         key={index}
+  //         onClick={action.onClick}
+  //         title={action.label}
+  //         style={{
+  //           width: 32,
+  //           height: 32,
+  //           display: 'flex',
+  //           alignItems: 'center',
+  //           justifyContent: 'center',
+  //           border: 'none',
+  //           background: 'transparent',
+  //           color: action.danger ? '#ff4d4f' : '#1890ff',
+  //           cursor: 'pointer',
+  //           borderRadius: '4px',
+  //           fontSize: '16px',
+  //         }}
+  //       >
+  //         {action.icon}
+  //       </button>
+  //     ))
 
   const [filter, setFilter] = useState<ExamFilterRequest>({
     pageIndex: 1,
@@ -328,7 +331,9 @@ const ExamSessionListPage = () => {
       {openCreateAssignmentModal && (
         <Modal
           open={openCreateAssignmentModal}
-          title={examSessionUpdate ? 'Cập nhật bài kiểm tra' : 'Tạo bài kiểm tra mới'}
+          title={
+            examSessionUpdate ? 'Cập nhật bài kiểm tra' : 'Tạo bài kiểm tra mới'
+          }
           onCancel={closeCreateAssignmentModal}
           width={'60%'}
           footer={null}
