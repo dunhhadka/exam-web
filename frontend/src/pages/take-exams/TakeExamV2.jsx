@@ -1,5 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react'
+import Tesseract from 'tesseract.js'
 import { useParams } from 'react-router-dom'
+import { SignalingClient } from '../take-exams/js/signaling'
+import { createPeer, addLocalStream, createAndSetOffer, setRemoteDescription } from '../take-exams/js/webrtc'
+import { RecordingService } from '../take-exams/js/recording'
+import { useSelector } from 'react-redux'
+import TakeExamContent from './ExamContent'
 import {
   Card,
   Button,
@@ -15,6 +21,8 @@ import {
   Progress,
   List,
   Statistic,
+  Modal,
+  FloatButton,
 } from 'antd'
 import {
   PlayCircleOutlined,
@@ -35,93 +43,10 @@ import {
   ReloadOutlined,
 } from '@ant-design/icons'
 import styled from '@emotion/styled'
-import { RecordingService } from './js/recording'
-import { SignalingClient } from './js/signaling'
-import {
-  addLocalStream,
-  createAndSetOffer,
-  createPeer,
-  setRemoteDescription,
-} from './js/webrtc'
-import { useSelector } from 'react-redux'
-import { RootState } from '../../store'
-import { useScreenOCR } from './js/useScreen'
 
-const SIGNALING_BASE =
-  //import.meta.env.VITE_SIGNALING_URL ||
-  'http://localhost:8000'
-
-interface Checklist {
-  cam: boolean
-  screen: boolean
-  oneDisplay: boolean
-  noHeadset: boolean
-}
-
-interface Message {
-  from: string
-  text: string
-}
-
-interface Alert {
-  message: string
-  timestamp: number
-  severity?: string
-  type?: string
-}
-
-interface AIAnalysis {
-  result?: {
-    alert?: Alert
-  }
-}
-
-interface AIStatus {
-  candidate_id?: string
-  timestamp: number
-  scenario: string
-  analyses?: AIAnalysis[]
-}
-
-interface UseScreenOCRParams {
-  screenVideoRef: React.RefObject<HTMLVideoElement | null>
-  canvasRef: React.RefObject<HTMLCanvasElement | null>
-  sigRef: React.RefObject<{ send: (msg: any) => void } | null>
-  userId?: string | null
-}
-
-// Extend RTCPeerConnection type to include custom properties
-interface ExtendedRTCPeerConnection extends RTCPeerConnection {
-  _trackLabels?: Map<string, string>
-  _cameraSender?: RTCRtpSender
-  _screenSender?: RTCRtpSender
-}
-
-// Types (giữ nguyên từ code gốc)
-interface Message {
-  from: string
-  text: string
-}
-
-interface Alert {
-  message: string
-  timestamp: number
-  severity?: string
-  type?: string
-}
-
-interface AIAnalysis {
-  result?: {
-    alert?: Alert
-  }
-}
-
-interface AIStatus {
-  candidate_id?: string
-  timestamp: number
-  scenario: string
-  analyses?: AIAnalysis[]
-}
+const SIGNALING_BASE = (
+  // import.meta.env.VITE_SIGNALING_URL || 
+  'http://localhost:8000')
 
 // Styled Components
 const CandidateContainer = styled.div`
@@ -132,14 +57,30 @@ const CandidateContainer = styled.div`
 
 const MainGrid = styled.div`
   display: grid;
-  grid-template-columns: 1.5fr 1fr;
+  grid-template-columns: 75% 25%;
   gap: 24px;
-  max-width: 1400px;
+  max-width: 1800px;
   margin: 0 auto;
+  height: calc(100vh - 200px);
 
   @media (max-width: 1200px) {
     grid-template-columns: 1fr;
   }
+`
+
+const ExamSection = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: 100%;
+`
+
+const MonitoringSection = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: 100%;
+  overflow-y: auto;
 `
 
 const VideoCard = styled(Card)`
@@ -148,12 +89,12 @@ const VideoCard = styled(Card)`
   }
 `
 
-const VideoContainer = styled.div<{ $isScreen?: boolean }>`
+const VideoContainer = styled.div`
   position: relative;
   background: #000;
   border-radius: 8px;
   overflow: hidden;
-  min-height: ${(props) => (props.$isScreen ? '240px' : '360px')};
+  min-height: ${props => props.$isScreen ? '200px' : '250px'};
   display: flex;
   align-items: center;
   justify-content: center;
@@ -191,7 +132,7 @@ const ControlBar = styled.div`
   backdrop-filter: blur(10px);
 `
 
-const AudioLevel = styled.div<{ $level: number; $muted: boolean }>`
+const AudioLevel = styled.div`
   flex: 1;
   height: 6px;
   background: #333;
@@ -201,23 +142,18 @@ const AudioLevel = styled.div<{ $level: number; $muted: boolean }>`
   &::after {
     content: '';
     display: block;
-    width: ${(props) => props.$level * 100}%;
+    width: ${props => props.$level * 100}%;
     height: 100%;
-    background: ${(props) => (props.$muted ? '#666' : '#52c41a')};
+    background: ${props => props.$muted ? '#666' : '#52c41a'};
     transition: width 0.1s;
   }
 `
 
-const StatusBadge = styled.div<{
-  $status: 'connected' | 'disconnected' | 'recording'
-}>`
+const StatusBadge = styled.div`
   padding: 4px 12px;
-  background: ${(props) =>
-    props.$status === 'connected'
-      ? '#52c41a'
-      : props.$status === 'recording'
-      ? '#ff4d4f'
-      : '#faad14'};
+  background: ${props => 
+    props.$status === 'connected' ? '#52c41a' : 
+    props.$status === 'recording' ? '#ff4d4f' : '#faad14'};
   color: white;
   border-radius: 4px;
   font-size: 12px;
@@ -227,17 +163,16 @@ const StatusBadge = styled.div<{
   gap: 4px;
 `
 
-const AIStatusPanel = styled(Card)<{ $hasAlerts: boolean }>`
-  border-left: 4px solid
-    ${(props) => (props.$hasAlerts ? '#faad14' : '#52c41a')};
-  background: ${(props) => (props.$hasAlerts ? '#fffbe6' : '#f6ffed')};
+const AIStatusPanel = styled(Card)`
+  border-left: 4px solid ${props => props.$hasAlerts ? '#faad14' : '#52c41a'};
+  background: ${props => props.$hasAlerts ? '#fffbe6' : '#f6ffed'};
 
   .ant-card-body {
     padding: 16px;
   }
 `
 
-const ChecklistItem = styled.div<{ $checked: boolean }>`
+const ChecklistItem = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
@@ -249,30 +184,30 @@ const ChecklistItem = styled.div<{ $checked: boolean }>`
   }
 
   .anticon {
-    color: ${(props) => (props.$checked ? '#52c41a' : '#d9d9d9')};
+    color: ${props => props.$checked ? '#52c41a' : '#d9d9d9'};
     font-size: 16px;
   }
 `
 
-const ChatPanel = styled(Card)`
-  .ant-card-body {
+const ChatModal = styled(Modal)`
+  .ant-modal-body {
     padding: 0;
   }
 `
 
 const MessageList = styled.div`
-  height: 200px;
+  height: 300px;
   overflow-y: auto;
   padding: 16px;
   border-bottom: 1px solid #f0f0f0;
 `
 
-const MessageItem = styled.div<{ $isOwn?: boolean }>`
+const MessageItem = styled.div`
   margin-bottom: 8px;
   padding: 8px 12px;
-  background: ${(props) => (props.$isOwn ? '#e6f7ff' : '#f5f5f5')};
+  background: ${props => props.$isOwn ? '#e6f7ff' : '#f5f5f5'};
   border-radius: 8px;
-  border: 1px solid ${(props) => (props.$isOwn ? '#91d5ff' : '#d9d9d9')};
+  border: 1px solid ${props => props.$isOwn ? '#91d5ff' : '#d9d9d9'};
 
   .sender {
     font-weight: bold;
@@ -292,49 +227,56 @@ const ChatInputContainer = styled.div`
   gap: 8px;
 `
 
-// Component chính (giữ nguyên logic, chỉ thay đổi JSX)
+const ExamContent = styled.div`
+  flex: 1;
+  background: white;
+  border-radius: 8px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  border: 2px dashed #d9d9d9;
+  min-height: 600px;
+`
+
 export default function Candidate() {
   const { userId, userEmail, takeExamSession } = useSelector(
-    (state: RootState) => state.takeExam
+    (state) => state.takeExam
   )
 
   const roomId = takeExamSession.examCode
+  const [connected, setConnected] = useState(false)
+  const [chat, setChat] = useState('')
+  const [msgs, setMsgs] = useState([])
+  const [checklist, setChecklist] = useState({ cam: false, screen: false, oneDisplay: false, noHeadset: false })
+  const [kycComplete, setKycComplete] = useState(true)
+  const [checkInComplete, setCheckInComplete] = useState(true)
+  const [recording, setRecording] = useState(false)
+  const [micMuted, setMicMuted] = useState(false)
+  const [camEnabled, setCamEnabled] = useState(true)
+  const [isSharingScreen, setIsSharingScreen] = useState(false)
+  const [audioLevel, setAudioLevel] = useState(0)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
+  const [aiStatus, setAiStatus] = useState(null)
+  const [recentAlerts, setRecentAlerts] = useState([])
+  const [chatModalVisible, setChatModalVisible] = useState(false)
 
-  const [connected, setConnected] = useState<boolean>(false)
-  const [chat, setChat] = useState<string>('')
-  const [msgs, setMsgs] = useState<Message[]>([])
-  const [checklist, setChecklist] = useState<Checklist>({
-    cam: false,
-    screen: false,
-    oneDisplay: false,
-    noHeadset: false,
-  })
-  const [kycComplete, setKycComplete] = useState<boolean>(true)
-  const [checkInComplete, setCheckInComplete] = useState<boolean>(true)
-  const [recording, setRecording] = useState<boolean>(false)
-  const [micMuted, setMicMuted] = useState<boolean>(false)
-  const [camEnabled, setCamEnabled] = useState<boolean>(true)
-  const [isSharingScreen, setIsSharingScreen] = useState<boolean>(false)
-  const [audioLevel, setAudioLevel] = useState<number>(0)
-  const [loading, setLoading] = useState<boolean>(false)
-  const [error, setError] = useState<string | null>(null)
-  const [aiStatus, setAiStatus] = useState<AIStatus | null>(null)
-  const [recentAlerts, setRecentAlerts] = useState<Alert[]>([])
+  const recordingServiceRef = useRef(new RecordingService())
+  const cameraStreamRef = useRef(null)
+  const screenStreamRef = useRef(null)
+  const audioContextRef = useRef(null)
+  const analyserRef = useRef(null)
 
-  const recordingServiceRef = useRef<RecordingService>(new RecordingService())
-  const cameraStreamRef = useRef<MediaStream | null>(null)
-  const screenStreamRef = useRef<MediaStream | null>(null)
-  const audioContextRef = useRef<AudioContext | null>(null)
-  const analyserRef = useRef<AnalyserNode | null>(null)
-
-  const localVideoRef = useRef<HTMLVideoElement>(null)
-  const screenVideoRef = useRef<HTMLVideoElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const remoteVideoRef = useRef<HTMLVideoElement>(null)
-  const pcRef = useRef<ExtendedRTCPeerConnection | null>(null)
-  const sigRef = useRef<SignalingClient | null>(null)
-  const dcRef = useRef<RTCDataChannel | null>(null)
-  const detectionRef = useRef<{ running: boolean }>({ running: false })
+  const localVideoRef = useRef(null)
+  const screenVideoRef = useRef(null)
+  const canvasRef = useRef(null)
+  const remoteVideoRef = useRef(null)
+  const pcRef = useRef(null)
+  const sigRef = useRef(null)
+  const dcRef = useRef(null)
+  const detectionRef = useRef({ running: false })
 
   // Start OCR loop at component mount (top-level hook usage)
   useScreenOCR({ screenVideoRef, canvasRef, sigRef, userId })
@@ -352,154 +294,104 @@ export default function Candidate() {
         // Wait for refs to be ready
         let retries = 0
         while (!localVideoRef.current && retries < 10) {
-          await new Promise((resolve) => setTimeout(resolve, 100))
+          await new Promise(resolve => setTimeout(resolve, 100))
           retries++
         }
         if (!localVideoRef.current) {
           throw new Error('Video element not ready')
         }
 
-        const signaling = new SignalingClient({
-          baseUrl: SIGNALING_BASE,
-          roomId: roomId!,
-          userId: userId!,
-          role: 'candidate',
-        })
+        const signaling = new SignalingClient({ baseUrl: SIGNALING_BASE, roomId, userId, role: 'candidate' })
         sigRef.current = signaling
-
-        signaling.on('answer', async (data: any) => {
-          // Accept answer from server (SFU mode) or from proctor (P2P mode)
+        
+        signaling.on('answer', async (data) => {
           if (data.to && data.to !== userId && data.from !== 'server') return
-
           if (pcRef.current) {
-            console.log(
-              'Received answer from:',
-              data.from,
-              'Current state:',
-              pcRef.current.signalingState
-            )
-
-            // Chỉ set remote description nếu đang trong trạng thái chờ answer
-            if (pcRef.current.signalingState === 'have-local-offer') {
-              try {
-                await setRemoteDescription(pcRef.current, data.sdp)
-                console.log('Successfully set remote description')
-              } catch (error) {
-                console.error('Failed to set remote description:', error)
-              }
-            } else {
-              console.warn(
-                'Ignoring answer - wrong signaling state:',
-                pcRef.current.signalingState
-              )
-            }
+            console.log('Received answer from:', data.from)
+            await setRemoteDescription(pcRef.current, data.sdp)
           }
         })
-        signaling.on('ice', async (data: any) => {
+        signaling.on('ice', async (data) => {
           if (data.to && data.to !== userId) return
           if (pcRef.current) {
-            try {
-              await pcRef.current.addIceCandidate(data.candidate)
-            } catch (e) {
+            try { await pcRef.current.addIceCandidate(data.candidate) } catch (e) {
               console.warn('ICE candidate error:', e)
             }
           }
         })
-        signaling.on('control', (data: any) => {
+        signaling.on('control', (data) => {
           if (data.to && data.to !== userId) return
           if (pcRef.current) {
             if (data.action === 'pause') {
-              pcRef.current
-                .getSenders()
-                .forEach((s) => s.track && (s.track.enabled = false))
+              pcRef.current.getSenders().forEach(s => s.track && (s.track.enabled = false))
               alert('Phiên tạm dừng bởi giám thị')
             } else if (data.action === 'end') {
-              try {
-                pcRef.current.close()
-              } catch {}
+              try { pcRef.current.close() } catch {}
               alert('Phiên kết thúc bởi giám thị')
             }
           }
         })
-        signaling.on('chat', (data: any) => {
-          setMsgs((m) => [...m, { from: data.from, text: data.text }])
+        signaling.on('chat', (data) => {
+          setMsgs(m => [...m, { from: data.from, text: data.text }])
         })
-
-        // Listen for AI analysis updates
-        signaling.on('ai_analysis', (data: any) => {
+        
+        signaling.on('ai_analysis', (data) => {
           console.log('[Candidate] AI Analysis received:', data)
-          console.log(
-            '[Candidate] Current userId:',
-            userId,
-            'Data candidate_id:',
-            data.data?.candidate_id
-          )
-
-          // Only process if this is for current candidate
+          console.log('[Candidate] Current userId:', userId, 'Data candidate_id:', data.data?.candidate_id)
+          
           if (data.data?.candidate_id === userId) {
-            console.log(
-              '[Candidate] ✅ Processing AI analysis for this candidate'
-            )
+            console.log('[Candidate] ✅ Processing AI analysis for this candidate')
             setAiStatus(data.data)
-
-            // If there are alerts, add to recent alerts (keep last 5)
+            
             if (data.data?.analyses) {
-              const alerts: Alert[] = data.data.analyses
-                .filter((a: AIAnalysis) => a.result?.alert)
-                .map((a: AIAnalysis) => ({
-                  ...a.result!.alert!,
-                  timestamp: data.data.timestamp,
+              const alerts = data.data.analyses
+                .filter(a => a.result?.alert)
+                .map(a => ({
+                  ...a.result.alert,
+                  timestamp: data.data.timestamp
                 }))
-
+              
               if (alerts.length > 0) {
                 console.log('[Candidate] ⚠️ Alerts found:', alerts.length)
-                setRecentAlerts((prev) => [...alerts, ...prev].slice(0, 5))
+                setRecentAlerts(prev => [...alerts, ...prev].slice(0, 5))
               }
             }
           } else {
             console.log('[Candidate] ❌ Skipping - not for this candidate')
           }
         })
-
+        
         signaling.on('close', () => {
           setConnected(false)
         })
 
-        // Connect to signaling server
         try {
           await signaling.connect()
           console.log('WebSocket connected')
         } catch (error) {
           console.error('Failed to connect to signaling server:', error)
-          alert(
-            'Không thể kết nối đến server. Vui lòng kiểm tra backend đang chạy.'
-          )
+          alert('Không thể kết nối đến server. Vui lòng kiểm tra backend đang chạy.')
           return
         }
 
-        // Create peer connection
-        const { pc, dc } = (await createPeer({
-          onTrack: (ev: RTCTrackEvent) => {
-            // Handle incoming track from proctor (if any)
+        const { pc, dc } = await createPeer({
+          onTrack: (ev) => { 
             const stream = ev.streams?.[0] || new MediaStream([ev.track])
             if (remoteVideoRef.current) {
               remoteVideoRef.current.srcObject = stream
             }
           },
-          onIce: (candidate: RTCIceCandidate) =>
-            signaling.send({ type: 'ice', candidate }),
-          onDataMessage: (text: string) =>
-            setMsgs((m) => [...m, { from: 'peer', text }]),
-        })) as { pc: ExtendedRTCPeerConnection; dc: RTCDataChannel }
+          onIce: (candidate) => signaling.send({ type: 'ice', candidate }),
+          onDataMessage: (text) => setMsgs(m => [...m, { from: 'peer', text }])
+        })
         pcRef.current = pc
         dcRef.current = dc
 
-        // Get camera + mic stream
-        let stream: MediaStream
+        let stream
         try {
-          stream = await navigator.mediaDevices.getUserMedia({
+          stream = await navigator.mediaDevices.getUserMedia({ 
             video: { width: 1280, height: 720, frameRate: 24 },
-            audio: { echoCancellation: true, noiseSuppression: true },
+            audio: { echoCancellation: true, noiseSuppression: true }
           })
         } catch (error) {
           console.error('Failed to get user media:', error)
@@ -508,50 +400,37 @@ export default function Candidate() {
         }
 
         cameraStreamRef.current = stream
-        setChecklist((c) => ({ ...c, cam: true }))
-
-        // Add camera stream to peer connection with label
+        setChecklist(c => ({ ...c, cam: true }))
+        
         await addLocalStream(pc, stream, 'camera')
-        console.log(
-          'Added camera stream to PC, senders:',
-          pc.getSenders().map((s) => ({
-            kind: s.track?.kind,
-            id: s.track?.id,
-            label: pc._trackLabels?.get(s.track?.id ?? ''),
-          }))
-        )
+        console.log('Added camera stream to PC, senders:', pc.getSenders().map(s => ({
+          kind: s.track?.kind,
+          id: s.track?.id,
+          label: pc._trackLabels?.get(s.track?.id)
+        })))
 
-        // Store camera sender for later use
-        const cameraSender = pc.getSenders().find((s) => {
+        const cameraSender = pc.getSenders().find(s => {
           if (!s.track || s.track.kind !== 'video') return false
           const label = pc._trackLabels?.get(s.track.id)
           return label === 'camera'
         })
         pcRef.current._cameraSender = cameraSender
         console.log('Camera sender stored:', cameraSender?.track?.id)
-
-        // Setup audio level monitoring
+        
         try {
-          const ctx = new (window.AudioContext ||
-            (window as any).webkitAudioContext)()
+          const ctx = new (window.AudioContext || window.webkitAudioContext)()
           const source = ctx.createMediaStreamSource(stream)
           const analyser = ctx.createAnalyser()
           analyser.fftSize = 256
           source.connect(analyser)
           audioContextRef.current = ctx
           analyserRef.current = analyser
-
-          // Monitor audio level
+          
           const dataArray = new Uint8Array(analyser.frequencyBinCount)
           const updateLevel = () => {
-            if (
-              analyserRef.current &&
-              !micMuted &&
-              audioContextRef.current?.state === 'running'
-            ) {
+            if (analyserRef.current && !micMuted && audioContextRef.current?.state === 'running') {
               analyserRef.current.getByteFrequencyData(dataArray)
-              const average =
-                dataArray.reduce((a, b) => a + b) / dataArray.length
+              const average = dataArray.reduce((a, b) => a + b) / dataArray.length
               setAudioLevel(average / 255)
             } else {
               setAudioLevel(0)
@@ -564,8 +443,7 @@ export default function Candidate() {
         } catch (e) {
           console.warn('Audio monitoring failed:', e)
         }
-
-        // Start recording
+        
         try {
           recordingServiceRef.current.startRecording(stream, 'camera')
           setRecording(true)
@@ -573,46 +451,36 @@ export default function Candidate() {
           console.warn('Recording failed:', e)
         }
 
-        // Create and send offer with track info metadata
         const offer = await createAndSetOffer(pc)
-
-        // Build track info for proctor
-        const trackInfo = pc
-          .getSenders()
-          .filter((s) => s.track && s.track.kind === 'video')
+        
+        const trackInfo = pc.getSenders()
+          .filter(s => s.track && s.track.kind === 'video')
           .map((s, index) => ({
-            trackId: s.track!.id,
-            label:
-              pc._trackLabels?.get(s.track!.id) ||
-              (index === 0 ? 'camera' : 'screen'),
-            kind: s.track!.kind,
+            trackId: s.track.id,
+            label: pc._trackLabels?.get(s.track.id) || (index === 0 ? 'camera' : 'screen'),
+            kind: s.track.kind
           }))
-
-        console.log(
-          'Created offer, sending to signaling server. Senders:',
-          pc.getSenders().length,
-          'Track info:',
-          trackInfo
-        )
+        
+        console.log('Created offer, sending to signaling server. Senders:', pc.getSenders().length, 'Track info:', trackInfo)
         signaling.send({ type: 'offer', sdp: offer, trackInfo })
         setConnected(true)
         setLoading(false)
         console.log('Peer connection established, waiting for answer...')
-      } catch (error: any) {
+      } catch (error) {
         console.error('Init failed:', error)
         setError(error.message)
         setLoading(false)
       }
     }
-
+    
     init()
-
-    return () => {
-      try {
+    
+    return () => { 
+      try { 
         sigRef.current?.close()
         pcRef.current?.close()
-        cameraStreamRef.current?.getTracks().forEach((t) => t.stop())
-        screenStreamRef.current?.getTracks().forEach((t) => t.stop())
+        cameraStreamRef.current?.getTracks().forEach(t => t.stop())
+        screenStreamRef.current?.getTracks().forEach(t => t.stop())
         audioContextRef.current?.close()
       } catch (e) {
         console.warn('Cleanup error:', e)
@@ -620,68 +488,46 @@ export default function Candidate() {
     }
   }, [roomId, userId, kycComplete, checkInComplete])
 
-  // Set camera preview when stream is ready and ref is available
   useEffect(() => {
     const setupPreview = () => {
-      if (
-        cameraStreamRef.current &&
-        localVideoRef.current &&
-        !loading &&
-        connected
-      ) {
+      if (cameraStreamRef.current && localVideoRef.current && !loading && connected) {
         const video = localVideoRef.current
         const stream = cameraStreamRef.current
-
+        
         if (video.srcObject !== stream) {
           video.srcObject = stream
           video.muted = true
-
+          
           const handleLoadedMetadata = () => {
-            video.play().catch((err) => {
+            video.play().catch(err => {
               console.warn('Video play failed:', err)
             })
           }
-
+          
           if (video.readyState >= 2) {
             handleLoadedMetadata()
           } else {
             video.onloadedmetadata = handleLoadedMetadata
           }
-
+          
           console.log('Camera preview set')
         }
       }
     }
-
+    
     setupPreview()
     const timer = setTimeout(setupPreview, 100)
-
+    
     return () => clearTimeout(timer)
   }, [loading, connected])
 
-  // A3: tab visibility / blur detection
   useEffect(() => {
     const onVis = () => {
       if (document.hidden) {
-        sigRef.current?.send({
-          type: 'incident',
-          tag: 'A3',
-          level: 'S1',
-          note: 'Tab hidden/blur',
-          ts: Date.now(),
-          by: userId,
-        })
+        sigRef.current?.send({ type: 'incident', tag: 'A3', level: 'S1', note: 'Tab hidden/blur', ts: Date.now(), by: userId })
       }
     }
-    const onBlur = () =>
-      sigRef.current?.send({
-        type: 'incident',
-        tag: 'A3',
-        level: 'S1',
-        note: 'Window blur',
-        ts: Date.now(),
-        by: userId,
-      })
+    const onBlur = () => sigRef.current?.send({ type: 'incident', tag: 'A3', level: 'S1', note: 'Window blur', ts: Date.now(), by: userId })
     document.addEventListener('visibilitychange', onVis)
     window.addEventListener('blur', onBlur)
     return () => {
@@ -690,11 +536,10 @@ export default function Candidate() {
     }
   }, [userId])
 
-  // A1/A2: Basic face detection
   useEffect(() => {
-    let rafId: number
+    let rafId
     let noFaceSince = 0
-    const FaceDetectorCtor = (window as any).FaceDetector
+    const FaceDetectorCtor = window.FaceDetector
     if (!FaceDetectorCtor) return
     const detector = new FaceDetectorCtor({ fastMode: true })
     detectionRef.current.running = true
@@ -708,51 +553,33 @@ export default function Candidate() {
           if (count === 0) {
             if (noFaceSince === 0) noFaceSince = Date.now()
             if (Date.now() - noFaceSince > 30000) {
-              sigRef.current?.send({
-                type: 'incident',
-                tag: 'A1',
-                level: 'S2',
-                note: 'Mất khuôn mặt >30s',
-                ts: Date.now(),
-                by: userId,
-              })
+              sigRef.current?.send({ type: 'incident', tag: 'A1', level: 'S2', note: 'Mất khuôn mặt >30s', ts: Date.now(), by: userId })
               noFaceSince = Date.now()
             }
           } else {
             noFaceSince = 0
           }
           if (count > 1) {
-            sigRef.current?.send({
-              type: 'incident',
-              tag: 'A2',
-              level: 'S2',
-              note: `Nhiều khuôn mặt (${count})`,
-              ts: Date.now(),
-              by: userId,
-            })
+            sigRef.current?.send({ type: 'incident', tag: 'A2', level: 'S2', note: `Nhiều khuôn mặt (${count})`, ts: Date.now(), by: userId })
           }
         }
       } catch {}
       rafId = window.setTimeout(loop, 1000)
     }
     loop()
-    return () => {
-      detectionRef.current.running = false
-      window.clearTimeout(rafId)
-    }
+    return () => { detectionRef.current.running = false; window.clearTimeout(rafId) }
   }, [userId])
 
-  // A6: Voice activity detection
   useEffect(() => {
     if (!analyserRef.current || micMuted) return
-
-    let rafId: number
+    
+    let rafId
     let speakingMs = 0
     const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount)
-
+    
     const loop = () => {
       if (!analyserRef.current || micMuted) return
-
+      
       analyserRef.current.getByteTimeDomainData(dataArray)
       let sum = 0
       for (let i = 0; i < dataArray.length; i++) {
@@ -763,14 +590,7 @@ export default function Candidate() {
       if (rms > 0.05) {
         speakingMs += 200
         if (speakingMs >= 30000) {
-          sigRef.current?.send({
-            type: 'incident',
-            tag: 'A6',
-            level: 'S2',
-            note: 'Âm thanh hội thoại kéo dài',
-            ts: Date.now(),
-            by: userId,
-          })
+          sigRef.current?.send({ type: 'incident', tag: 'A6', level: 'S2', note: 'Âm thanh hội thoại kéo dài', ts: Date.now(), by: userId })
           speakingMs = 0
         }
       } else {
@@ -779,15 +599,13 @@ export default function Candidate() {
       rafId = window.setTimeout(loop, 200)
     }
     loop()
-    return () => {
-      window.clearTimeout(rafId)
-    }
-  }, [userId, micMuted])
+    return () => { window.clearTimeout(rafId) }
+  }, [userId, micMuted, analyserRef.current])
 
   const sendChat = () => {
     if (!chat) return
     sigRef.current?.send({ type: 'chat', text: chat })
-    setMsgs((m) => [...m, { from: userId!, text: chat }])
+    setMsgs(m => [...m, { from: userId, text: chat }])
     setChat('')
   }
 
@@ -798,94 +616,91 @@ export default function Candidate() {
         return
       }
 
-      const display = await navigator.mediaDevices.getDisplayMedia({
-        video: {
-          width: 1920,
-          height: 1080,
-          frameRate: 30,
-        } as MediaTrackConstraints,
-        audio: false,
+      const display = await navigator.mediaDevices.getDisplayMedia({ 
+        video: { width: 1920, height: 1080, frameRate: 30 },
+        audio: false
       })
       screenStreamRef.current = display
       const screenTrack = display.getVideoTracks()[0]
-
+      
       if (screenVideoRef.current) {
         screenVideoRef.current.srcObject = display
-        await new Promise<void>((resolve) => {
-          if (screenVideoRef.current!.readyState >= 2) {
+        await new Promise((resolve) => {
+          if (screenVideoRef.current.readyState >= 2) {
             resolve()
           } else {
-            screenVideoRef.current!.onloadedmetadata = () => resolve()
+            screenVideoRef.current.onloadedmetadata = resolve
           }
         })
       }
-
-      let screenSender = pcRef.current.getSenders().find((s) => {
+      
+      let screenSender = pcRef.current.getSenders().find(s => {
         if (!s.track || s.track.kind !== 'video') return false
-        const label = pcRef.current!._trackLabels?.get(s.track.id)
+        const label = pcRef.current._trackLabels?.get(s.track.id)
         return label === 'screen'
       })
-
+      
       if (screenSender) {
         if (pcRef.current._trackLabels) {
-          pcRef.current._trackLabels.delete(screenSender.track!.id)
+          pcRef.current._trackLabels.delete(screenSender.track.id)
           pcRef.current._trackLabels.set(screenTrack.id, 'screen')
         }
         await screenSender.replaceTrack(screenTrack)
       } else {
         await addLocalStream(pcRef.current, display, 'screen')
-        screenSender = pcRef.current.getSenders().find((s) => {
+        screenSender = pcRef.current.getSenders().find(s => {
           if (!s.track || s.track.kind !== 'video') return false
-          const label = pcRef.current!._trackLabels?.get(s.track.id)
+          const label = pcRef.current._trackLabels?.get(s.track.id)
           return label === 'screen'
         })
         pcRef.current._screenSender = screenSender
-
+        
         try {
-          console.log('Renegotiating to add screen track')
+          console.log('Renegotiating to add screen track. Current senders:', pcRef.current.getSenders().map(s => ({
+            kind: s.track?.kind,
+            id: s.track?.id,
+            label: pcRef.current._trackLabels?.get(s.track?.id)
+          })))
           const offer = await createAndSetOffer(pcRef.current)
-
-          const trackInfo = pcRef.current
-            .getSenders()
-            .filter((s) => s.track && s.track.kind === 'video')
+          
+          const trackInfo = pcRef.current.getSenders()
+            .filter(s => s.track && s.track.kind === 'video')
             .map((s, index) => ({
-              trackId: s.track!.id,
-              label:
-                pcRef.current!._trackLabels?.get(s.track!.id) ||
-                (index === 0 ? 'camera' : 'screen'),
-              kind: s.track!.kind,
+              trackId: s.track.id,
+              label: pcRef.current._trackLabels?.get(s.track.id) || (index === 0 ? 'camera' : 'screen'),
+              kind: s.track.kind
             }))
-
+          
           sigRef.current?.send({ type: 'offer', sdp: offer, trackInfo })
-          console.log('Renegotiated, offer sent with trackInfo:', trackInfo)
+          console.log('Renegotiated to add screen track, offer sent with trackInfo:', trackInfo)
         } catch (e) {
           console.error('Renegotiation failed:', e)
         }
       }
-
+      
       setIsSharingScreen(true)
-      setChecklist((c) => ({ ...c, screen: true }))
-
+      setChecklist(c => ({ ...c, screen: true }))
+      
       try {
         recordingServiceRef.current.startRecording(display, 'screen')
       } catch (e) {
         console.warn('Screen recording failed:', e)
       }
-
+      
       screenTrack.onended = async () => {
         try {
           await recordingServiceRef.current.stopRecording('screen')
         } catch (e) {
           console.warn('Stop screen recording failed:', e)
         }
-
+        
         if (screenVideoRef.current) {
           screenVideoRef.current.srcObject = null
         }
         screenStreamRef.current = null
         setIsSharingScreen(false)
-        setChecklist((c) => ({ ...c, screen: false }))
-
+        setChecklist(c => ({ ...c, screen: false }))
+        
         if (screenSender && pcRef.current) {
           try {
             screenTrack.stop()
@@ -895,7 +710,7 @@ export default function Candidate() {
           }
         }
       }
-    } catch (err: any) {
+    } catch (err) {
       if (err.name !== 'NotAllowedError' && err.name !== 'AbortError') {
         console.error('Screen share failed:', err)
         alert('Không thể chia sẻ màn hình: ' + err.message)
@@ -919,7 +734,7 @@ export default function Candidate() {
       if (videoTrack) {
         videoTrack.enabled = !videoTrack.enabled
         setCamEnabled(videoTrack.enabled)
-        setChecklist((c) => ({ ...c, cam: videoTrack.enabled }))
+        setChecklist(c => ({ ...c, cam: videoTrack.enabled }))
       }
     }
   }
@@ -928,13 +743,7 @@ export default function Candidate() {
     <CandidateContainer>
       {/* Header */}
       <Card style={{ marginBottom: 24 }}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
-        >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <Typography.Title level={2} style={{ margin: 0 }}>
               Phiên Thi Trực Tuyến
@@ -949,15 +758,7 @@ export default function Candidate() {
             </StatusBadge>
             {recording && (
               <StatusBadge $status="recording">
-                <div
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: '50%',
-                    background: 'white',
-                    animation: 'pulse 1s infinite',
-                  }}
-                ></div>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'white', animation: 'pulse 1s infinite' }}></div>
                 Đang ghi hình
               </StatusBadge>
             )}
@@ -1012,40 +813,24 @@ export default function Candidate() {
           style={{ marginBottom: 24 }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <RobotOutlined
-              style={{
-                fontSize: 24,
-                color: recentAlerts.length > 0 ? '#faad14' : '#52c41a',
-              }}
-            />
+            <RobotOutlined style={{ fontSize: 24, color: recentAlerts.length > 0 ? '#faad14' : '#52c41a' }} />
             <div style={{ flex: 1 }}>
               <Typography.Text strong>
                 Hệ thống AI đang giám sát phiên thi của bạn
               </Typography.Text>
               <div style={{ marginTop: 4 }}>
                 <Tag color={recentAlerts.length > 0 ? 'orange' : 'green'}>
-                  {aiStatus.scenario === 'normal'
-                    ? '✓ Bình thường'
-                    : `⚠ ${aiStatus.scenario}`}
+                  {aiStatus.scenario === 'normal' ? '✓ Bình thường' : `⚠ ${aiStatus.scenario}`}
                 </Tag>
               </div>
             </div>
             {recentAlerts.length > 0 && (
-              <Badge
-                count={recentAlerts.length}
-                style={{ backgroundColor: '#faad14' }}
-              />
+              <Badge count={recentAlerts.length} style={{ backgroundColor: '#faad14' }} />
             )}
           </div>
 
           {recentAlerts.length > 0 && (
-            <div
-              style={{
-                marginTop: 12,
-                paddingTop: 12,
-                borderTop: '1px solid #ffe58f',
-              }}
-            >
+            <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #ffe58f' }}>
               <Typography.Text type="warning" strong>
                 Cảnh báo gần đây:
               </Typography.Text>
@@ -1067,8 +852,24 @@ export default function Candidate() {
 
       {!loading && !error && (
         <MainGrid>
-          {/* Left Column */}
-          <div>
+          {/* Left Column - Phần làm bài kiểm tra (75%) */}
+          <ExamSection>
+                      {/* Phần làm bài kiểm tra - ĐÁNH DẤU */}
+                      <Card
+                        title={
+                          <Space>
+                            <CheckCircleOutlined />
+                            Phần làm Bài Kiểm Tra
+                          </Space>
+                        }
+                        style={{ flex: 1 }}
+                      >
+                        <TakeExamContent />
+                      </Card>
+                    </ExamSection>
+
+          {/* Right Column - Tất cả phần camera và giám sát (25%) */}
+          <MonitoringSection>
             {/* Camera View */}
             <VideoCard
               title={
@@ -1077,7 +878,6 @@ export default function Candidate() {
                   Camera View
                 </Space>
               }
-              style={{ marginBottom: 16 }}
             >
               <VideoContainer>
                 <StyledVideo
@@ -1093,9 +893,7 @@ export default function Candidate() {
                 {(!camEnabled || loading) && (
                   <VideoPlaceholder>
                     <VideoCameraOutlined />
-                    <div>
-                      {loading ? 'Đang tải camera...' : 'Camera đã tắt'}
-                    </div>
+                    <div>{loading ? 'Đang tải camera...' : 'Camera đã tắt'}</div>
                   </VideoPlaceholder>
                 )}
 
@@ -1113,13 +911,7 @@ export default function Candidate() {
 
                   <Button
                     type={camEnabled ? 'primary' : 'default'}
-                    icon={
-                      camEnabled ? (
-                        <VideoCameraFilled />
-                      ) : (
-                        <VideoCameraOutlined />
-                      )
-                    }
+                    icon={camEnabled ? <VideoCameraFilled /> : <VideoCameraOutlined />}
                     onClick={toggleCamera}
                     size="small"
                   >
@@ -1143,11 +935,11 @@ export default function Candidate() {
                   icon={<ShareAltOutlined />}
                   onClick={shareScreen}
                   disabled={isSharingScreen}
+                  size="small"
                 >
-                  {isSharingScreen ? 'Đang chia sẻ' : 'Chia sẻ màn hình'}
+                  {isSharingScreen ? 'Đang chia sẻ' : 'Chia sẻ'}
                 </Button>
               }
-              style={{ marginBottom: 16 }}
             >
               <VideoContainer $isScreen>
                 <StyledVideo
@@ -1167,55 +959,6 @@ export default function Candidate() {
               </VideoContainer>
             </VideoCard>
 
-            {/* Checklist */}
-            <Card
-              title={
-                <Space>
-                  <CheckCircleOutlined />
-                  Checklist
-                </Space>
-              }
-            >
-              <ChecklistItem $checked={checklist.cam}>
-                {checklist.cam ? (
-                  <CheckCircleOutlined />
-                ) : (
-                  <CloseCircleOutlined />
-                )}
-                <Typography.Text>Camera rõ mặt, ánh sáng đủ</Typography.Text>
-              </ChecklistItem>
-
-              <ChecklistItem $checked={checklist.screen}>
-                {checklist.screen ? (
-                  <CheckCircleOutlined />
-                ) : (
-                  <CloseCircleOutlined />
-                )}
-                <Typography.Text>Đang chia sẻ màn hình</Typography.Text>
-              </ChecklistItem>
-
-              <ChecklistItem $checked={checklist.oneDisplay}>
-                {checklist.oneDisplay ? (
-                  <CheckCircleOutlined />
-                ) : (
-                  <CloseCircleOutlined />
-                )}
-                <Typography.Text>Chỉ một màn hình</Typography.Text>
-              </ChecklistItem>
-
-              <ChecklistItem $checked={checklist.noHeadset}>
-                {checklist.noHeadset ? (
-                  <CheckCircleOutlined />
-                ) : (
-                  <CloseCircleOutlined />
-                )}
-                <Typography.Text>Không sử dụng tai nghe</Typography.Text>
-              </ChecklistItem>
-            </Card>
-          </div>
-
-          {/* Right Column */}
-          <div>
             {/* Proctor View */}
             <VideoCard
               title={
@@ -1224,7 +967,6 @@ export default function Candidate() {
                   Góc nhìn giám thị
                 </Space>
               }
-              style={{ marginBottom: 16 }}
             >
               <VideoContainer $isScreen>
                 <StyledVideo ref={remoteVideoRef} autoPlay playsInline />
@@ -1237,68 +979,125 @@ export default function Candidate() {
               </VideoContainer>
               <div style={{ marginTop: 8 }}>
                 <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                  Giám thị đang xem:{' '}
-                  {isSharingScreen ? 'Màn hình của bạn' : 'Camera của bạn'} + Âm
-                  thanh
+                  Giám thị đang xem: {isSharingScreen ? 'Màn hình của bạn' : 'Camera của bạn'} + Âm thanh
                 </Typography.Text>
               </div>
             </VideoCard>
 
-            {/* Chat Panel */}
-            <ChatPanel
+            {/* Checklist */}
+            <Card
               title={
                 <Space>
-                  <MessageOutlined />
-                  Tin nhắn với giám thị
+                  <CheckCircleOutlined />
+                  Checklist
                 </Space>
               }
             >
-              <MessageList>
-                {msgs.length === 0 ? (
-                  <div
-                    style={{
-                      textAlign: 'center',
-                      color: '#999',
-                      padding: '40px 0',
-                    }}
-                  >
-                    <MessageOutlined
-                      style={{ fontSize: 24, marginBottom: 8 }}
-                    />
-                    <div>Chưa có tin nhắn nào</div>
-                  </div>
-                ) : (
-                  msgs.map((message, index) => (
-                    <MessageItem key={index} $isOwn={message.from === userId}>
-                      <div className="sender">
-                        {message.from === userId ? 'Bạn' : message.from}
-                      </div>
-                      <div className="text">{message.text}</div>
-                    </MessageItem>
-                  ))
-                )}
-              </MessageList>
-              <ChatInputContainer>
-                <Input
-                  value={chat}
-                  onChange={(e) => setChat(e.target.value)}
-                  placeholder="Nhập tin nhắn..."
-                  onPressEnter={sendChat}
-                />
-                <Button
-                  type="primary"
-                  icon={<MessageOutlined />}
-                  onClick={sendChat}
-                >
-                  Gửi
-                </Button>
-              </ChatInputContainer>
-            </ChatPanel>
-          </div>
+              <ChecklistItem $checked={checklist.cam}>
+                {checklist.cam ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
+                <Typography.Text>Camera rõ mặt, ánh sáng đủ</Typography.Text>
+              </ChecklistItem>
+
+              <ChecklistItem $checked={checklist.screen}>
+                {checklist.screen ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
+                <Typography.Text>Đang chia sẻ màn hình</Typography.Text>
+              </ChecklistItem>
+
+              <ChecklistItem $checked={checklist.oneDisplay}>
+                {checklist.oneDisplay ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
+                <Typography.Text>Chỉ một màn hình</Typography.Text>
+              </ChecklistItem>
+
+              <ChecklistItem $checked={checklist.noHeadset}>
+                {checklist.noHeadset ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
+                <Typography.Text>Không sử dụng tai nghe</Typography.Text>
+              </ChecklistItem>
+            </Card>
+          </MonitoringSection>
         </MainGrid>
       )}
+
+      {/* Floating Chat Button */}
+      <FloatButton
+        icon={<MessageOutlined />}
+        type="primary"
+        style={{ right: 24, bottom: 24 }}
+        onClick={() => setChatModalVisible(true)}
+      />
+
+      {/* Chat Modal */}
+      <ChatModal
+        title="Tin nhắn với giám thị"
+        open={chatModalVisible}
+        onCancel={() => setChatModalVisible(false)}
+        footer={null}
+        width={400}
+      >
+        <MessageList>
+          {msgs.length === 0 ? (
+            <div style={{ textAlign: 'center', color: '#999', padding: '40px 0' }}>
+              <MessageOutlined style={{ fontSize: 24, marginBottom: 8 }} />
+              <div>Chưa có tin nhắn nào</div>
+            </div>
+          ) : (
+            msgs.map((message, index) => (
+              <MessageItem key={index} $isOwn={message.from === userId}>
+                <div className="sender">
+                  {message.from === userId ? 'Bạn' : message.from}
+                </div>
+                <div className="text">{message.text}</div>
+              </MessageItem>
+            ))
+          )}
+        </MessageList>
+        <ChatInputContainer>
+          <Input
+            value={chat}
+            onChange={(e) => setChat(e.target.value)}
+            placeholder="Nhập tin nhắn..."
+            onPressEnter={sendChat}
+          />
+          <Button type="primary" icon={<MessageOutlined />} onClick={sendChat}>
+            Gửi
+          </Button>
+        </ChatInputContainer>
+      </ChatModal>
     </CandidateContainer>
   )
 }
 
-// Giữ nguyên hook useScreenOCR và các hàm logic khác
+// A5 OCR sampling loop
+function useScreenOCR({ screenVideoRef, canvasRef, sigRef, userId }) {
+  useEffect(() => {
+    let timer
+    const blacklist = (
+      //import.meta.env.VITE_OCR_BLACKLIST ||
+       'cheat,answer,google,chatgpt,stack overflow').split(',').map(s=>s.trim().toLowerCase()).filter(Boolean)
+    const run = async () => {
+      const video = screenVideoRef.current
+      if (!video || !video.srcObject) return
+      const canvas = canvasRef.current
+      const w = Math.min(1280, video.videoWidth || 1280)
+      const h = Math.min(720, video.videoHeight || 720)
+      if (!w || !h) return
+      canvas.width = w; canvas.height = h
+      const ctx = canvas.getContext('2d')
+      ctx.drawImage(video, 0, 0, w, h)
+      try {
+        const { data: { text } } = await Tesseract.recognize(canvas, 'eng')
+        const lower = (text || '').toLowerCase()
+        if (lower && blacklist.some(k => lower.includes(k))) {
+          sigRef.current?.send({ type: 'incident', tag: 'A5', level: 'S2', note: 'OCR match blacklist', ts: Date.now(), by: userId })
+        }
+      } catch {}
+    }
+    const loop = () => {
+      run()
+      timer = window.setTimeout(loop, parseInt(
+        //import.meta.env.VITE_OCR_INTERVAL_MS ||
+          '6000', 10))
+    }
+    loop()
+    return () => window.clearTimeout(timer)
+  }, [screenVideoRef.current])
+}
