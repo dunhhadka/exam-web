@@ -544,7 +544,7 @@ export default function Candidate() {
         setChecklist((c) => ({ ...c, cam: true }))
 
         // Add camera stream to peer connection with label
-        await addLocalStream(pc, stream, 'camera')
+        await addLocalStream(pc, stream)
         console.log(
           'Added camera stream to PC, senders:',
           pc.getSenders().map((s) => ({
@@ -866,7 +866,7 @@ export default function Candidate() {
         }
         await screenSender.replaceTrack(screenTrack)
       } else {
-        await addLocalStream(pcRef.current, display, 'screen')
+        await addLocalStream(pcRef.current, display)
         screenSender = pcRef.current.getSenders().find((s) => {
           if (!s.track || s.track.kind !== 'video') return false
           const label = pcRef.current!._trackLabels?.get(s.track.id)
