@@ -1,5 +1,6 @@
 package com.datn.exam.service.question;
 
+import com.datn.exam.model.dto.request.QuestionCreateRequest;
 import com.datn.exam.model.dto.request.question.QuestionEditRequest;
 import com.datn.exam.model.dto.response.InvalidFieldError;
 import com.datn.exam.model.entity.Tag;
@@ -43,7 +44,7 @@ public class QuestionEditContextService {
             case TRUE_FALSE -> new TrueFalseAnswerContext(request, tags);
             case PLAIN_TEXT -> new TextAnswerContext(request, tags);
             case ESSAY -> null;
-            case TABLE_CHOICE -> null;
+            case TABLE_CHOICE -> new TableChoiceContext(request, tags);
         };
     }
 
@@ -153,6 +154,9 @@ public class QuestionEditContextService {
     public record TextAnswer(String text) {
     }
 
+    public record TableChoiceRow(String label, Integer correctIndex) {
+    }
+
     @Getter
     public static final class TextAnswerContext extends QuestionEditContext {
         private TextAnswer answer;
@@ -241,6 +245,47 @@ public class QuestionEditContextService {
                 throw new DomainValidationException(InvalidFieldError.builder()
                         .message("Câu hỏi nhiều lựa chọn phải có ít nhất 1 đáp án đúng")
                         .build());
+            }
+        }
+    }
+
+    @Getter
+    public static final class TableChoiceContext extends QuestionEditContext {
+        private List<String> headers;
+        private List<TableChoiceRow> rows;
+
+        public TableChoiceContext(QuestionEditRequest request, Map<Long, Tag> tags) {
+            super(request, tags);
+        }
+
+        @Override
+        protected void parseSpecificFields() {
+            this.headers = getRequest().getHeaders();
+            this.rows = getRequest().getRows().stream()
+                    .map(row -> new TableChoiceRow(row.getLabel(), row.getCorrectIndex()))
+                    .toList();
+        }
+
+        @Override
+        protected void validate() {
+            if (CollectionUtils.isEmpty(headers)) {
+                throw new DomainValidationException(InvalidFieldError.builder()
+                        .message("Câu hỏi dạng bảng phải có ít nhất 1 cột")
+                        .build());
+            }
+
+            if (CollectionUtils.isEmpty(rows)) {
+                throw new DomainValidationException(InvalidFieldError.builder()
+                        .message("Câu hỏi dạng bảng phải có ít nhất 1 hàng")
+                        .build());
+            }
+
+            for (TableChoiceRow row : rows) {
+                if (row.correctIndex() < 0 || row.correctIndex() >= headers.size()) {
+                    throw new DomainValidationException(InvalidFieldError.builder()
+                            .message("Chỉ số đáp án đúng không hợp lệ cho hàng: " + row.label())
+                            .build());
+                }
             }
         }
     }

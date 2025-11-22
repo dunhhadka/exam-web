@@ -9,6 +9,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Data
 @Builder
@@ -16,6 +17,7 @@ public class AttemptDetailResponse {
     private Long attemptId;
     private Long sessionId;
     private String sessionName;
+    private String examCode;
     private Integer attemptNo;
     private ExamAttempt.AttemptStatus status;
     private ExamAttempt.GradingStatus gradingStatus;
@@ -25,6 +27,7 @@ public class AttemptDetailResponse {
     private BigDecimal scoreAuto;
     private BigDecimal scoreManual;
     private List<QuestionResponse> questions;
+    private Map<String, Object> settings;
 
     @Data
     @Builder
@@ -40,6 +43,7 @@ public class AttemptDetailResponse {
         private Integer minWords;
         private Integer maxWords;
         private List<TableRow> rows;
+        private List<String> headers; // Cho TABLE_CHOICE
     }
 
     @Data

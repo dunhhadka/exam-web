@@ -344,7 +344,6 @@ const QuestionContent = ({ question }: { question: QuestionGradingDetail }) => {
       )
 
     case QuestionType.PLAIN_TEXT:
-    case QuestionType.ESSAY:
       return (
         <ContentSection>
           <SectionTitle>Câu trả lời</SectionTitle>
@@ -358,6 +357,31 @@ const QuestionContent = ({ question }: { question: QuestionGradingDetail }) => {
             <AnswerBox>
               <AnswerLabel>Đáp án mẫu:</AnswerLabel>
               <ExpectedAnswerBox>{expectedAnswer}</ExpectedAnswerBox>
+            </AnswerBox>
+          )}
+        </ContentSection>
+      )
+    
+    case QuestionType.ESSAY:
+      return (
+        <ContentSection>
+          <SectionTitle>Câu trả lời</SectionTitle>
+          <AnswerBox>
+            <AnswerLabel>Học sinh trả lời:</AnswerLabel>
+            <StudentAnswerBox>
+              {studentAnswer?.text || <EmptyText>Chưa trả lời</EmptyText>}
+            </StudentAnswerBox>
+          </AnswerBox>
+          {question.sampleAnswer && (
+            <AnswerBox>
+              <AnswerLabel>Đáp án mẫu:</AnswerLabel>
+              <ExpectedAnswerBox>{question.sampleAnswer}</ExpectedAnswerBox>
+            </AnswerBox>
+          )}
+          {question.gradingCriteria && (
+            <AnswerBox>
+              <AnswerLabel>Tiêu chí chấm điểm:</AnswerLabel>
+              <GradingCriteriaBox>{question.gradingCriteria}</GradingCriteriaBox>
             </AnswerBox>
           )}
           {question.minWords && (
@@ -784,6 +808,17 @@ const ExpectedAnswerBox = styled.div`
   font-size: 15px;
   line-height: 1.6;
   color: #262626;
+`
+
+const GradingCriteriaBox = styled.div`
+  padding: 16px;
+  background: #fff7e6;
+  border-radius: 12px;
+  border-left: 4px solid #faad14;
+  font-size: 15px;
+  line-height: 1.6;
+  color: #262626;
+  white-space: pre-wrap;
 `
 
 const WordCount = styled(Text)`

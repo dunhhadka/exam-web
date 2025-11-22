@@ -31,6 +31,9 @@ import type {
 } from '../../types/take-exam'
 import { QuestionType } from '../../types/question'
 import { useToast } from '../../hooks/useToast'
+import { useAntiCheat } from '../../hooks/useAntiCheat'
+
+const { TextArea } = Input
 
 const TakeExamContent = () => {
   const location = useLocation()
@@ -61,6 +64,7 @@ const TakeExamContent = () => {
     useSubmitAttemptMutation()
 
   const hasStartedRef = useRef(false)
+  const hasShownErrorRef = useRef(false)
 
   const fetchExamAttempt = useCallback(async () => {
     if (startRequest && !hasStartedRef.current) {
@@ -69,6 +73,13 @@ const TakeExamContent = () => {
       try {
         const res = await startExamAttempt(startRequest).unwrap()
         setData(res)
+
+        // Log settings từ API response
+        console.log('🔧 ExamContent - Attempt Settings:', {
+          settings: res.settings,
+          hasSettings: !!res.settings,
+          attemptId: res.attemptId,
+        })
 
         // Parse datetime format: "09-11-2025 18:12" -> Date object
         const parseDateTime = (dateTimeStr: string): Date => {
@@ -95,15 +106,59 @@ const TakeExamContent = () => {
         })
         setTimeRemaining(remaining > 0 ? remaining : 0)
       } catch (error: any) {
-        hasStartedRef.current = false
         console.error('Failed to start exam:', error)
-        setErrorMessage(
-          error?.data?.message || 'Không thể tải bài thi. Vui lòng thử lại.'
-        )
-        setIsErrorModalOpen(true)
+        
+        // Chỉ hiển thị modal 1 lần duy nhất
+        if (!hasShownErrorRef.current) {
+          hasShownErrorRef.current = true
+          
+          const errorMsg = error?.data?.message || 'Không thể tải bài thi. Vui lòng thử lại.'
+          const examCode = startRequest?.sessionCode
+          
+          // Hiển thị popup lỗi với Modal.error
+          Modal.error({
+            title: 'Lỗi',
+            content: errorMsg,
+            okText: 'OK',
+            centered: true,
+            onOk: () => {
+              // Redirect về exam-checkin
+              if (examCode) {
+                navigate(`/exam-checkin?code=${examCode}`)
+              } else {
+                navigate('/exam-checkin')
+              }
+            },
+            onCancel: () => {
+              // Nếu user đóng modal
+              if (examCode) {
+                navigate(`/exam-checkin?code=${examCode}`)
+              } else {
+                navigate('/exam-checkin')
+              }
+            },
+          })
+        }
       }
     }
-  }, [startRequest, startExamAttempt])
+  }, [startRequest, startExamAttempt, navigate])
+
+  // Apply anti-cheat settings from API response
+  // Map backend settings structure to useAntiCheat format
+  const antiCheatSettings = data?.settings?.anti_cheat
+    ? {
+        disableCopyPaste: data.settings.anti_cheat.block_copy_paste ?? false,
+        disableDeveloperTools: data.settings.anti_cheat.block_dev_tools ?? false,
+        preventTabSwitch: (data.settings.anti_cheat.max_window_blur_allowed ?? 0) > 0,
+        preventMinimize: (data.settings.anti_cheat.max_window_blur_allowed ?? 0) > 0,
+        requireFullscreen: (data.settings.anti_cheat.max_exit_fullscreen_allowed ?? 0) > 0,
+        maxFullscreenExitAllowed: data.settings.anti_cheat.max_exit_fullscreen_allowed ?? 0,
+        attemptId: data.attemptId,
+        examCode: data.examCode,
+      }
+    : undefined
+
+  useAntiCheat(antiCheatSettings)
 
   useEffect(() => {
     if (data && Object.keys(answers).length === 0) {
@@ -245,6 +300,22 @@ const TakeExamContent = () => {
                 text: value,
               },
             }
+          case QuestionType.ESSAY:
+            return {
+              ...prev,
+              [questionId]: {
+                ...currentAnswer,
+                text: value,
+              },
+            }
+          case QuestionType.TABLE_CHOICE:
+            return {
+              ...prev,
+              [questionId]: {
+                ...currentAnswer,
+                rows: value,
+              },
+            }
           default:
             return prev
         }
@@ -276,20 +347,35 @@ const TakeExamContent = () => {
 
   const handleErrorModalOk = useCallback(() => {
     setIsErrorModalOpen(false)
-    if (!data) {
-      navigate(-1)
+    // Redirect về exam-checkin với examCode
+    const examCode = startRequest?.sessionCode || state?.examCode
+    if (examCode) {
+      navigate(`/exam-checkin?code=${examCode}`)
+    } else {
+      navigate('/exam-checkin')
     }
-  }, [data, navigate])
+  }, [startRequest, state, navigate])
 
   const renderQuestion = (question: QuestionResponse) => {
     const answer = answers[question.attemptQuestionId]
 
+    // Khởi tạo answer nếu chưa có (tránh lỗi khi render)
     if (!answer) {
+      const initialAnswer: AnswerSubmission = {
+        attemptQuestionId: question.attemptQuestionId,
+      }
+      setAnswers(prev => ({
+        ...prev,
+        [question.attemptQuestionId]: initialAnswer
+      }))
       return null
     }
 
     switch (question.type) {
       case QuestionType.ONE_CHOICE:
+        if (!question.answers || question.answers.length === 0) {
+          return <div>Không có đáp án</div>
+        }
         return (
           <Radio.Group
             value={answer.selectedAnswerId}
@@ -312,6 +398,9 @@ const TakeExamContent = () => {
         )
 
       case QuestionType.MULTI_CHOICE:
+        if (!question.answers || question.answers.length === 0) {
+          return <div>Không có đáp án</div>
+        }
         return (
           <Checkbox.Group
             value={answer.selectedAnswerIds || []}
@@ -350,6 +439,9 @@ const TakeExamContent = () => {
         )
 
       case QuestionType.TRUE_FALSE:
+        if (!question.answers || question.answers.length === 0) {
+          return <div>Không có đáp án</div>
+        }
         return (
           <Radio.Group
             value={answer.selectedAnswerId}
@@ -377,6 +469,107 @@ const TakeExamContent = () => {
           </Radio.Group>
         )
 
+      case QuestionType.ESSAY:
+        const wordCount = answer.text ? answer.text.trim().split(/\s+/).filter(word => word.length > 0).length : 0
+        const minWords = question.minWords || 0
+        const maxWords = question.maxWords || 0
+        const isWordCountValid = (!minWords || wordCount >= minWords) && (!maxWords || wordCount <= maxWords)
+        
+        return (
+          <EssayContainer>
+            <StyledTextArea
+              rows={8}
+              placeholder="Nhập câu trả lời của bạn..."
+              value={answer.text || ""}
+              onChange={(e) => handleAnswerChange(question.attemptQuestionId, e.target.value, QuestionType.ESSAY)}
+              showCount
+              maxLength={5000}
+            />
+            {(minWords > 0 || maxWords > 0) && (
+              <WordCountInfo $isValid={isWordCountValid}>
+                Số từ: {wordCount}
+                {minWords > 0 && ` (tối thiểu: ${minWords})`}
+                {maxWords > 0 && ` (tối đa: ${maxWords})`}
+              </WordCountInfo>
+            )}
+          </EssayContainer>
+        )
+
+      case QuestionType.TABLE_CHOICE:
+        if (!question.rows || question.rows.length === 0) {
+          return <div>Không có dữ liệu bảng</div>
+        }
+
+        // Lấy headers từ nhiều nguồn: headers field, columns của row đầu tiên, hoặc từ answers
+        let headers: string[] = []
+        if (question.headers && question.headers.length > 0) {
+          headers = question.headers
+        } else if (question.rows[0]?.columns && question.rows[0].columns.length > 0) {
+          headers = question.rows[0].columns
+        } else if (question.answers && question.answers.length > 0) {
+          headers = question.answers.map(a => a.value)
+        } else {
+          // Fallback: tạo headers mặc định dựa trên số cột có thể có
+          // Thử lấy từ row có columns không null
+          const rowWithColumns = question.rows.find(r => r.columns && r.columns.length > 0)
+          if (rowWithColumns && rowWithColumns.columns) {
+            headers = rowWithColumns.columns
+          } else {
+            // Nếu không có columns nào, tạo headers mặc định
+            headers = ['Lựa chọn 1', 'Lựa chọn 2', 'Lựa chọn 3']
+          }
+        }
+
+        if (headers.length === 0) {
+          return <div>Không có dữ liệu cột cho bảng</div>
+        }
+        
+        // Đảm bảo selectedRows có đủ phần tử cho tất cả rows
+        const selectedRows = answer.rows || []
+        const paddedSelectedRows = [...selectedRows]
+        while (paddedSelectedRows.length < question.rows.length) {
+          paddedSelectedRows.push(-1) // -1 nghĩa là chưa chọn
+        }
+
+        return (
+          <TableChoiceContainer>
+            <TableChoiceTable>
+              <TableChoiceHeaderRow>
+                <TableChoiceEmptyCell />
+                {headers.map((header, colIndex) => (
+                  <TableChoiceHeaderCell key={colIndex}>{header || `Cột ${colIndex + 1}`}</TableChoiceHeaderCell>
+                ))}
+              </TableChoiceHeaderRow>
+              {question.rows.map((row, rowIndex) => {
+                // Sử dụng columns của row hiện tại nếu có, nếu không thì dùng headers chung
+                const rowColumns = row.columns && row.columns.length > 0 ? row.columns : headers
+                
+                return (
+                  <TableChoiceDataRow key={rowIndex}>
+                    <TableChoiceLabelCell>{row.label}</TableChoiceLabelCell>
+                    {rowColumns.map((_, colIndex) => (
+                      <TableChoiceRadioCell key={colIndex}>
+                        <Radio
+                          checked={paddedSelectedRows[rowIndex] === colIndex}
+                          onChange={() => {
+                            const newRows = [...paddedSelectedRows]
+                            newRows[rowIndex] = colIndex
+                            // Loại bỏ các phần tử -1 ở cuối
+                            while (newRows.length > 0 && newRows[newRows.length - 1] === -1) {
+                              newRows.pop()
+                            }
+                            handleAnswerChange(question.attemptQuestionId, newRows, QuestionType.TABLE_CHOICE)
+                          }}
+                        />
+                      </TableChoiceRadioCell>
+                    ))}
+                  </TableChoiceDataRow>
+                )
+              })}
+            </TableChoiceTable>
+          </TableChoiceContainer>
+        )
+
       default:
         return <div>Loại câu hỏi không được hỗ trợ</div>
     }
@@ -387,7 +580,8 @@ const TakeExamContent = () => {
       return (
         answer.selectedAnswerId !== undefined ||
         (answer.selectedAnswerIds && answer.selectedAnswerIds.length > 0) ||
-        (answer.text && answer.text.trim().length > 0)
+        (answer.text && answer.text.trim().length > 0) ||
+        (answer.rows && answer.rows.length > 0)
       )
     }).length
   }
@@ -404,7 +598,8 @@ const TakeExamContent = () => {
     return (
       answer.selectedAnswerId !== undefined ||
       (answer.selectedAnswerIds && answer.selectedAnswerIds.length > 0) ||
-      (answer.text && answer.text.trim().length > 0)
+      (answer.text && answer.text.trim().length > 0) ||
+      (answer.rows && answer.rows.length > 0)
     )
   }
 
@@ -1062,4 +1257,119 @@ const ErrorMessage = styled.p`
   color: #333;
   margin: 20px 0;
   font-weight: 500;
+`
+
+const EssayContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+`
+
+const StyledTextArea = styled(TextArea)`
+  border-radius: 6px;
+  border: 1px solid #e0e0e0;
+  font-size: 15px;
+  transition: all 0.2s ease;
+
+  &:hover,
+  &:focus {
+    border-color: #0066cc;
+    box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.1);
+  }
+`
+
+const WordCountInfo = styled.div<{ $isValid: boolean }>`
+  font-size: 14px;
+  color: ${props => props.$isValid ? '#52c41a' : '#ff4d4f'};
+  font-weight: 500;
+  padding: 8px 12px;
+  background: ${props => props.$isValid ? '#f6ffed' : '#fff1f0'};
+  border: 1px solid ${props => props.$isValid ? '#b7eb8f' : '#ffccc7'};
+  border-radius: 4px;
+`
+
+const TableChoiceContainer = styled.div`
+  overflow-x: auto;
+  margin-top: 8px;
+`
+
+const TableChoiceTable = styled.div`
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  background: white;
+  min-width: 100%;
+`
+
+const TableChoiceHeaderRow = styled.div`
+  display: flex;
+  background: #fafafa;
+  border-bottom: 2px solid #e0e0e0;
+`
+
+const TableChoiceEmptyCell = styled.div`
+  min-width: 200px;
+  padding: 12px 16px;
+  border-right: 1px solid #e0e0e0;
+  font-weight: 600;
+  color: #333;
+`
+
+const TableChoiceHeaderCell = styled.div`
+  flex: 1;
+  min-width: 150px;
+  padding: 12px 16px;
+  border-right: 1px solid #e0e0e0;
+  font-weight: 600;
+  color: #333;
+  text-align: center;
+
+  &:last-child {
+    border-right: none;
+  }
+`
+
+const TableChoiceDataRow = styled.div`
+  display: flex;
+  border-bottom: 1px solid #e0e0e0;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:hover {
+    background: #f8fbff;
+  }
+`
+
+const TableChoiceLabelCell = styled.div`
+  min-width: 200px;
+  padding: 12px 16px;
+  border-right: 1px solid #e0e0e0;
+  font-weight: 500;
+  color: #333;
+  background: #fafafa;
+`
+
+const TableChoiceRadioCell = styled.div`
+  flex: 1;
+  min-width: 150px;
+  padding: 12px 16px;
+  border-right: 1px solid #e0e0e0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:last-child {
+    border-right: none;
+  }
+
+  .ant-radio-wrapper {
+    margin: 0;
+  }
+
+  &:hover {
+    background: #f0f7ff;
+  }
 `

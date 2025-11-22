@@ -89,6 +89,8 @@ export interface QuestionGradingDetail {
   expectedAnswer?: string
   minWords?: number
   maxWords?: number
+  sampleAnswer?: string // Cho ESSAY - Câu trả lời mẫu
+  gradingCriteria?: string // Cho ESSAY - Tiêu chí chấm điểm
 }
 
 export interface AnswerDetail {

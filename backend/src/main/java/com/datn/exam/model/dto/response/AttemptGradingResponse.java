@@ -60,6 +60,8 @@ public class AttemptGradingResponse {
         private String expectedAnswer; // Cho PLAIN_TEXT
         private Integer minWords; // Cho ESSAY
         private Integer maxWords;
+        private String sampleAnswer; // Cho ESSAY - Câu trả lời mẫu
+        private String gradingCriteria; // Cho ESSAY - Tiêu chí chấm điểm
     }
 
     @Data

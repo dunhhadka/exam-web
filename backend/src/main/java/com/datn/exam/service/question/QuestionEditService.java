@@ -6,14 +6,17 @@ import com.datn.exam.model.dto.response.QuestionResponse;
 import com.datn.exam.model.entity.Question;
 import com.datn.exam.repository.QuestionRepository;
 import com.datn.exam.service.QuestionService;
+import com.datn.exam.support.enums.QuestionType;
 import com.datn.exam.support.exception.DomainValidationException;
 import com.datn.exam.support.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Objects;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class QuestionEditService {
@@ -50,6 +53,8 @@ public class QuestionEditService {
             question.updateTrueFalseQuestion(context);
         } else if (questionContext instanceof QuestionEditContextService.TextAnswerContext context) {
             question.updateTextPlainQuestion(context);
+        } else if (questionContext instanceof QuestionEditContextService.TableChoiceContext context) {
+            question.updateTableChoiceQuestion(context);
         } else {
             throw new DomainValidationException(InvalidFieldError.builder()
                     .message("Not implementation for context")

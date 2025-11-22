@@ -12,6 +12,14 @@ export interface SessionInfoResponse {
   requiresPassword: boolean
   requiresWhitelist: boolean
   examName: string
+  settings?: {
+    disableCopyPaste?: boolean
+    disableDeveloperTools?: boolean
+    preventTabSwitch?: boolean
+    preventMinimize?: boolean
+    requireFullscreen?: boolean
+    [key: string]: any
+  }
 }
 
 export interface JoinSessionMetaResponse {
@@ -68,6 +76,7 @@ export interface AttemptDetailResponse {
   attemptId: number
   sessionId: number
   sessionName: string
+  examCode: string
   attemptNo: number
   status: AttemptStatus // Sử dụng enum
   gradingStatus: GradingStatus // Sử dụng enum
@@ -77,6 +86,22 @@ export interface AttemptDetailResponse {
   scoreAuto: number // BigDecimal -> number
   scoreManual: number | null // Có thể null nếu chưa grade manual
   questions: QuestionResponse[]
+  settings?: {
+    anti_cheat?: {
+      block_dev_tools?: boolean
+      block_copy_paste?: boolean
+      max_window_blur_allowed?: number
+      max_exit_fullscreen_allowed?: number
+    }
+    notifications?: any
+    proctoring?: {
+      identity_mode?: string
+      monitor_enabled?: boolean
+      screen_recording?: boolean
+      require_id_upload?: boolean
+    }
+    [key: string]: any
+  }
 }
 
 // Nested interface cho QuestionResponse
@@ -86,10 +111,11 @@ export interface QuestionResponse {
   type: QuestionType
   point: number
   text: string
-  answers: AnswerResponse[]
+  answers: AnswerResponse[] | null
   minWords: number | null
   maxWords: number | null
-  rows: TableRow[]
+  rows: TableRow[] | null
+  headers?: string[] | null // Cho TABLE_CHOICE
 }
 
 // Nested interface cho AnswerResponse
@@ -101,7 +127,7 @@ export interface AnswerResponse {
 // Nested interface cho TableRow
 export interface TableRow {
   label: string
-  columns: string[]
+  columns: string[] | null
 }
 
 export interface SubmitAttemptRequest {

@@ -3,7 +3,6 @@ import {
   ExamSession,
   ExamSessionRequest,
 } from '../../types/examsession'
-import { QuestionFilterRequest } from '../../types/question'
 import { parseParamToString } from '../../utils/parseParam'
 import { authenticatedApi } from './baseApi'
 

@@ -24,6 +24,67 @@ import styled from '@emotion/styled'
 
 const { Title, Text } = Typography
 
+const Header = styled.div`
+  background: white;
+  border-bottom: 1px solid #e8e8e8;
+  padding: 16px 0;
+`
+
+const HeaderContent = styled.div`
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+`
+
+const StepsWrapper = styled.div`
+  display: flex;
+  align-items: flex-start;
+  position: relative;
+  padding: 16px 0;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 28px;
+    left: 60px;
+    right: 60px;
+    height: 2px;
+    background: #d9d9d9;
+    z-index: 0;
+  }
+`
+
+const StepItem = styled.div<{ active?: boolean }>`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  position: relative;
+  z-index: 1;
+  
+  .step-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: ${props => props.active ? '#1890ff' : 'white'};
+    color: ${props => props.active ? 'white' : '#999'};
+    font-size: 14px;
+    border: 2px solid ${props => props.active ? '#1890ff' : '#d9d9d9'};
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  
+  .step-label {
+    color: ${props => props.active ? '#1890ff' : '#999'};
+    font-size: 13px;
+    text-align: center;
+    margin-top: 4px;
+  }
+`
+
 interface VerificationResult {
   faceMatch: number
   livenessScore: number
@@ -37,9 +98,14 @@ interface KYCFlowProps {
 }
 
 const FlowContainer = styled.div`
-  max-width: 800px;
+  min-height: 100vh;
+  background: #f5f5f5;
+`
+
+const MainContent = styled.div`
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 24px;
+  padding: 48px 24px;
 `
 
 const StepContent = styled(Card)`
@@ -213,7 +279,31 @@ export default function KYCFlow({ onComplete, onCancel }: KYCFlowProps) {
 
   return (
     <FlowContainer>
-      <Card>
+      <Header>
+        <HeaderContent>
+          <StepsWrapper>
+            <StepItem>
+              <div className="step-icon">✓</div>
+              <span className="step-label">Kiểm tra hệ thống</span>
+            </StepItem>
+            <StepItem active>
+              <div className="step-icon">✓</div>
+              <span className="step-label">Xác minh danh tính</span>
+            </StepItem>
+            <StepItem>
+              <div className="step-icon">📋</div>
+              <span className="step-label">Thông tin thí sinh</span>
+            </StepItem>
+            <StepItem>
+              <div className="step-icon">📝</div>
+              <span className="step-label">Tham dự bài thi</span>
+            </StepItem>
+          </StepsWrapper>
+        </HeaderContent>
+      </Header>
+
+      <MainContent>
+        <Card>
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <Title level={2}>Xác thực danh tính (KYC)</Title>
           <Text type="secondary">
@@ -429,7 +519,8 @@ export default function KYCFlow({ onComplete, onCancel }: KYCFlowProps) {
             <Button onClick={onCancel}>Hủy bỏ</Button>
           </div>
         )}
-      </Card>
+        </Card>
+      </MainContent>
     </FlowContainer>
   )
 }

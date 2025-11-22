@@ -97,6 +97,7 @@ public class ExamAttemptServiceImpl implements ExamAttemptService {
                 .scoreAuto(BigDecimal.ZERO)
                 .scoreManual(BigDecimal.ZERO)
                 .ipAddress(request.getIpAddress())
+                .fullscreenExitCount(0)
                 .build();
 
         List<ExamQuestion> examQuestions = examQuestionRepository.findByExamIdWithQuestionAndAnswers(examSession.getExam().getId());
@@ -352,6 +353,8 @@ public class ExamAttemptServiceImpl implements ExamAttemptService {
         } else if (qv instanceof Question.EssayQuestion eq) {
             map.put("minWords", eq.getMinWords());
             map.put("maxWords", eq.getMaxWords());
+            map.put("sampleAnswer", eq.getSampleAnswer());
+            map.put("gradingCriteria", eq.getGradingCriteria());
         }
         
         return map;
@@ -368,10 +371,16 @@ public class ExamAttemptServiceImpl implements ExamAttemptService {
                 .map(this::mapToQuestionResponse)
                 .toList();
 
+        ExamSession session = attempt.getExamSession();
+        Map<String, Object> settings = session.getSettings() != null 
+            ? new HashMap<>(session.getSettings()) 
+            : new HashMap<>();
+
         return AttemptDetailResponse.builder()
                 .attemptId(attempt.getId())
                 .sessionId(attempt.getExamSession().getId())
                 .sessionName(attempt.getExamSession().getName())
+                .examCode(attempt.getExamSession().getCode())
                 .attemptNo(attempt.getAttemptNo())
                 .status(attempt.getStatus())
                 .gradingStatus(attempt.getGradingStatus())
@@ -381,6 +390,7 @@ public class ExamAttemptServiceImpl implements ExamAttemptService {
                 .scoreAuto(attempt.getScoreAuto())
                 .scoreManual(attempt.getScoreManual())
                 .questions(questionResponses)
+                .settings(settings)
                 .build();
     }
 
@@ -416,6 +426,7 @@ public class ExamAttemptServiceImpl implements ExamAttemptService {
         Integer minWords = null;
         Integer maxWords = null;
         List<AttemptDetailResponse.TableRow> rows = null;
+        List<String> headers = null;
 
         if (qv != null) {
             switch (type) {
@@ -426,6 +437,15 @@ public class ExamAttemptServiceImpl implements ExamAttemptService {
                     maxWords = (maxObj instanceof Number) ? ((Number) maxObj).intValue() : null;
                 }
                 case TABLE_CHOICE -> {
+                    // Lấy headers từ questionValue
+                    Object headersObj = qv.get("headers");
+                    if (headersObj instanceof List<?>) {
+                        headers = ((List<?>) headersObj).stream()
+                                .filter(String.class::isInstance)
+                                .map(String.class::cast)
+                                .toList();
+                    }
+                    
                     Object rowsObj = qv.get("rows");
                     if (rowsObj instanceof List<?>) {
                         rows = ((List<?>) rowsObj).stream()
@@ -462,6 +482,7 @@ public class ExamAttemptServiceImpl implements ExamAttemptService {
                 .minWords(minWords)
                 .maxWords(maxWords)
                 .rows(rows)
+                .headers(headers)
                 .build();
     }
 
@@ -549,6 +570,22 @@ public class ExamAttemptServiceImpl implements ExamAttemptService {
         attempt.setGradingStatus(ExamAttempt.GradingStatus.DONE);
         
         examAttemptRepository.save(attempt);
+    }
+
+    @Override
+    @Transactional
+    public void incrementFullscreenExitCount(Long attemptId) {
+        ExamAttempt attempt = examAttemptRepository.findById(attemptId)
+                .orElseThrow(() -> new ResponseException(NotFoundError.EXAM_ATTEMPT_NOT_FOUND));
+        
+        if (attempt.getFullscreenExitCount() == null) {
+            attempt.setFullscreenExitCount(0);
+        }
+        
+        attempt.setFullscreenExitCount(attempt.getFullscreenExitCount() + 1);
+        examAttemptRepository.save(attempt);
+        
+        log.info("Incremented fullscreen exit count for attempt {}: {}", attemptId, attempt.getFullscreenExitCount());
     }
 
     private AttemptListResponse mapToAttemptListResponse(ExamAttempt attempt) {
@@ -685,6 +722,11 @@ public class ExamAttemptServiceImpl implements ExamAttemptService {
                     Integer minWords = (minObj instanceof Number) ? ((Number) minObj).intValue() : null;
                     Integer maxWords = (maxObj instanceof Number) ? ((Number) maxObj).intValue() : null;
                     builder.minWords(minWords).maxWords(maxWords);
+                    
+                    // Lấy sampleAnswer và gradingCriteria từ questionValue
+                    String sampleAnswer = (String) qv.get("sampleAnswer");
+                    String gradingCriteria = (String) qv.get("gradingCriteria");
+                    builder.sampleAnswer(sampleAnswer).gradingCriteria(gradingCriteria);
                 }
             }
         }

@@ -42,10 +42,13 @@ import {
   QuestionTypeLabel,
   Tag,
 } from '../../types/question'
+import { EssayData } from './Essay'
 import { MultiChoiceData } from './MultiChoice'
 import { OneChoiceData } from './OneChoice'
+import { PlainTextData } from './PlainText'
 import { QuestionPreviewFactory } from './QuestionPreviewFactory'
 import { QuestionFactory } from './QuestionTypeFactory'
+import { TableChoiceData } from './TableChoice'
 import { TrueFalseData } from './TrueFalse'
 
 interface ActionItem {
@@ -355,6 +358,7 @@ export const QuestionCreatePage = () => {
   const loadQuestion = async (questionId: number) => {
     try {
       const result = await findQuestionById({ questionId }).unwrap()
+      console.log('API Response:', result)
       const requestInput: QuestionRequestInput = {
         text: result.text ?? '',
         point: result.point,
@@ -397,6 +401,33 @@ export const QuestionCreatePage = () => {
         case QuestionType.TRUE_FALSE: {
           const data: TrueFalseData = {
             correctAnswer: !!result.answers[0].result,
+          }
+          requestInput.data = data
+          break
+        }
+        case QuestionType.TABLE_CHOICE: {
+          const data: TableChoiceData = {
+            headers: result.headers || [],
+            rows: result.rows || [],
+          }
+          requestInput.data = data
+          break
+        }
+        case QuestionType.ESSAY: {
+          const data: EssayData = {
+            minWords: result.minWords,
+            maxWords: result.maxWords,
+            answerAnswer: result.answerAnswer,
+            gradingCriteria: result.gradingCriteria,
+          }
+          requestInput.data = data
+          break
+        }
+        case QuestionType.PLAIN_TEXT: {
+          const data: PlainTextData = {
+            expectedAnswer: result.expectedAnswer,
+            caseSensitive: result.caseSensitive,
+            exactMatch: result.exactMatch,
           }
           requestInput.data = data
           break

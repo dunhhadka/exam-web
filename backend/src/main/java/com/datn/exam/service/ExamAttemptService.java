@@ -22,4 +22,6 @@ public interface ExamAttemptService {
     
     void manualGrading(Long attemptId, ManualGradingRequest request);
 
+    void incrementFullscreenExitCount(Long attemptId);
+
 }

@@ -225,10 +225,18 @@ public class QuestionServiceImpl implements QuestionService {
     }
 
     private Question.TableChoiceQuestion buildTableChoiceQuestionValue(QuestionCreateBase request, Status status, boolean isPublic) {
+        log.info("Building TABLE_CHOICE with headers: {}", request.getHeaders());
+        log.info("Building TABLE_CHOICE with rows: {}", request.getRows());
+        
         List<Question.RowCompact> rows = request.getRows().stream()
                 .filter(Objects::nonNull)
-                .map(r -> new Question.RowCompact(r.getLabel(), r.getCorrectIndex()))
+                .map(r -> {
+                    log.info("Mapping row: label={}, correctIndex={}", r.getLabel(), r.getCorrectIndex());
+                    return new Question.RowCompact(r.getLabel(), r.getCorrectIndex());
+                })
                 .toList();
+
+        log.info("Final rows after mapping: {}", rows);
 
         return new Question.TableChoiceQuestion(
                 request.getHeaders(),

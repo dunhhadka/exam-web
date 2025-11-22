@@ -43,6 +43,13 @@ const takeExamApi = publicApi.injectEndpoints({
         body: request,
       }),
     }),
+    resendOtp: builder.mutation<any, OtpRequest>({
+      query: (request) => ({
+        url: '/join/otp/resend',
+        method: 'POST',
+        body: request,
+      }),
+    }),
     startExamAttempt: builder.mutation<
       AttemptDetailResponse,
       StartAttemptRequest
@@ -66,6 +73,12 @@ const takeExamApi = publicApi.injectEndpoints({
         },
       }),
     }),
+    incrementFullscreenExitCount: builder.mutation<void, number>({
+      query: (attemptId) => ({
+        method: 'POST',
+        url: `/exam-attempt/${attemptId}/fullscreen-exit`,
+      }),
+    }),
   }),
 })
 
@@ -74,7 +87,9 @@ export const {
   useLazyGetSessionInfoQuery,
   useJoinExamByCodeMutation,
   useRequestOtpMutation,
+  useResendOtpMutation,
   useVerifyOtpMutation,
   useStartExamAttemptMutation,
   useSubmitAttemptMutation,
+  useIncrementFullscreenExitCountMutation,
 } = takeExamApi
