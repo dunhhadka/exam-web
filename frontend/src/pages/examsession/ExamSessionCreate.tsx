@@ -105,6 +105,42 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 const createEntryId = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`
 
+// Helper function để parse date an toàn từ backend
+const parseDateSafely = (dateValue: string | Dayjs | null | undefined): Dayjs | null => {
+  if (!dateValue) return null
+  
+  // Nếu đã là Dayjs object và valid (kiểm tra bằng cách gọi isValid)
+  if (typeof dateValue === 'object' && 'isValid' in dateValue && typeof dateValue.isValid === 'function') {
+    const dayjsObj = dateValue as Dayjs
+    if (dayjsObj.isValid()) {
+      return dayjsObj
+    }
+  }
+  
+  // Nếu là string, thử parse với nhiều format
+  if (typeof dateValue === 'string') {
+    // Thử parse với ISO format trước (thường backend trả về)
+    const isoDate = dayjs(dateValue)
+    if (isoDate.isValid()) {
+      return isoDate
+    }
+    
+    // Thử parse với format DD-MM-YYYY HH:mm
+    const customDate = dayjs(dateValue, 'DD-MM-YYYY HH:mm', true)
+    if (customDate.isValid()) {
+      return customDate
+    }
+    
+    // Thử parse tự động
+    const autoDate = dayjs(dateValue)
+    if (autoDate.isValid()) {
+      return autoDate
+    }
+  }
+  
+  return null
+}
+
 const mapPreviewToEntries = (
   preview: WhitelistPreviewResponse,
 ): WhitelistEntry[] => {
@@ -244,8 +280,8 @@ const ExamSessionCreate = ({
       examId: initData.exam?.id,
       examName: initData.exam?.name ?? '',
       name: initData.name ?? '',
-      startTime: initData.startTime ? dayjs(initData.startTime) : null,
-      endTime: initData.endTime ? dayjs(initData.endTime) : null,
+      startTime: parseDateSafely(initData.startTime),
+      endTime: parseDateSafely(initData.endTime),
       durationMinutes: initData.durationMinutes ?? 60,
       lateJoinMinutes: initData.lateJoinMinutes ?? 15,
       shuffleAnswers: initData.shuffleAnswers ?? false,
@@ -919,24 +955,33 @@ const ExamSessionCreate = ({
                     name="startTime"
                     control={control}
                     rules={{ required: 'Vui lòng chọn ngày bắt đầu' }}
-                    render={({ field }) => (
-                      <>
-                        <StyledDatePicker
-                          {...field}
-                          value={field.value ? dayjs(field.value) : null}
-                          onChange={(date) => field.onChange(date)}
-                          placeholder="Nhập ngày bắt đầu"
-                          format="DD/MM/YYYY HH:mm"
-                          showTime={{ format: 'HH:mm' }}
-                          status={errors.startTime ? 'error' : ''}
-                          getPopupContainer={(trigger) => trigger.parentElement || document.body}
-                          popupStyle={{ position: 'absolute' }}
-                        />
-                        {errors.startTime && (
-                          <ErrorText>{errors.startTime.message}</ErrorText>
-                        )}
-                      </>
-                    )}
+                    render={({ field }) => {
+                      // Parse date an toàn cho DatePicker
+                      const dateValue = field.value 
+                        ? (typeof field.value === 'object' && 'isValid' in field.value 
+                            ? (field.value as Dayjs).isValid() ? field.value as Dayjs : parseDateSafely(field.value)
+                            : parseDateSafely(field.value))
+                        : null
+                      
+                      return (
+                        <>
+                          <StyledDatePicker
+                            {...field}
+                            value={dateValue}
+                            onChange={(date) => field.onChange(date)}
+                            placeholder="Nhập ngày bắt đầu"
+                            format="DD/MM/YYYY HH:mm"
+                            showTime={{ format: 'HH:mm' }}
+                            status={errors.startTime ? 'error' : ''}
+                            getPopupContainer={(trigger) => trigger.parentElement || document.body}
+                            popupStyle={{ position: 'absolute' }}
+                          />
+                          {errors.startTime && (
+                            <ErrorText>{errors.startTime.message}</ErrorText>
+                          )}
+                        </>
+                      )
+                    }}
                   />
                 </FormGroup>
 
@@ -961,24 +1006,33 @@ const ExamSessionCreate = ({
                         return true
                       },
                     }}
-                    render={({ field }) => (
-                      <>
-                        <StyledDatePicker
-                          {...field}
-                          value={field.value ? dayjs(field.value) : null}
-                          onChange={(date) => field.onChange(date)}
-                          placeholder="Nhập ngày kết thúc"
-                          format="DD/MM/YYYY HH:mm"
-                          showTime={{ format: 'HH:mm' }}
-                          status={errors.endTime ? 'error' : ''}
-                          getPopupContainer={(trigger) => trigger.parentElement || document.body}
-                          popupStyle={{ position: 'absolute' }}
-                        />
-                        {errors.endTime && (
-                          <ErrorText>{errors.endTime.message}</ErrorText>
-                        )}
-                      </>
-                    )}
+                    render={({ field }) => {
+                      // Parse date an toàn cho DatePicker
+                      const dateValue = field.value 
+                        ? (typeof field.value === 'object' && 'isValid' in field.value 
+                            ? (field.value as Dayjs).isValid() ? field.value as Dayjs : parseDateSafely(field.value)
+                            : parseDateSafely(field.value))
+                        : null
+                      
+                      return (
+                        <>
+                          <StyledDatePicker
+                            {...field}
+                            value={dateValue}
+                            onChange={(date) => field.onChange(date)}
+                            placeholder="Nhập ngày kết thúc"
+                            format="DD/MM/YYYY HH:mm"
+                            showTime={{ format: 'HH:mm' }}
+                            status={errors.endTime ? 'error' : ''}
+                            getPopupContainer={(trigger) => trigger.parentElement || document.body}
+                            popupStyle={{ position: 'absolute' }}
+                          />
+                          {errors.endTime && (
+                            <ErrorText>{errors.endTime.message}</ErrorText>
+                          )}
+                        </>
+                      )
+                    }}
                   />
                 </FormGroup>
 

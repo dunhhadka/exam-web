@@ -224,6 +224,20 @@ public class Question extends AuditableEntity {
         this.answers.addAll(new ArrayList<>(List.of(answer)));
     }
 
+    public void updateTableChoiceQuestion(QuestionEditContextService.TableChoiceContext context) {
+        var questionValue = new TableChoiceQuestion(
+                context.getHeaders(),
+                context.getRows().stream()
+                        .map(row -> new RowCompact(row.label(), row.correctIndex()))
+                        .toList(),
+                context.getLevel(),
+                this.status, // Use current status from question
+                context.isPublic()
+        );
+
+        this.questionValue = questionValue;
+    }
+
 
     @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", visible = true)
     @JsonSubTypes({
@@ -388,6 +402,7 @@ public class Question extends AuditableEntity {
     @Data
     @NoArgsConstructor
     @EqualsAndHashCode(callSuper = true)
+    @AllArgsConstructor
     public static class TableChoiceQuestion extends BaseQuestion {
         private List<String> headers = new ArrayList<>();
 

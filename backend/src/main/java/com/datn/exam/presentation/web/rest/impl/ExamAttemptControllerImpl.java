@@ -69,4 +69,10 @@ public class ExamAttemptControllerImpl implements ExamAttemptController {
         examAttemptService.manualGrading(attemptId, request);
         return Response.ok();
     }
+
+    @Override
+    public Response<Void> incrementFullscreenExitCount(Long attemptId) {
+        examAttemptService.incrementFullscreenExitCount(attemptId);
+        return Response.ok();
+    }
 }

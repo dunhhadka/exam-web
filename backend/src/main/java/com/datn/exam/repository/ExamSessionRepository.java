@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -26,5 +27,12 @@ public interface ExamSessionRepository extends JpaRepository<ExamSession, Long> 
 
     Optional<ExamSession> findByJoinToken(String joinToken);
 
+    @Query("""
+            SELECT DISTINCT es FROM ExamSession es
+            LEFT JOIN FETCH es.exam e
+            WHERE es.exam.id IN :examIds
+            AND (es.deleted IS NULL OR es.deleted = FALSE)
+            """)
+    List<ExamSession> findByExamIdsWithExam(@Param("examIds") Collection<Long> examIds);
 
 }

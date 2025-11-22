@@ -8,6 +8,7 @@ import {
   TableOutlined,
   FileTextOutlined,
   EditOutlined,
+  FormOutlined,
 } from '@ant-design/icons'
 
 interface Props {
@@ -64,6 +65,17 @@ export const QuestionTypeCreate = ({ open, onClose, onSelect }: Props) => {
           label: 'Đoạn văn',
           icon: <EditOutlined />,
           type: QuestionType.PLAIN_TEXT,
+        },
+      ],
+    },
+    {
+      title: 'Viết',
+      color: '#ff9800',
+      items: [
+        {
+          label: 'Viết',
+          icon: <FormOutlined />,
+          type: QuestionType.ESSAY,
         },
       ],
     },

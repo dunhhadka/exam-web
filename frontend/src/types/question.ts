@@ -8,13 +8,20 @@ export interface Question {
   status: Status;
   tags?: Tag[];
 
+  // For ESSAY
   maxWords?: number;
   minWords?: number;
   answerAnswer?: string;
+  gradingCriteria?: string;
 
+  // For PLAIN_TEXT
   expectedAnswer?: string;
-  caseSensitive?: string;
+  caseSensitive?: boolean;
   exactMatch?: boolean;
+
+  // For TABLE_CHOICE
+  headers?: string[];
+  rows?: TableChoiceRow[];
 
   createdAt: string;
   createdBy: string;
@@ -83,8 +90,25 @@ export interface QuestionRequestInput extends BaseQuestionRequest {
   data: any;
 }
 
+export interface TableChoiceRow {
+  label: string;
+  correctIndex: number;
+}
+
 export interface QuestionRequestSubmit extends BaseQuestionRequest {
   answers?: AnswerCreateRequest[];
+  // For TABLE_CHOICE
+  headers?: string[];
+  rows?: TableChoiceRow[];
+  // For PLAIN_TEXT
+  expectedAnswer?: string;
+  caseSensitive?: boolean;
+  exactMatch?: boolean;
+  // For ESSAY
+  minWords?: number;
+  maxWords?: number;
+  answerAnswer?: string;
+  gradingCriteria?: string;
 }
 
 export interface AnswerCreateRequest {
@@ -108,7 +132,7 @@ export const QuestionTypeLabel: Record<QuestionType, string> = {
   [QuestionType.ONE_CHOICE]: "Chọn một đáp án",
   [QuestionType.MULTI_CHOICE]: "Chọn nhiều đáp án",
   [QuestionType.PLAIN_TEXT]: "Điền đoạn văn",
-  [QuestionType.ESSAY]: "Bài luận",
+  [QuestionType.ESSAY]: "Viết",
   [QuestionType.TRUE_FALSE]: "Câu hỏi đúng/sai",
   [QuestionType.TABLE_CHOICE]: "Bảng lựa chọn",
 };

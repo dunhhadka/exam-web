@@ -8,10 +8,13 @@ import {
   QuestionRequestSubmit,
   QuestionType,
 } from '../types/question'
+import { EssayData } from '../pages/question/Essay'
 import { TrueFalseData } from '../pages/question/TrueFalse'
 import { OneChoiceData } from '../pages/question/OneChoice'
 import { useToast } from './useToast'
 import { MultiChoiceData } from '../pages/question/MultiChoice'
+import { PlainTextData } from '../pages/question/PlainText'
+import { TableChoiceData } from '../pages/question/TableChoice'
 import { useNavigate } from 'react-router-dom'
 
 // Type definitions for better clarity
@@ -98,6 +101,46 @@ const parseToRequest = (
               explanation: undefined,
             } as AnswerCreateRequest)
         ),
+      }
+    }
+    case QuestionType.TABLE_CHOICE: {
+      const data = formData as { data: TableChoiceData }
+
+      console.log('TABLE_CHOICE submit data:', {
+        headers: data.data.headers,
+        rows: data.data.rows,
+      })
+      
+      console.log('TABLE_CHOICE rows detail:', JSON.stringify(data.data.rows, null, 2))
+
+      return {
+        ...formData,
+        headers: data.data.headers,
+        rows: data.data.rows,
+        answers: undefined, // TABLE_CHOICE doesn't use answers array
+      }
+    }
+    case QuestionType.ESSAY: {
+      const data = formData as { data: EssayData }
+
+      return {
+        ...formData,
+        minWords: data.data.minWords,
+        maxWords: data.data.maxWords,
+        answerAnswer: data.data.answerAnswer,
+        gradingCriteria: data.data.gradingCriteria,
+        answers: undefined, // ESSAY doesn't use answers array
+      }
+    }
+    case QuestionType.PLAIN_TEXT: {
+      const data = formData as { data: PlainTextData }
+
+      return {
+        ...formData,
+        expectedAnswer: data.data.expectedAnswer,
+        caseSensitive: data.data.caseSensitive,
+        exactMatch: data.data.exactMatch,
+        answers: undefined, // PLAIN_TEXT doesn't use answers array
       }
     }
     default:

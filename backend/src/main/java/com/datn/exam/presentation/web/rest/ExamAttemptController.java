@@ -44,4 +44,7 @@ public interface ExamAttemptController {
             @Valid @RequestBody ManualGradingRequest request
     );
 
+    @PostMapping("/{attemptId}/fullscreen-exit")
+    Response<Void> incrementFullscreenExitCount(@PathVariable Long attemptId);
+
 }

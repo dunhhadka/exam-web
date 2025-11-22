@@ -3,7 +3,7 @@ import { Button, Input } from 'antd'
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useToast } from '../../hooks/useToast'
-import { useVerifyOtpMutation } from '../../services/api/take-exam'
+import { useVerifyOtpMutation, useResendOtpMutation } from '../../services/api/take-exam'
 
 const CheckinValidateToken = () => {
   const location = useLocation()
@@ -14,6 +14,7 @@ const CheckinValidateToken = () => {
   const examCode = state?.examCode
 
   const [verifyOtp, { isLoading: isVerifyLoading }] = useVerifyOtpMutation()
+  const [resendOtp, { isLoading: isResendLoading }] = useResendOtpMutation()
 
   const toast = useToast()
 
@@ -62,9 +63,23 @@ const CheckinValidateToken = () => {
     }
   }
 
-  const handleResend = () => {
-    toast.success('Đã gửi lại mã OTP')
-    // Call API để resend OTP
+  const handleResend = async () => {
+    if (!email || !examCode) {
+      toast.error('Thiếu thông tin email hoặc mã bài thi')
+      return
+    }
+
+    try {
+      await resendOtp({
+        sessionCode: examCode,
+        email: email,
+      }).unwrap()
+
+      toast.success('Đã gửi lại mã OTP. Vui lòng kiểm tra email của bạn.')
+    } catch (error: any) {
+      const errorMessage = error?.data?.message || 'Không thể gửi lại OTP. Vui lòng thử lại sau.'
+      toast.error(errorMessage)
+    }
   }
 
   return (
@@ -98,7 +113,12 @@ const CheckinValidateToken = () => {
 
         <ResendWrapper>
           <ResendText>Không nhận được mã?</ResendText>
-          <ResendButton type="link" onClick={handleResend}>
+          <ResendButton 
+            type="link" 
+            onClick={handleResend}
+            loading={isResendLoading}
+            disabled={isResendLoading}
+          >
             Gửi lại
           </ResendButton>
         </ResendWrapper>

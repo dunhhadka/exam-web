@@ -32,6 +32,7 @@ public class QuestionResponse {
     private Integer maxWords;
     private Integer minWords;
     private String answerAnswer;
+    private String gradingCriteria;
 
     //Plain Text
     private String expectedAnswer;

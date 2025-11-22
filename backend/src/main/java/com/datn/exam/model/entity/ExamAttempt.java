@@ -6,7 +6,6 @@ import lombok.*;
 import org.apache.commons.collections4.CollectionUtils;
 
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -80,6 +79,10 @@ public class ExamAttempt extends AuditableEntity{
     @Convert(converter = MapObjectConverter.class)
     @Column(name = "snapshot_exam")
     private Map<String, Objects> snapshotExam;
+
+    @Column(name = "fullscreen_exit_count", nullable = false)
+    @Builder.Default
+    private Integer fullscreenExitCount = 0;
 
     public enum GradingStatus {
         PENDING,

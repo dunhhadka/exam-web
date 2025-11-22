@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import {
   Card,
   Button,
@@ -49,6 +49,7 @@ import { useSelector } from 'react-redux'
 import { RootState } from '../../store'
 import { useScreenOCR } from './js/useScreen'
 import TakeExamContent from './ExamContent'
+import { useAntiCheat } from '../../hooks/useAntiCheat'
 
 const SIGNALING_BASE =
   //import.meta.env.VITE_SIGNALING_URL ||
@@ -326,11 +327,26 @@ const ExamContent = styled.div`
 
 // Component chính (đã được thiết kế lại layout)
 export default function Candidate() {
+  const location = useLocation()
   const { userId, userEmail, takeExamSession } = useSelector(
     (state: RootState) => state.takeExam
   )
 
   const roomId = takeExamSession.examCode
+  const sessionSettings = location.state?.sessionSettings
+  const attemptId = location.state?.attemptId
+
+  // Apply anti-cheat settings from session
+  useAntiCheat({
+    disableCopyPaste: sessionSettings?.disableCopyPaste,
+    disableDeveloperTools: sessionSettings?.disableDeveloperTools,
+    preventTabSwitch: sessionSettings?.preventTabSwitch,
+    preventMinimize: sessionSettings?.preventMinimize,
+    requireFullscreen: sessionSettings?.requireFullscreen,
+    examCode: roomId || undefined,
+    attemptId: attemptId,
+    maxFullscreenExitAllowed: sessionSettings?.maxFullscreenExitAllowed,
+  })
 
   const [connected, setConnected] = useState<boolean>(false)
   const [chat, setChat] = useState<string>('')

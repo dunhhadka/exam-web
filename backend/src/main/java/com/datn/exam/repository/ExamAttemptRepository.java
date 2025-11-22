@@ -3,7 +3,9 @@ package com.datn.exam.repository;
 import com.datn.exam.model.entity.ExamAttempt;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -36,5 +38,13 @@ public interface ExamAttemptRepository extends JpaRepository<ExamAttempt, Long> 
 
     @Query("SELECT a FROM ExamAttempt a WHERE a.examSession.id = :sessionId")
     List<ExamAttempt> findByExamSessionId(Long sessionId);
+
+    @Query("""
+            SELECT DISTINCT a FROM ExamAttempt a
+            LEFT JOIN FETCH a.examSession es
+            LEFT JOIN FETCH es.exam e
+            WHERE es.id IN :sessionIds
+            """)
+    List<ExamAttempt> findBySessionIdsWithRelations(@Param("sessionIds") Collection<Long> sessionIds);
 
 }

@@ -59,6 +59,7 @@ public class ExamJoinServiceImpl implements ExamJoinService {
                 .requiresPassword(session.getAccessMode() == ExamSession.AccessMode.PASSWORD)
                 .requiresWhitelist(session.getAccessMode() == ExamSession.AccessMode.WHITELIST)
                 .examName(session.getExam() != null ? session.getExam().getName() : null)
+                .settings(session.getSettings()) // Trả về settings để frontend apply anti-cheat
                 .build();
     }
 
@@ -95,6 +96,28 @@ public class ExamJoinServiceImpl implements ExamJoinService {
     public void requestOtp(OtpRequest request) {
         ExamSession examSession = examSessionRepository.findByCode(request.getSessionCode())
                 .orElseThrow(() -> new ResponseException(NotFoundError.EXAM_SESSION_NOT_FOUND));
+
+        // Validate session status and timing
+        if (Boolean.TRUE.equals(examSession.getDeleted())) {
+            throw new ResponseException(NotFoundError.EXAM_SESSION_NOT_FOUND);
+        }
+
+        if (examSession.getExamStatus() != ExamSession.ExamStatus.OPEN) {
+            throw new ResponseException(BadRequestError.EXAM_SESSION_CLOSED);
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        if (examSession.getStartTime() != null && now.isBefore(examSession.getStartTime())) {
+            throw new ResponseException(BadRequestError.EXAM_SESSION_STARTED);
+        }
+
+        if (examSession.getEndTime() != null) {
+            long lateJoinSeconds = (examSession.getLateJoinMinutes() != null ? examSession.getLateJoinMinutes() : 0) * 60L;
+            LocalDateTime finalDeadline = examSession.getEndTime().plusSeconds(lateJoinSeconds);
+            if (now.isAfter(finalDeadline)) {
+                throw new ResponseException(BadRequestError.EXAM_SESSION_ENDED);
+            }
+        }
 
         String email = request.getEmail().toLowerCase();
 
@@ -152,6 +175,28 @@ public class ExamJoinServiceImpl implements ExamJoinService {
     public void resendOtp(OtpRequest request) {
         ExamSession examSession = examSessionRepository.findByCode(request.getSessionCode())
                 .orElseThrow(() -> new ResponseException(NotFoundError.EXAM_SESSION_NOT_FOUND));
+
+        // Validate session status and timing
+        if (Boolean.TRUE.equals(examSession.getDeleted())) {
+            throw new ResponseException(NotFoundError.EXAM_SESSION_NOT_FOUND);
+        }
+
+        if (examSession.getExamStatus() != ExamSession.ExamStatus.OPEN) {
+            throw new ResponseException(BadRequestError.EXAM_SESSION_CLOSED);
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        if (examSession.getStartTime() != null && now.isBefore(examSession.getStartTime())) {
+            throw new ResponseException(BadRequestError.EXAM_SESSION_STARTED);
+        }
+
+        if (examSession.getEndTime() != null) {
+            long lateJoinSeconds = (examSession.getLateJoinMinutes() != null ? examSession.getLateJoinMinutes() : 0) * 60L;
+            LocalDateTime finalDeadline = examSession.getEndTime().plusSeconds(lateJoinSeconds);
+            if (now.isAfter(finalDeadline)) {
+                throw new ResponseException(BadRequestError.EXAM_SESSION_ENDED);
+            }
+        }
 
         String email = request.getEmail().toLowerCase();
 
