@@ -1,0 +1,29 @@
+# AI Model Dependencies
+# Install with: pip install -r requirements-ai.txt
+
+# Core ML frameworks
+torch>=2.0.0
+torchvision>=0.15.0
+onnxruntime>=1.15.0
+
+# Face detection & recognition
+ultralytics>=8.0.0
+insightface>=0.7.0
+
+# OCR (CPU version)
+paddleocr>=2.7.0
+paddlepaddle>=2.5.0
+
+# Audio processing
+torchaudio>=2.0.0
+
+# Gaze estimation
+mediapipe>=0.10.0
+
+# Image processing
+opencv-python>=4.8.0
+Pillow>=10.0.0
+
+# Utilities
+numpy>=1.24.0
+scipy>=1.11.0

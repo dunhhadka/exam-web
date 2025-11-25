@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import {
   Card,
   Button,
@@ -8,9 +8,7 @@ import {
   Row,
   Col,
   Image,
-  Space,
   Alert,
-  Result,
 } from 'antd'
 import {
   UploadOutlined,
@@ -21,6 +19,7 @@ import {
   CloseCircleFilled,
 } from '@ant-design/icons'
 import styled from '@emotion/styled'
+import axios from 'axios'
 
 const { Title, Text } = Typography
 
@@ -95,6 +94,10 @@ interface VerificationResult {
 interface KYCFlowProps {
   onComplete?: (result: VerificationResult) => void
   onCancel?: () => void
+  isWhitelistMode?: boolean
+  email?: string
+  sessionId?: number
+  candidateId?: string
 }
 
 const FlowContainer = styled.div`
@@ -180,14 +183,19 @@ const steps = [
   },
 ]
 
-/**
- * KYC Flow: ID upload + selfie + face match (mock)
- * Theo thiết kế: ID + selfie → ArcFace match → Liveness
- */
-export default function KYCFlow({ onComplete, onCancel }: KYCFlowProps) {
+export default function KYCFlow({ 
+  onComplete, 
+  onCancel, 
+  isWhitelistMode = false,
+  email,
+  sessionId,
+  candidateId = "unknown"
+}: KYCFlowProps) {
   const [currentStep, setCurrentStep] = useState<number>(0)
   const [idImage, setIdImage] = useState<string | null>(null)
+  const [idFile, setIdFile] = useState<File | null>(null)
   const [selfieImage, setSelfieImage] = useState<string | null>(null)
+  const [selfieBlob, setSelfieBlob] = useState<Blob | null>(null)
   const [verifying, setVerifying] = useState<boolean>(false)
   const [result, setResult] = useState<VerificationResult | null>(null)
 
@@ -195,9 +203,25 @@ export default function KYCFlow({ onComplete, onCancel }: KYCFlowProps) {
   const selfieVideoRef = useRef<HTMLVideoElement>(null)
   const selfieCanvasRef = useRef<HTMLCanvasElement>(null)
 
+  // Skip ID upload step if in whitelist mode
+  useEffect(() => {
+    if (isWhitelistMode) {
+      console.log('[KYC] Whitelist Mode Active. Email:', email, 'SessionID:', sessionId)
+      if (currentStep === 0) {
+        setCurrentStep(1)
+      }
+    } else {
+      // If not whitelist mode (or fallback to manual), ensure we start at step 0
+      if (currentStep === 1 && !idImage && !idFile) {
+         setCurrentStep(0)
+      }
+    }
+  }, [isWhitelistMode, currentStep, email, sessionId, idImage, idFile])
+
   const handleIDUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
+      setIdFile(file)
       const reader = new FileReader()
       reader.onload = (ev: ProgressEvent<FileReader>) => {
         if (ev.target?.result) {
@@ -237,6 +261,11 @@ export default function KYCFlow({ onComplete, onCancel }: KYCFlowProps) {
             ctx.drawImage(video, 0, 0)
             const dataUrl = canvas.toDataURL('image/jpeg')
             setSelfieImage(dataUrl)
+            
+            // Convert to blob for upload
+            canvas.toBlob((blob) => {
+              if (blob) setSelfieBlob(blob)
+            }, 'image/jpeg', 0.95)
           }
         }
         // Stop stream
@@ -250,31 +279,73 @@ export default function KYCFlow({ onComplete, onCancel }: KYCFlowProps) {
   }
 
   const verify = async (): Promise<void> => {
+    if (!selfieBlob) return
+    if (!isWhitelistMode && !idFile) return
+
     setVerifying(true)
-    // Mock verification: simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-    // Mock result: 90% match, liveness pass
-    const mockResult: VerificationResult = {
-      faceMatch: 0.92, // cosine similarity
-      livenessScore: 0.95,
-      passed: true,
-      message: 'Xác thực thành công',
-    }
-    setResult(mockResult)
-    setVerifying(false)
-    if (mockResult.passed) {
-      setTimeout(() => onComplete?.(mockResult), 1500)
+    
+    try {
+      const formData = new FormData()
+      formData.append('candidateId', candidateId)
+      formData.append('selfie', selfieBlob, 'selfie.jpg')
+      
+      if (isWhitelistMode) {
+        if (email) formData.append('email', email)
+        if (sessionId) formData.append('session_id', sessionId.toString())
+      } else if (idFile) {
+        formData.append('id_image', idFile)
+      }
+
+      // Call Real AI Backend
+      const response = await axios.post('http://localhost:8000/api/kyc/verify', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      })
+
+      const data = response.data
+      
+      const verificationResult: VerificationResult = {
+        faceMatch: data.similarity,
+        livenessScore: 1.0, // Backend doesn't return liveness yet, assume 1.0 if passed
+        passed: data.passed,
+        message: data.passed ? 'Xác thực thành công' : 'Xác thực thất bại',
+      }
+      
+      setResult(verificationResult)
+      
+      if (data.passed) {
+        setTimeout(() => onComplete?.(verificationResult), 1500)
+      }
+    } catch (error) {
+      console.error('KYC Verification error:', error)
+      setResult({
+        faceMatch: 0,
+        livenessScore: 0,
+        passed: false,
+        message: 'Lỗi kết nối server hoặc xác thực thất bại',
+      })
+    } finally {
+      setVerifying(false)
     }
   }
 
   const handleRetakeSelfie = () => {
     setSelfieImage(null)
+    setSelfieBlob(null)
     setCurrentStep(1)
   }
 
   const handleBackToID = () => {
-    setIdImage(null)
-    setCurrentStep(0)
+    if (isWhitelistMode) {
+      // If whitelist mode, back means cancel or retake selfie? 
+      // Actually we can't go back to ID upload.
+      handleRetakeSelfie()
+    } else {
+      setIdImage(null)
+      setIdFile(null)
+      setCurrentStep(0)
+    }
   }
 
   return (
@@ -307,18 +378,18 @@ export default function KYCFlow({ onComplete, onCancel }: KYCFlowProps) {
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <Title level={2}>Xác thực danh tính (KYC)</Title>
           <Text type="secondary">
-            Hoàn thành 3 bước đơn giản để xác minh danh tính của bạn
+            Hoàn thành các bước để xác minh danh tính của bạn
           </Text>
         </div>
 
         <Steps
           current={currentStep}
-          items={steps}
+          items={isWhitelistMode ? steps.slice(1) : steps}
           style={{ marginBottom: 32 }}
         />
 
-        {/* Step 1: ID Upload */}
-        {currentStep === 0 && (
+        {/* Step 1: ID Upload (Skipped if Whitelist Mode) */}
+        {currentStep === 0 && !isWhitelistMode && (
           <StepContent>
             <Title level={3}>📷 Upload ảnh CMND/CCCD</Title>
             <Text
@@ -400,13 +471,15 @@ export default function KYCFlow({ onComplete, onCancel }: KYCFlowProps) {
               >
                 Chụp ảnh
               </Button>
-              <Button
-                icon={<ArrowLeftOutlined />}
-                onClick={handleBackToID}
-                size="large"
-              >
-                Quay lại
-              </Button>
+              {!isWhitelistMode && (
+                <Button
+                  icon={<ArrowLeftOutlined />}
+                  onClick={handleBackToID}
+                  size="large"
+                >
+                  Quay lại
+                </Button>
+              )}
             </ActionButtons>
           </StepContent>
         )}
@@ -417,14 +490,16 @@ export default function KYCFlow({ onComplete, onCancel }: KYCFlowProps) {
             <Title level={3}>🔍 Xác minh thông tin</Title>
 
             <Row gutter={[24, 24]} justify="center">
-              <Col xs={24} md={12}>
-                <Text strong>Ảnh CMND/CCCD</Text>
-                <PreviewImage
-                  src={idImage ?? ''}
-                  alt="ID Document"
-                  width={200}
-                />
-              </Col>
+              {!isWhitelistMode && (
+                <Col xs={24} md={12}>
+                  <Text strong>Ảnh CMND/CCCD</Text>
+                  <PreviewImage
+                    src={idImage ?? ''}
+                    alt="ID Document"
+                    width={200}
+                  />
+                </Col>
+              )}
               <Col xs={24} md={12}>
                 <Text strong>Ảnh Selfie</Text>
                 <PreviewImage
@@ -448,13 +523,15 @@ export default function KYCFlow({ onComplete, onCancel }: KYCFlowProps) {
                 <Button onClick={handleRetakeSelfie} size="large">
                   Chụp lại selfie
                 </Button>
-                <Button
-                  icon={<ArrowLeftOutlined />}
-                  onClick={handleBackToID}
-                  size="large"
-                >
-                  Thay đổi ID
-                </Button>
+                {!isWhitelistMode && (
+                  <Button
+                    icon={<ArrowLeftOutlined />}
+                    onClick={handleBackToID}
+                    size="large"
+                  >
+                    Thay đổi ID
+                  </Button>
+                )}
               </ActionButtons>
             )}
 
@@ -507,6 +584,12 @@ export default function KYCFlow({ onComplete, onCancel }: KYCFlowProps) {
                       showIcon
                       style={{ marginTop: 16 }}
                     />
+                  )}
+                  
+                  {!result.passed && (
+                     <Button onClick={handleRetakeSelfie} style={{marginTop: 16}}>
+                        Thử lại
+                     </Button>
                   )}
                 </div>
               </ResultCard>
