@@ -15,6 +15,7 @@ import {
   theme,
   Typography,
 } from 'antd'
+import { Profile } from '../../types/auth'
 
 interface HeaderProps {
   collapsed: boolean
@@ -26,17 +27,14 @@ interface HeaderProps {
     role: string
     avatar?: string
   }
+  profile?: Profile
 }
 
 export const Header: React.FC<HeaderProps> = ({
   collapsed,
   onToggleCollapse,
   userMenuItems,
-  user = {
-    fullName: 'John Doe',
-    email: 'john@example.com',
-    role: 'Administrator',
-  },
+  profile,
 }) => {
   const { Header: AntHeader } = Layout
   const { Text } = Typography
@@ -127,13 +125,17 @@ export const Header: React.FC<HeaderProps> = ({
               e.currentTarget.style.backgroundColor = 'transparent'
             }}
           >
-            <Avatar size="small" icon={<UserOutlined />} src={user.avatar} />
+            <Avatar
+              size="small"
+              icon={<UserOutlined />}
+              src={profile?.avatarUrl}
+            />
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <Text style={{ fontSize: 14, lineHeight: 1.2 }}>
-                {user.fullName || user.email}
+                {profile?.firstName + ' ' + profile?.lastName}
               </Text>
               <Text type="secondary" style={{ fontSize: 12, lineHeight: 1.2 }}>
-                {user.role}
+                {'Teacher'}
               </Text>
             </div>
           </div>

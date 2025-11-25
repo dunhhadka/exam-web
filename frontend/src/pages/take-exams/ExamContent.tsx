@@ -35,7 +35,17 @@ import { useAntiCheat } from '../../hooks/useAntiCheat'
 
 const { TextArea } = Input
 
-const TakeExamContent = () => {
+export const CheatLevelAutoSubmit = 'S4'
+
+interface Props {
+  cheatDetected?: {
+    level: string
+    message: string
+  }
+  onCheatAutoSubmit?: () => void
+}
+
+const TakeExamContent = ({ cheatDetected, onCheatAutoSubmit }: Props) => {
   const location = useLocation()
   const navigate = useNavigate()
   const { state } = location
@@ -52,6 +62,7 @@ const TakeExamContent = () => {
   const [isErrorModalOpen, setIsErrorModalOpen] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const [submitResult, setSubmitResult] = useState<any>(null)
+  const [isAutoSubmitModalOpen, setIsAutoSubmitModalOpen] = useState(false)
 
   const timerRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -107,14 +118,15 @@ const TakeExamContent = () => {
         setTimeRemaining(remaining > 0 ? remaining : 0)
       } catch (error: any) {
         console.error('Failed to start exam:', error)
-        
+
         // Chỉ hiển thị modal 1 lần duy nhất
         if (!hasShownErrorRef.current) {
           hasShownErrorRef.current = true
-          
-          const errorMsg = error?.data?.message || 'Không thể tải bài thi. Vui lòng thử lại.'
+
+          const errorMsg =
+            error?.data?.message || 'Không thể tải bài thi. Vui lòng thử lại.'
           const examCode = startRequest?.sessionCode
-          
+
           // Hiển thị popup lỗi với Modal.error
           Modal.error({
             title: 'Lỗi',
@@ -148,11 +160,16 @@ const TakeExamContent = () => {
   const antiCheatSettings = data?.settings?.anti_cheat
     ? {
         disableCopyPaste: data.settings.anti_cheat.block_copy_paste ?? false,
-        disableDeveloperTools: data.settings.anti_cheat.block_dev_tools ?? false,
-        preventTabSwitch: (data.settings.anti_cheat.max_window_blur_allowed ?? 0) > 0,
-        preventMinimize: (data.settings.anti_cheat.max_window_blur_allowed ?? 0) > 0,
-        requireFullscreen: (data.settings.anti_cheat.max_exit_fullscreen_allowed ?? 0) > 0,
-        maxFullscreenExitAllowed: data.settings.anti_cheat.max_exit_fullscreen_allowed ?? 0,
+        disableDeveloperTools:
+          data.settings.anti_cheat.block_dev_tools ?? false,
+        preventTabSwitch:
+          (data.settings.anti_cheat.max_window_blur_allowed ?? 0) > 0,
+        preventMinimize:
+          (data.settings.anti_cheat.max_window_blur_allowed ?? 0) > 0,
+        requireFullscreen:
+          (data.settings.anti_cheat.max_exit_fullscreen_allowed ?? 0) > 0,
+        maxFullscreenExitAllowed:
+          data.settings.anti_cheat.max_exit_fullscreen_allowed ?? 0,
         attemptId: data.attemptId,
         examCode: data.examCode,
       }
@@ -213,6 +230,38 @@ const TakeExamContent = () => {
       console.error('Auto-submit failed:', error)
     }
   }, [data, submitExam])
+
+  useEffect(() => {
+    if (
+      cheatDetected?.level === CheatLevelAutoSubmit &&
+      !isAutoSubmitModalOpen
+    ) {
+      console.log('Cheat detected - auto submitting exam', cheatDetected)
+      setIsAutoSubmitModalOpen(true)
+    }
+  }, [
+    cheatDetected,
+    isAutoSubmitModalOpen,
+    onCheatAutoSubmit,
+    submitExamDirectly,
+  ])
+
+  useEffect(() => {
+    if (isAutoSubmitModalOpen) {
+      console.log('Auto submit modal opened, starting 5s countdown...')
+
+      const submitTimer = setTimeout(() => {
+        console.log('5s passed - auto submitting exam')
+        submitExamDirectly()
+        onCheatAutoSubmit?.()
+      }, 5000)
+
+      return () => {
+        console.log('Cleaning up auto submit timer')
+        clearTimeout(submitTimer)
+      }
+    }
+  }, [isAutoSubmitModalOpen, submitExamDirectly, onCheatAutoSubmit])
 
   useEffect(() => {
     // Only start timer when we have positive time remaining
@@ -352,9 +401,9 @@ const TakeExamContent = () => {
     if (examCode) {
       navigate(`/exam-checkin?code=${examCode}`)
     } else {
-      navigate('/exam-checkin')
+      navigate('/finish-exam', { state: { result: submitResult } })
     }
-  }, [startRequest, state, navigate])
+  }, [startRequest, state, navigate, submitResult])
 
   const renderQuestion = (question: QuestionResponse) => {
     const answer = answers[question.attemptQuestionId]
@@ -364,9 +413,9 @@ const TakeExamContent = () => {
       const initialAnswer: AnswerSubmission = {
         attemptQuestionId: question.attemptQuestionId,
       }
-      setAnswers(prev => ({
+      setAnswers((prev) => ({
         ...prev,
-        [question.attemptQuestionId]: initialAnswer
+        [question.attemptQuestionId]: initialAnswer,
       }))
       return null
     }
@@ -470,18 +519,31 @@ const TakeExamContent = () => {
         )
 
       case QuestionType.ESSAY:
-        const wordCount = answer.text ? answer.text.trim().split(/\s+/).filter(word => word.length > 0).length : 0
+        const wordCount = answer.text
+          ? answer.text
+              .trim()
+              .split(/\s+/)
+              .filter((word) => word.length > 0).length
+          : 0
         const minWords = question.minWords || 0
         const maxWords = question.maxWords || 0
-        const isWordCountValid = (!minWords || wordCount >= minWords) && (!maxWords || wordCount <= maxWords)
-        
+        const isWordCountValid =
+          (!minWords || wordCount >= minWords) &&
+          (!maxWords || wordCount <= maxWords)
+
         return (
           <EssayContainer>
             <StyledTextArea
               rows={8}
               placeholder="Nhập câu trả lời của bạn..."
-              value={answer.text || ""}
-              onChange={(e) => handleAnswerChange(question.attemptQuestionId, e.target.value, QuestionType.ESSAY)}
+              value={answer.text || ''}
+              onChange={(e) =>
+                handleAnswerChange(
+                  question.attemptQuestionId,
+                  e.target.value,
+                  QuestionType.ESSAY
+                )
+              }
               showCount
               maxLength={5000}
             />
@@ -504,14 +566,19 @@ const TakeExamContent = () => {
         let headers: string[] = []
         if (question.headers && question.headers.length > 0) {
           headers = question.headers
-        } else if (question.rows[0]?.columns && question.rows[0].columns.length > 0) {
+        } else if (
+          question.rows[0]?.columns &&
+          question.rows[0].columns.length > 0
+        ) {
           headers = question.rows[0].columns
         } else if (question.answers && question.answers.length > 0) {
-          headers = question.answers.map(a => a.value)
+          headers = question.answers.map((a) => a.value)
         } else {
           // Fallback: tạo headers mặc định dựa trên số cột có thể có
           // Thử lấy từ row có columns không null
-          const rowWithColumns = question.rows.find(r => r.columns && r.columns.length > 0)
+          const rowWithColumns = question.rows.find(
+            (r) => r.columns && r.columns.length > 0
+          )
           if (rowWithColumns && rowWithColumns.columns) {
             headers = rowWithColumns.columns
           } else {
@@ -523,7 +590,7 @@ const TakeExamContent = () => {
         if (headers.length === 0) {
           return <div>Không có dữ liệu cột cho bảng</div>
         }
-        
+
         // Đảm bảo selectedRows có đủ phần tử cho tất cả rows
         const selectedRows = answer.rows || []
         const paddedSelectedRows = [...selectedRows]
@@ -537,13 +604,16 @@ const TakeExamContent = () => {
               <TableChoiceHeaderRow>
                 <TableChoiceEmptyCell />
                 {headers.map((header, colIndex) => (
-                  <TableChoiceHeaderCell key={colIndex}>{header || `Cột ${colIndex + 1}`}</TableChoiceHeaderCell>
+                  <TableChoiceHeaderCell key={colIndex}>
+                    {header || `Cột ${colIndex + 1}`}
+                  </TableChoiceHeaderCell>
                 ))}
               </TableChoiceHeaderRow>
               {question.rows.map((row, rowIndex) => {
                 // Sử dụng columns của row hiện tại nếu có, nếu không thì dùng headers chung
-                const rowColumns = row.columns && row.columns.length > 0 ? row.columns : headers
-                
+                const rowColumns =
+                  row.columns && row.columns.length > 0 ? row.columns : headers
+
                 return (
                   <TableChoiceDataRow key={rowIndex}>
                     <TableChoiceLabelCell>{row.label}</TableChoiceLabelCell>
@@ -555,10 +625,17 @@ const TakeExamContent = () => {
                             const newRows = [...paddedSelectedRows]
                             newRows[rowIndex] = colIndex
                             // Loại bỏ các phần tử -1 ở cuối
-                            while (newRows.length > 0 && newRows[newRows.length - 1] === -1) {
+                            while (
+                              newRows.length > 0 &&
+                              newRows[newRows.length - 1] === -1
+                            ) {
                               newRows.pop()
                             }
-                            handleAnswerChange(question.attemptQuestionId, newRows, QuestionType.TABLE_CHOICE)
+                            handleAnswerChange(
+                              question.attemptQuestionId,
+                              newRows,
+                              QuestionType.TABLE_CHOICE
+                            )
                           }}
                         />
                       </TableChoiceRadioCell>
@@ -704,6 +781,63 @@ const TakeExamContent = () => {
           </NavigationButtons>
         </QuestionContent>
       </MainContent>
+
+      {isAutoSubmitModalOpen && (
+        <Modal
+          title={
+            <ModalTitle>
+              <ExclamationCircleOutlined
+                style={{ color: '#ff4d4f', marginRight: 8 }}
+              />
+              Phát hiện hành vi gian lận
+            </ModalTitle>
+          }
+          open={isAutoSubmitModalOpen}
+          onOk={() => {
+            navigate('/finish-exam', { state: { result: submitResult } })
+          }}
+          onCancel={() => {}} // Không cho phép hủy
+          okText="Đã hiểu"
+          cancelButtonProps={{ style: { display: 'none' } }} // Ẩn nút hủy
+          closable={false} // Không cho phép đóng modal
+          maskClosable={false} // Không cho phép click outside để đóng
+          keyboard={false} // Không cho phép ESC để đóng
+          confirmLoading={isSubmitLoading}
+          centered
+          width={500}
+        >
+          <ModalContent>
+            <WarningText style={{ color: '#ff4d4f', marginBottom: 16 }}>
+              ⚠️ Hệ thống đã phát hiện hành vi vi phạm quy định thi:
+            </WarningText>
+
+            <ul style={{ marginLeft: 20, marginBottom: 16 }}>
+              <li>{cheatDetected?.message}</li>
+            </ul>
+
+            <p style={{ fontWeight: 'bold', marginBottom: 16 }}>
+              Bài thi của bạn sẽ được tự động nộp ngay lập tức.
+            </p>
+
+            <StatsInfo>
+              <StatsItem>
+                <span>Đã làm:</span>
+                <strong>
+                  {getAnsweredCount()}/{data.questions.length} câu
+                </strong>
+              </StatsItem>
+              <StatsItem>
+                <span>Thời gian đã làm:</span>
+                {/* <strong>{formatTime(data.duration * 60 - timeRemaining)}</strong> */}
+              </StatsItem>
+            </StatsInfo>
+
+            <WarningText style={{ marginTop: 16, fontSize: 13 }}>
+              📋 Kết quả sẽ được ghi nhận với dấu hiệu vi phạm quy định.
+            </WarningText>
+          </ModalContent>
+        </Modal>
+      )}
 
       <Modal
         title={
@@ -1280,11 +1414,11 @@ const StyledTextArea = styled(TextArea)`
 
 const WordCountInfo = styled.div<{ $isValid: boolean }>`
   font-size: 14px;
-  color: ${props => props.$isValid ? '#52c41a' : '#ff4d4f'};
+  color: ${(props) => (props.$isValid ? '#52c41a' : '#ff4d4f')};
   font-weight: 500;
   padding: 8px 12px;
-  background: ${props => props.$isValid ? '#f6ffed' : '#fff1f0'};
-  border: 1px solid ${props => props.$isValid ? '#b7eb8f' : '#ffccc7'};
+  background: ${(props) => (props.$isValid ? '#f6ffed' : '#fff1f0')};
+  border: 1px solid ${(props) => (props.$isValid ? '#b7eb8f' : '#ffccc7')};
   border-radius: 4px;
 `
 
