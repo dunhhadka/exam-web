@@ -23,6 +23,7 @@ import {
   setLoading,
   setStep,
   setTakeExamCode,
+  setCandicateInfo,
 } from '../../store/slices/takeExamSlice'
 
 const CheckinExam = () => {
@@ -130,6 +131,9 @@ const CheckinExam = () => {
       toast.warning('Email không hợp lệ')
       return
     }
+
+    // Dispatch email to Redux store so it's available for KYC
+    dispatch(setCandicateInfo({ email: email }))
 
     navigate(`/candidate/${examCode}/${email}`)
 
