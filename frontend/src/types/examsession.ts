@@ -105,6 +105,7 @@ export interface ExamSessionRequest {
 }
 
 export interface ExamFilterRequest extends PagingRequest {
+  keyword?: string
   publicFlag?: boolean
   startDate?: string
   endDate?: string

@@ -36,6 +36,7 @@ import { UserManagementModal } from './UserManagementModal'
 import ConfirmModal from '../../components/common/ConfirmModal'
 import { useNavigate } from 'react-router-dom'
 import { createActionColumns } from '../../components/search/createActionColumn'
+import { ExamSessionFilter } from './ExamSessionFilter'
 
 const ExamSessionListPage = () => {
   const [selectedSession, setSelectedSession] = useState<ExamSession | null>(
@@ -45,8 +46,23 @@ const ExamSessionListPage = () => {
   const [userManagementOpen, setUserManagementOpen] = useState(false)
 
   // Menu items cho dropdown "Hành động"
-  const getActionMenuItems = (record: ExamSession): MenuProps['items'] => [
-    {
+  const getActionMenuItems = (record: ExamSession): MenuProps['items'] => {
+    const items: MenuProps['items'] = []
+
+    // Chỉ thêm "Giám sát làm bài" nếu đang trong khoảng thời gian
+    if (isNowBetween(record.startTime, record.endTime)) {
+      items.push({
+        key: 'monitor',
+        label: 'Giám sát làm bài',
+        icon: <EyeOutlined />,
+        onClick: () => {
+          setShowMonitorExam(true)
+          setCurrentExamSession(record)
+        },
+      })
+    }
+
+    items.push({
       key: 'manage-users',
       label: 'Quản lý người dùng',
       icon: <TeamOutlined />,
@@ -54,8 +70,9 @@ const ExamSessionListPage = () => {
         setSelectedSession(record)
         setUserManagementOpen(true)
       },
-    },
-    {
+    })
+
+    items.push({
       key: 'grade',
       label: 'Chấm điểm',
       icon: <EditFilled />,
@@ -63,38 +80,45 @@ const ExamSessionListPage = () => {
         setSelectedSession(record)
         setAttemptListOpen(true)
       },
-    },
-    {
+    })
+
+    items.push({
       key: 'results',
       label: 'Kết quả',
       icon: <FundOutlined />,
       onClick: () => console.log('Kết quả', record),
-    },
-    {
+    })
+
+    items.push({
       key: 'exam-progress',
       label: 'Tiến độ cuộc thi',
       icon: <HistoryOutlined />,
       onClick: () => console.log('Tiến độ cuộc thi', record),
-    },
-    {
+    })
+
+    items.push({
       key: 'learning-progress',
       label: 'Tiến độ học tập chung',
       icon: <BookOutlined />,
       onClick: () => console.log('Tiến độ học tập chung', record),
-    },
-    {
+    })
+
+    items.push({
       key: 'report',
       label: 'Báo cáo',
       icon: <FileTextOutlined />,
       onClick: () => console.log('Báo cáo', record),
-    },
-    {
+    })
+
+    items.push({
       key: 'history',
       label: 'Lịch sử',
       icon: <HistoryOutlined />,
       onClick: () => console.log('Lịch sử', record),
-    },
-  ]
+    })
+
+    return items
+  }
 
   const columns = [
     createColumn<ExamSession>('Tên bài kiểm tra', 'name'),
@@ -120,7 +144,7 @@ const ExamSessionListPage = () => {
       title: 'Thao tác',
       key: 'actions',
       fixed: 'right' as const,
-      width: 300,
+      width: 150,
       render: (_: any, record: ExamSession) => (
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <Dropdown
@@ -177,15 +201,6 @@ const ExamSessionListPage = () => {
         onClick: (record) => console.log('delete', record),
         danger: true,
       },
-      {
-        label: 'Giám sát làm bài',
-        icon: <EyeOutlined />,
-        onClick: (record) => {
-          setShowMonitorExam(true)
-          setCurrentExamSession(record)
-        },
-        disabled: (record) => !isNowBetween(record.startTime, record.endTime),
-      },
     ]),
   ]
 
@@ -216,6 +231,8 @@ const ExamSessionListPage = () => {
     pageIndex: 1,
     pageSize: 10,
   })
+  const [openFilter, setOpenFilter] = useState(false)
+  const [keyword, setKeyword] = useState<string | undefined>(undefined)
 
   const {
     data: examSessionData,
@@ -302,7 +319,7 @@ const ExamSessionListPage = () => {
   }
 
   return (
-    <div>
+    <div style={{ padding: 20 }}>
       <CustomTable<ExamSession>
         columns={columns}
         tableTitle="Bài kiểm tra"
@@ -326,6 +343,21 @@ const ExamSessionListPage = () => {
             setFilter({ ...filter, pageIndex: page, pageSize })
           },
         }}
+        openFilter={openFilter}
+        onFilterClick={setOpenFilter}
+        query={keyword}
+        onQueryChange={(value) => {
+          setKeyword(value)
+          setFilter({ ...filter, keyword: value || undefined, pageIndex: 1 })
+        }}
+        placeholder="Tìm kiếm bài kiểm tra..."
+        filterComponent={
+          <ExamSessionFilter
+            filter={filter}
+            onFilterChange={setFilter}
+            onClose={() => setOpenFilter(false)}
+          />
+        }
       />
 
       {openCreateAssignmentModal && (

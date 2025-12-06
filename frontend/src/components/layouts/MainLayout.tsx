@@ -1,5 +1,5 @@
 import { Outlet, useNavigate } from 'react-router-dom'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { MenuItem } from '../../types/common'
 import {
   BarChartOutlined,
@@ -169,6 +169,7 @@ const MainLayout = () => {
         openKeys={openKeys}
         onMenuClick={handleMenuClick}
         onOpenChange={handleOpenChange}
+        onToggleCollapse={() => setCollapsed(!collapsed)}
       />
       <Layout
         style={{
