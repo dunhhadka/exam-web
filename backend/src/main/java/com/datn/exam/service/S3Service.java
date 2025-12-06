@@ -20,6 +20,14 @@ public interface S3Service {
 
     String generatePresignedGetUrl(String key, int expirationMinutes);
 
-
     String extractKeyFromUrl(String url);
+
+    // Storage management methods
+    java.util.List<String> listObjects(String prefix);
+
+    long getObjectSize(String key);
+
+    boolean deleteFolder(String prefix);
+
+    java.util.Map<String, Long> getFolderSizes(String prefix);
 }

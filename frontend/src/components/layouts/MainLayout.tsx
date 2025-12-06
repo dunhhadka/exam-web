@@ -15,6 +15,8 @@ import { Layout } from 'antd'
 import { Sidebar } from '../common/Sidebar'
 import { Header } from '../common/Header'
 import { Footer } from '../common/Footer'
+import { useDispatch } from 'react-redux'
+import { logout } from '../../store/slices/authSlice'
 
 const MainLayout = () => {
   const [collapsed, setCollapsed] = useState(false)
@@ -22,6 +24,7 @@ const MainLayout = () => {
   const [openKeys, setOpenKeys] = useState<string[]>(['exams'])
 
   const navigate = useNavigate()
+  const dispatch = useDispatch()
 
   const menuItems: MenuItem[] = [
     {
@@ -63,16 +66,16 @@ const MainLayout = () => {
       path: '/examsessions',
     },
     {
-      key: 'results',
+      key: 'store',
       icon: <BarChartOutlined />,
-      label: 'Kết quả thi',
-      path: '/results',
+      label: 'Lưu trữ',
+      path: '/store',
     },
     {
-      key: 'users',
+      key: 'my-course',
       icon: <TeamOutlined />,
-      label: 'Quản lý người dùng',
-      path: '/users',
+      label: 'Khóa học của tôi',
+      path: '/my-course',
     },
     {
       key: 'settings',
@@ -84,10 +87,8 @@ const MainLayout = () => {
 
   const handleLogout = () => {
     console.log('Logout clicked')
-    localStorage.removeItem('accessToken')
-    localStorage.removeItem('refreshToken')
-
-    navigate('/login')
+    dispatch(logout())
+    navigate('/login', { replace: true })
   }
 
   const userMenuItems = [

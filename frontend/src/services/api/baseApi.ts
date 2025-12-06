@@ -15,6 +15,6 @@ export const publicApi = createApi({
 export const authenticatedApi = createApi({
   reducerPath: 'authenticatedApi',
   baseQuery: authenticatedBaseQuery,
-  tagTypes: ['User', 'Exam', 'Question', 'Result', 'Tag', 'ExamSession', 'Attempt'],
+  tagTypes: ['User', 'Exam', 'Question', 'Result', 'Tag', 'ExamSession', 'Attempt', 'Storage'],
   endpoints: () => ({}),
 })
