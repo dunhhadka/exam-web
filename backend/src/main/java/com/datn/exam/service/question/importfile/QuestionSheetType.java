@@ -1,7 +1,14 @@
-package com.datn.exam.model.dto.request.question.importfile;
+package com.datn.exam.service.question.importfile;
 
 import com.datn.exam.support.enums.QuestionType;
+import com.datn.exam.support.util.ExceptionUtils;
+import lombok.Getter;
+import org.apache.commons.lang3.StringUtils;
 
+import java.util.Arrays;
+import java.util.Optional;
+
+@Getter
 public enum QuestionSheetType {
     ONE_CHOICE_SHEET(QuestionType.ONE_CHOICE, "Trắc nghiệm chọn một"),
     MULTI_CHOICE_SHEET(QuestionType.MULTI_CHOICE, "Trắc nghiệm chọn nhiều"),
@@ -16,5 +23,19 @@ public enum QuestionSheetType {
     QuestionSheetType(QuestionType type, String sheetName) {
         this.type = type;
         this.sheetName = sheetName;
+    }
+
+    public static Optional<QuestionSheetType> getBySheetName(String sheetName) {
+        if (StringUtils.isBlank(sheetName)) {
+            throw ExceptionUtils.withMessage("SheetName không dươc để trống");
+        }
+
+        return findSheetTypeByName(sheetName.trim());
+    }
+
+    private static Optional<QuestionSheetType> findSheetTypeByName(String sheetName) {
+        return Arrays.stream(values())
+                .filter(sheet -> sheet.sheetName.equalsIgnoreCase(sheetName))
+                .findFirst();
     }
 }

@@ -118,6 +118,23 @@ export const questionApi = authenticatedApi.injectEndpoints({
         { type: 'Question', id: arg.questionId },
       ],
     }),
+
+    importQuestions: builder.mutation<any, { fileData: string }>({
+      query: (request) => ({
+        url: '/question/import',
+        method: 'POST',
+        body: request,
+      }),
+      invalidatesTags: [{ type: 'Question', id: 'LIST' }],
+    }),
+
+    downloadTemplate: builder.query<Blob, void>({
+      query: () => ({
+        url: '/question/template/download',
+        method: 'GET',
+        responseHandler: (response) => response.blob(),
+      }),
+    }),
   }),
 })
 
@@ -130,4 +147,6 @@ export const {
   useFindByIdQuery,
   useLazyFindByIdQuery,
   useUpdateQuestionMutation,
+  useImportQuestionsMutation,
+  useLazyDownloadTemplateQuery,
 } = questionApi

@@ -1,4 +1,4 @@
 package com.datn.exam.service.question.importfile;
 
-public class BaseHeaderFields {
+public interface BaseHeaderFields {
 }

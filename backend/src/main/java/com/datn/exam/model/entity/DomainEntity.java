@@ -38,7 +38,7 @@ public abstract class DomainEntity {
     }
 
     public List<DomainEvent> getEvents() {
-        if (CollectionUtils.isNotEmpty(this.events)) {
+        if (CollectionUtils.isEmpty(this.events)) {
             return Collections.emptyList();
         }
         return Collections.unmodifiableList(this.events);

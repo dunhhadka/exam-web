@@ -1,21 +1,21 @@
 package com.datn.exam.service.question.importfile.validator;
 
 import com.datn.exam.service.question.importfile.ImportError;
-import com.datn.exam.service.question.importfile.MultiChoiceQuestion;
 import com.datn.exam.service.question.importfile.QuestionSheetType;
+import com.datn.exam.service.question.importfile.TrueFalseQuestion;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 
 @Component
-public class MultiChoiceValidator extends SheetValidator<MultiChoiceQuestion> {
+public class TrueFalseValidator extends SheetValidator<TrueFalseQuestion> {
     @Override
     public QuestionSheetType getSupportSheetType() {
-        return QuestionSheetType.MULTI_CHOICE_SHEET;
+        return QuestionSheetType.TRUE_FALSE_SHEET;
     }
 
     @Override
-    public void validate(MultiChoiceQuestion row, List<ImportError> errors) {
+    public void validate(TrueFalseQuestion row, List<ImportError> errors) {
 
     }
 }

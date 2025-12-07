@@ -1,5 +1,7 @@
-package com.datn.exam.service.question.importfile;
+package com.datn.exam.service.question.importfile.reader;
 
+import com.datn.exam.service.question.importfile.BaseQuestionRow;
+import com.datn.exam.service.question.importfile.QuestionSheetType;
 import com.datn.exam.support.util.ExceptionUtils;
 import org.springframework.stereotype.Component;
 
@@ -13,7 +15,7 @@ public class SheetReaderFactory {
 
     private final Map<QuestionSheetType, SheetReader<?>> readerMap;
 
-    public SheetReaderFactory(List<SheetReader<?>> readers) {
+    public SheetReaderFactory(List<SheetReader<? extends BaseQuestionRow>> readers) {
         this.readerMap = readers.stream()
                 .collect(Collectors.toMap(
                         SheetReader::getSupportedSheetType,
@@ -21,12 +23,13 @@ public class SheetReaderFactory {
                 ));
     }
 
-    public SheetReader<?> getReader(QuestionSheetType type) {
+    @SuppressWarnings("unchecked")
+    public <T extends BaseQuestionRow> SheetReader<T> getReader(QuestionSheetType type) {
         var reader = readerMap.get(type);
         if (reader == null) {
             throw ExceptionUtils.withMessage("Chưa implement sheerReader cho " + type.getSheetName());
         }
 
-        return reader;
+        return (SheetReader<T>) reader;
     }
 }
