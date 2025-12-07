@@ -3,9 +3,7 @@ package com.datn.exam.model.dto.response;
 import com.datn.exam.support.enums.Level;
 import com.datn.exam.support.enums.QuestionType;
 import com.datn.exam.support.enums.Status;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
+import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -28,6 +26,8 @@ public class ExamResponse {
     private String createdBy;
     private LocalDateTime lastModifiedAt;
 
+    @Getter
+    @Setter
     public static class ExamQuestionResponse {
         private long id;
         private String text;

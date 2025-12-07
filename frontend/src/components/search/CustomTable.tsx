@@ -201,22 +201,28 @@ export const CustomTable = <T extends Record<string, any>>({
   )
 }
 
-/* ==== Styled Components (simplified) ==== */
+/* ==== Styled Components (Modern Design) ==== */
 const Wrapper = styled.div`
-  background: #fff;
+  background: linear-gradient(135deg, #ffffff 0%, #f9fbff 100%);
   overflow: hidden;
-  border: 1px solid #eee;
-  border-radius: 6px;
+  border: 1px solid #e8eef7;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  &:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  }
 `
 
 const HeaderBar = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
+  padding: 16px 20px;
   gap: 12px;
-  border-bottom: 1px solid #f0f0f0;
-  background: transparent;
+  border-bottom: 1px solid #e8eef7;
+  background: linear-gradient(135deg, #fafbfc 0%, #f5f8fb 100%);
 `
 
 const LeftSection = styled.div`
@@ -229,34 +235,70 @@ const LeftSection = styled.div`
 
 const Title = styled.h3`
   margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: #222;
+  font-size: 18px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #1890ff 0%, #40a9ff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.5px;
 `
 
 const ActionButtons = styled(Flex)`
-  gap: 8px;
+  gap: 10px;
 `
 
 const StyledButton = styled(Button)`
-  border-radius: 6px;
-  height: 34px;
-  padding: 0 12px;
-  font-weight: 500;
-  box-shadow: none;
+  border-radius: 8px;
+  height: 36px;
+  padding: 0 14px;
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+  border: 1px solid transparent;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  font-size: 14px;
 
   &.ant-btn-primary {
+    background: linear-gradient(135deg, #1890ff 0%, #40a9ff 100%);
     border: none;
+    color: white;
+
+    &:hover {
+      background: linear-gradient(135deg, #096dd9 0%, #1890ff 100%);
+      box-shadow: 0 4px 12px rgba(24, 144, 255, 0.3);
+      transform: translateY(-2px);
+    }
+
+    &:active {
+      transform: translateY(0);
+    }
+  }
+
+  &.ant-btn-default {
+    border: 1px solid #d9e6f6;
+    color: #333;
+    background: #fff;
+
+    &:hover {
+      border-color: #1890ff;
+      color: #1890ff;
+      box-shadow: 0 2px 8px rgba(24, 144, 255, 0.12);
+    }
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 `
 
 const FilterActionStyled = styled.div`
   display: flex;
-  gap: 12px;
-  padding: 10px 16px;
-  border-bottom: 1px solid #f5f5f5;
+  gap: 14px;
+  padding: 14px 20px;
+  border-bottom: 1px solid #e8eef7;
   align-items: center;
-  background: transparent;
+  background: linear-gradient(135deg, #fafbfc 0%, #f5f8fb 100%);
   flex-wrap: wrap;
 `
 
@@ -267,12 +309,33 @@ const SearchSection = styled.div`
 
 const SearchInput = styled(Input)`
   max-width: 420px;
-  border-radius: 6px;
-  border: 1px solid #d9d9d9;
-  box-shadow: none;
+  border-radius: 8px;
+  border: 1px solid #d9e6f6;
+  background: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  &:hover {
+    border-color: #b3d8ff;
+    box-shadow: 0 2px 8px rgba(24, 144, 255, 0.08);
+  }
+
+  &:focus {
+    border-color: #1890ff !important;
+    box-shadow: 0 0 0 3px rgba(24, 144, 255, 0.12) !important;
+  }
 
   .ant-input-prefix {
-    color: #8c8c8c;
+    color: #8c95a8;
+  }
+
+  .ant-input {
+    font-size: 14px;
+    color: #333;
+
+    &::placeholder {
+      color: #bac0d0;
+    }
   }
 `
 
@@ -283,53 +346,75 @@ const FilterSection = styled.div`
 `
 
 const FilterButton = styled(Button)`
-  border-radius: 6px;
-  height: 34px;
-  padding: 0 12px;
-  border: 1px solid #d9d9d9;
-  background: #fff;
-  color: #444;
+  border-radius: 8px;
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid #d9e6f6;
+  background: white;
+  color: #666;
+  font-weight: 600;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+
+  &:hover {
+    border-color: #b3d8ff;
+    color: #1890ff;
+    box-shadow: 0 2px 8px rgba(24, 144, 255, 0.12);
+  }
 
   &.active {
     border-color: #1890ff;
-    color: #1890ff;
+    color: white;
+    background: linear-gradient(135deg, #1890ff 0%, #40a9ff 100%);
+    box-shadow: 0 4px 12px rgba(24, 144, 255, 0.3);
   }
 `
 
 const LabelItemsSection = styled.div`
-  padding: 8px 16px;
-  border-bottom: 1px solid #f5f5f5;
-  background: transparent;
+  padding: 12px 20px;
+  border-bottom: 1px solid #e8eef7;
+  background: #fafbfc;
 `
 
 const LabelItemsWrapper = styled.div`
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
   align-items: center;
 `
 
 const StyledTag = styled(Tag)`
   margin: 0;
-  padding: 5px 12px;
-  border-radius: 20px;
-  background: #e6f7ff; /* xanh nhạt hơn primary */
-  border: 1px solid #91d5ff; /* viền xanh pastel */
+  padding: 6px 14px;
+  border-radius: 24px;
+  background: linear-gradient(135deg, #e6f7ff 0%, #f0f5ff 100%);
+  border: 1px solid #91d5ff;
   font-size: 13px;
-  font-weight: 500;
-  color: #1890ff; /* text giữ màu primary */
+  font-weight: 600;
+  color: #1890ff;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 4px rgba(24, 144, 255, 0.08);
 
   &:hover {
-    background: #bae7ff; /* xanh hover đậm hơn */
+    background: linear-gradient(135deg, #bae7ff 0%, #e6f7ff 100%);
     border-color: #69c0ff;
-    color: #096dd9; /* text đậm hơn một chút */
+    color: #096dd9;
+    box-shadow: 0 4px 12px rgba(24, 144, 255, 0.2);
+    transform: translateY(-2px);
   }
+
   .anticon-close {
     font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:hover {
+      color: #ff4d4f;
+      transform: scale(1.2);
+    }
   }
 `
 
@@ -340,13 +425,13 @@ const TagContent = styled.div`
 `
 
 const TagLabel = styled.span`
-  color: #555;
-  font-weight: 500;
+  color: #666;
+  font-weight: 600;
 `
 
 const TagValue = styled.span`
-  color: #333;
-  font-weight: 600;
+  color: #1890ff;
+  font-weight: 700;
 `
 
 const TableWrapper = styled.div<{ contentPadding?: string | number }>`
@@ -359,40 +444,120 @@ const TableWrapper = styled.div<{ contentPadding?: string | number }>`
 
   .ant-table {
     background: transparent;
+    font-size: 14px;
   }
 
   .ant-table-thead > tr > th {
-    background: #fff;
-    font-weight: 600;
-    color: #666;
-    border-bottom: 1px solid #f0f0f0;
-    padding: 10px 12px;
-    font-size: 12px;
-    text-transform: none;
-  }
-
-  .ant-table-tbody > tr > td {
-    border-bottom: 1px solid #f7f7f7;
-    padding: 10px 12px;
+    background: linear-gradient(135deg, #fafbfc 0%, #f5f8fb 100%);
+    font-weight: 700;
     color: #333;
+    border-bottom: 2px solid #e8eef7;
+    padding: 14px 16px;
     font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: linear-gradient(135deg, #f5f8fb 0%, #eef3f9 100%);
+    }
   }
 
-  .ant-table-tbody > tr:hover > td {
-    background: transparent;
+  .ant-table-tbody > tr {
+    transition: background-color 0.15s ease-out;
+
+    > td {
+      border-bottom: 1px solid #f0f3f8;
+      padding: 14px 16px;
+      color: #333;
+      font-size: 14px;
+      transition: background-color 0.15s ease-out;
+    }
+
+    &:nth-child(odd) > td {
+      background-color: #ffffff;
+    }
+
+    &:nth-child(even) > td {
+      background-color: #f8fbff;
+    }
+
+    &:hover > td {
+      background-color: #f0f7ff;
+    }
+
+    &:last-child > td {
+      border-bottom: 1px solid #f0f3f8;
+    }
+  }
+
+  .ant-table-row-selected {
+    > td {
+      background: linear-gradient(135deg, #e6f7ff 0%, #eef5ff 100%) !important;
+    }
+
+    &:hover > td {
+      background: linear-gradient(135deg, #bae7ff 0%, #e6f7ff 100%) !important;
+    }
   }
 
   .ant-pagination {
-    padding: 10px 12px;
+    padding: 14px 16px;
     margin: 0;
+    border-top: 1px solid #f0f3f8;
+    background: #fafbfc;
+  }
+
+  .ant-pagination-item {
+    border-radius: 6px;
+    border-color: #d9e6f6;
+    transition: all 0.2s;
+
+    &:hover {
+      border-color: #1890ff;
+      color: #1890ff;
+    }
+
+    &.ant-pagination-item-active {
+      background: linear-gradient(135deg, #1890ff 0%, #40a9ff 100%);
+      border-color: #1890ff;
+
+      a {
+        color: white;
+      }
+    }
+  }
+
+  .ant-pagination-next,
+  .ant-pagination-prev {
+    transition: all 0.2s;
+
+    button {
+      border-radius: 6px;
+      border-color: #d9e6f6;
+      transition: all 0.2s;
+
+      &:hover:not(:disabled) {
+        border-color: #1890ff;
+        color: #1890ff;
+      }
+    }
   }
 
   .ant-empty {
-    padding: 24px;
+    padding: 32px 24px;
+    background: transparent;
   }
 
   .ant-empty-description {
-    color: #8c8c8c;
+    color: #8c95a8;
     font-size: 14px;
+    font-weight: 500;
+  }
+
+  .ant-empty-img-simple {
+    g {
+      stroke: #b3d8ff;
+    }
   }
 `

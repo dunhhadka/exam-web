@@ -9,6 +9,7 @@ import { useDispatch } from 'react-redux'
 import { useLoginMutation } from '../../services/api/authApi'
 import { setCredentials } from '../../store/slices/authSlice'
 import { useToast } from '../../hooks/useToast'
+import { useLazyGetProfileQuery } from '../../services/api/accountApi'
 import styled from '@emotion/styled'
 
 const SocialLoginSection = styled.div`
@@ -42,13 +43,13 @@ const SocialButton = styled.button`
   color: #262626;
   cursor: pointer;
   transition: all 0.3s ease;
-  
+
   &:hover {
     border-color: #1890ff;
     box-shadow: 0 4px 12px rgba(24, 144, 255, 0.15);
     transform: translateY(-2px);
   }
-  
+
   img {
     width: 24px;
     height: 24px;

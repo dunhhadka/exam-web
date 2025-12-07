@@ -1,20 +1,5 @@
-import {
-  BellOutlined,
-  MenuFoldOutlined,
-  MenuUnfoldOutlined,
-  SearchOutlined,
-  UserOutlined,
-} from '@ant-design/icons'
-import {
-  Avatar,
-  Badge,
-  Button,
-  Dropdown,
-  Layout,
-  Space,
-  theme,
-  Typography,
-} from 'antd'
+import { UserOutlined } from '@ant-design/icons'
+import { Avatar, Dropdown, Layout, Space, theme, Typography } from 'antd'
 import { Profile } from '../../types/auth'
 
 interface HeaderProps {
@@ -57,39 +42,15 @@ export const Header: React.FC<HeaderProps> = ({
         boxShadow: '0 1px 4px rgba(0, 0, 0, 0.08)',
       }}
     >
-      {/* Left side - Collapse button */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-        <Button
-          type="text"
-          icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-          onClick={onToggleCollapse}
-          style={{
-            fontSize: '16px',
-            width: 40,
-            height: 40,
-          }}
-        />
-
-        {/* Search */}
-        <Button
-          type="text"
-          icon={<SearchOutlined />}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            minWidth: collapsed ? 40 : 120,
-          }}
-          onClick={() => console.log('Search clicked')}
-        >
-          {!collapsed && 'Tìm kiếm...'}
-        </Button>
-      </div>
+      {/* Left side - reserved (toggle moved to Sidebar) */}
+      <div
+        style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 40 }}
+      />
 
       {/* Right side - User info */}
       <Space size="middle">
         {/* Notifications */}
-        <Badge count={5} size="small">
+        {/* <Badge count={5} size="small">
           <Button
             type="text"
             icon={<BellOutlined />}
@@ -100,7 +61,7 @@ export const Header: React.FC<HeaderProps> = ({
               height: 40,
             }}
           />
-        </Badge>
+        </Badge> */}
 
         {/* User dropdown */}
         <Dropdown

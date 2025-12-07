@@ -31,4 +31,7 @@ public interface ExamController {
 
     @DeleteMapping("/delete")
     Response<Boolean> delete(@RequestBody IdsRequest request);
+
+    @GetMapping("/{id}")
+    Response<ExamResponse> getById(@PathVariable long id);
 }

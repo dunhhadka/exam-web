@@ -29,6 +29,7 @@ import TakeExamV2 from './pages/take-exams/TakeExamV2'
 import StorePage from './pages/Store/StorePage'
 import MyCoursePage from './pages/my-course/MyCoursePage'
 import LandingPage from './web-public/LandingPage'
+import UserInfo from './pages/auth/UserInfo'
 
 function App() {
   return (
@@ -91,6 +92,8 @@ function App() {
                     element={<ProctorTrackingSystem />}
                   />
                   <Route path="/exams/create" element={<ExamCreatePage />} />
+                  <Route path="/settings" element={<UserInfo />} />
+                  <Route path="/" element={<Navigate to="/home" replace />} />
                 </Route>
               </Route>
             </Routes>

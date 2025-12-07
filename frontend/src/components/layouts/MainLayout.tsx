@@ -1,5 +1,5 @@
 import { Outlet, useNavigate } from 'react-router-dom'
-import { useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { MenuItem } from '../../types/common'
 import {
   BarChartOutlined,
@@ -15,7 +15,9 @@ import { Layout } from 'antd'
 import { Sidebar } from '../common/Sidebar'
 import { Header } from '../common/Header'
 import { Footer } from '../common/Footer'
-import { useDispatch } from 'react-redux'
+import { useDispatch, useSelector } from 'react-redux'
+import { RootState } from '../../store'
+import { setProfile } from '../../store/slices/authSlice'
 import { logout } from '../../store/slices/authSlice'
 
 const MainLayout = () => {
@@ -23,8 +25,9 @@ const MainLayout = () => {
   const [selectedKey, setSelectedKey] = useState('home')
   const [openKeys, setOpenKeys] = useState<string[]>(['exams'])
 
-  const navigate = useNavigate()
   const dispatch = useDispatch()
+
+  const navigate = useNavigate()
 
   const menuItems: MenuItem[] = [
     {
@@ -80,7 +83,7 @@ const MainLayout = () => {
     {
       key: 'settings',
       icon: <SettingOutlined />,
-      label: 'Cài đặt',
+      label: 'Thông tin cá nhân',
       path: '/settings',
     },
   ]
@@ -150,6 +153,7 @@ const MainLayout = () => {
         openKeys={openKeys}
         onMenuClick={handleMenuClick}
         onOpenChange={handleOpenChange}
+        onToggleCollapse={() => setCollapsed(!collapsed)}
       />
       <Layout
         style={{

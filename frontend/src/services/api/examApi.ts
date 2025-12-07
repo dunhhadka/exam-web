@@ -2,6 +2,18 @@ import { Exam, ExamRequest, ExamSearchRequest } from '../../types/exam'
 import { parseParamToString } from '../../utils/parseParam'
 import { authenticatedApi } from './baseApi'
 
+// Helper function to map backend response to Exam type
+const mapExamResponse = (data: any): Exam => {
+  return {
+    ...data,
+    isPublic: data.isPublic !== undefined ? data.isPublic : data.public,
+  }
+}
+
+const mapExamsResponse = (data: any[]): Exam[] => {
+  return data.map(mapExamResponse)
+}
+
 export const examApi = authenticatedApi.injectEndpoints({
   endpoints: (builder) => ({
     searchExam: builder.query<
@@ -22,7 +34,7 @@ export const examApi = authenticatedApi.injectEndpoints({
 
         return {
           data: {
-            data: examResult.data as Exam[],
+            data: mapExamsResponse(examResult.data as any[]),
             count: countResult.data as number,
           },
         }
@@ -49,6 +61,7 @@ export const examApi = authenticatedApi.injectEndpoints({
         method: 'POST',
         body: request,
       }),
+      transformResponse: (response: any) => mapExamResponse(response),
       invalidatesTags: [{ type: 'Exam' as const, id: 'LIST' }],
     }),
 
@@ -57,7 +70,31 @@ export const examApi = authenticatedApi.injectEndpoints({
         url: `exam/${id}`,
         method: 'GET',
       }),
+      transformResponse: (response: any) => mapExamResponse(response),
       providesTags: (result, error, id) => [{ type: 'Exam' as const, id }],
+      keepUnusedDataFor: 0,
+    }),
+
+    updateExam: builder.mutation<Exam, { id: string; request: ExamRequest }>({
+      query: ({ id, request }) => ({
+        url: `exam/update/${id}`,
+        method: 'PUT',
+        body: request,
+      }),
+      transformResponse: (response: any) => mapExamResponse(response),
+      invalidatesTags: (result, error, { id }) => [
+        { type: 'Exam' as const, id },
+        { type: 'Exam' as const, id: 'LIST' },
+      ],
+    }),
+
+    deleteExam: builder.mutation<boolean, { ids: number[] }>({
+      query: ({ ids }) => ({
+        url: 'exam/delete',
+        method: 'DELETE',
+        body: { ids },
+      }),
+      invalidatesTags: [{ type: 'Exam' as const, id: 'LIST' }],
     }),
   }),
   overrideExisting: false,
@@ -65,6 +102,8 @@ export const examApi = authenticatedApi.injectEndpoints({
 
 export const {
   useCreateExamMutation,
+  useUpdateExamMutation,
+  useDeleteExamMutation,
   useSearchExamQuery,
   useLazySearchExamQuery,
   useGetExamByIdQuery,
