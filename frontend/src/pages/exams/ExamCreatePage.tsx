@@ -6,15 +6,18 @@ import {
 import styled from '@emotion/styled'
 import { yupResolver } from '@hookform/resolvers/yup'
 import { Button, Flex, InputNumber, Radio, Space } from 'antd'
+import { useEffect } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom'
 import * as yup from 'yup'
-import { InferType } from 'yup'
 import { DropDownFixedValues } from '../../components/common/DropDownFixedValues'
 import { Input } from '../../components/common/input'
 import { useToast } from '../../hooks/useToast'
-import { useCreateExamMutation } from '../../services/api/examApi'
-import { ExamLevel, ExamLevelLabel, ExamRequest } from '../../types/exam'
+import {
+  useCreateExamMutation,
+  useUpdateExamMutation,
+} from '../../services/api/examApi'
+import { Exam, ExamLevel, ExamLevelLabel, ExamRequest } from '../../types/exam'
 import {
   PointsLabel,
   PointsSection,
@@ -45,10 +48,21 @@ const examSchema = yup.object({
   idsTag: yup.array().default([]),
 })
 
-export const ExamCreatePage = () => {
+interface ExamCreatePageProps {
+  initData?: Exam
+  isUpdate?: boolean
+  onSuccess?: () => void
+}
+
+export const ExamCreatePage = (props?: ExamCreatePageProps) => {
+  const { initData, isUpdate, onSuccess } = props || {}
   const toast = useToast()
-  const [createExam, { isLoading }] = useCreateExamMutation()
+  const [createExam, { isLoading: isCreateLoading }] = useCreateExamMutation()
+  const [updateExam, { isLoading: isUpdateLoading }] = useUpdateExamMutation()
   const navigate = useNavigate()
+  const isLoading = isUpdate ? isUpdateLoading : isCreateLoading
+
+  console.log('initData', initData)
 
   const {
     register,
@@ -59,29 +73,78 @@ export const ExamCreatePage = () => {
     control,
   } = useForm<ExamRequest>({
     resolver: yupResolver(examSchema) as any,
-    defaultValues: {
-      name: '',
-      level: ExamLevel.EASY,
-      questions: [],
-      idsTag: [],
-      score: undefined,
-      isPublic: false,
-    },
+    defaultValues:
+      isUpdate && initData
+        ? {
+            name: initData.name,
+            level: initData.level,
+            questions: initData.examQuestion || [],
+            idsTag: [],
+            score: initData.score,
+            isPublic: initData.isPublic,
+          }
+        : {
+            name: '',
+            level: ExamLevel.EASY,
+            questions: [],
+            idsTag: [],
+            score: undefined,
+            isPublic: false,
+          },
   })
+
+  // Reset form khi initData thay đổi (khi switch exam khác trong modal)
+  useEffect(() => {
+    if (isUpdate && initData) {
+      reset({
+        name: initData.name,
+        level: initData.level,
+        questions: initData.examQuestion || [],
+        idsTag: [],
+        score: initData.score,
+        isPublic: initData.isPublic,
+      })
+    }
+  }, [initData, isUpdate, reset])
 
   const submit = async (data: ExamRequest) => {
     try {
-      const result = await createExam(data).unwrap()
-      toast.success(
-        'Tạo bài thi thành công!',
-        `Bài thi "${result.name}" đã được tạo`
-      )
-      navigate('/exams')
+      if (isUpdate && initData) {
+        const result = await updateExam({
+          id: initData.id.toString(),
+          request: data,
+        }).unwrap()
+        toast.success(
+          'Cập nhật bài thi thành công!',
+          `Bài thi "${result.name}" đã được cập nhật`
+        )
+        // Reset form với dữ liệu mới từ response
+        reset({
+          name: result.name,
+          level: result.level,
+          questions: result.examQuestion || [],
+          idsTag: [],
+          score: result.score,
+          isPublic: result.isPublic,
+        })
+        if (onSuccess) {
+          onSuccess()
+        } else {
+          navigate('/exams')
+        }
+      } else {
+        const result = await createExam(data).unwrap()
+        toast.success(
+          'Tạo bài thi thành công!',
+          `Bài thi "${result.name}" đã được tạo`
+        )
+        navigate('/exams')
+      }
     } catch (error: any) {
-      toast.error(
-        'Lỗi tạo bài thi',
+      const errorMessage =
         error?.data?.message || 'Có lỗi xảy ra, vui lòng thử lại'
-      )
+      const title = isUpdate ? 'Lỗi cập nhật bài thi' : 'Lỗi tạo bài thi'
+      toast.error(title, errorMessage)
     }
   }
 
@@ -94,7 +157,11 @@ export const ExamCreatePage = () => {
   })
 
   const handleCancel = () => {
-    navigate('/exams')
+    if (isUpdate && onSuccess) {
+      onSuccess() // Close modal
+    } else {
+      navigate('/exams')
+    }
   }
 
   const handleSaveDraft = handleSubmit(
@@ -230,7 +297,7 @@ export const ExamCreatePage = () => {
             onClick={handlePublish}
             loading={isLoading}
           >
-            Xuất bản
+            {isUpdate ? 'Cập nhật' : 'Xuất bản'}
           </Button>
         </Flex>
       </FooterBar>

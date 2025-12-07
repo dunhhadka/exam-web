@@ -18,4 +18,6 @@ public interface ExamService {
     void delete(List<Long> ids);
 
     Integer count(ExamFilterRequest request);
+
+    ExamResponse getById(long id);
 }

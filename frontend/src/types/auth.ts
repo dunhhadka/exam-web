@@ -57,3 +57,17 @@ export enum Gender {
   FEMALE = 'FEMALE',
   OTHER = 'OTHER',
 }
+
+export interface Profile {
+  email: string
+  firstName: string
+  lastName: string
+  phone: string
+  dateOfBirth: string // hoặc Date nếu bạn muốn dùng Date object
+  avatarUrl: string
+  gender: Gender
+  address: string
+  deleted: boolean
+  permissions: string[]
+  roles: string[]
+}

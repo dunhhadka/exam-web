@@ -5,7 +5,7 @@ import { SignalingClient } from '../take-exams/js/signaling'
 import { createPeer, addLocalStream, createAndSetOffer, setRemoteDescription } from '../take-exams/js/webrtc'
 import { RecordingService } from '../take-exams/js/recording'
 import { useSelector } from 'react-redux'
-import TakeExamContent from './ExamContent'
+import TakeExamContent, { CheatLevelAutoSubmit } from './ExamContent'
 import {
   Card,
   Button,
@@ -43,6 +43,8 @@ import {
   ReloadOutlined,
 } from '@ant-design/icons'
 import styled from '@emotion/styled'
+import { useToast } from '../../hooks/useToast'
+import { set } from 'react-hook-form'
 
 const SIGNALING_BASE = (
   // import.meta.env.VITE_SIGNALING_URL || 
@@ -172,23 +174,6 @@ const AIStatusPanel = styled(Card)`
   }
 `
 
-const ChecklistItem = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 0;
-  border-bottom: 1px solid #f0f0f0;
-
-  &:last-child {
-    border-bottom: none;
-  }
-
-  .anticon {
-    color: ${props => props.$checked ? '#52c41a' : '#d9d9d9'};
-    font-size: 16px;
-  }
-`
-
 const ChatModal = styled(Modal)`
   .ant-modal-body {
     padding: 0;
@@ -227,21 +212,8 @@ const ChatInputContainer = styled.div`
   gap: 8px;
 `
 
-const ExamContent = styled.div`
-  flex: 1;
-  background: white;
-  border-radius: 8px;
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  border: 2px dashed #d9d9d9;
-  min-height: 600px;
-`
-
 export default function Candidate() {
-  const { userId, userEmail, takeExamSession } = useSelector(
+  const { userId, takeExamSession } = useSelector(
     (state) => state.takeExam
   )
 
@@ -277,6 +249,14 @@ export default function Candidate() {
   const sigRef = useRef(null)
   const dcRef = useRef(null)
   const detectionRef = useRef({ running: false })
+
+  const [cheatLevel, setCheatLevel] = useState({level: "none", message: ""});
+
+  const [autoSubmitCheatVisible, setAutoSubmitCheatVisible] = useState(false);
+
+  console.log('Render Candidate Component - cheatLevel:', cheatLevel, autoSubmitCheatVisible);
+
+  const toast = useToast()
 
   // Start OCR loop at component mount (top-level hook usage)
   useScreenOCR({ screenVideoRef, canvasRef, sigRef, userId })
@@ -339,7 +319,7 @@ export default function Candidate() {
           console.log('[Candidate] AI Analysis received:', data)
           console.log('[Candidate] Current userId:', userId, 'Data candidate_id:', data.data?.candidate_id)
           
-          if (data.data?.candidate_id === userId) {
+          if (data.data?.candidate_id === userId && cheatLevel.level !== CheatLevelAutoSubmit) {
             console.log('[Candidate] ✅ Processing AI analysis for this candidate')
             setAiStatus(data.data)
             
@@ -354,6 +334,14 @@ export default function Candidate() {
               if (alerts.length > 0) {
                 console.log('[Candidate] ⚠️ Alerts found:', alerts.length)
                 setRecentAlerts(prev => [...alerts, ...prev].slice(0, 5))
+                console.log('[Candidate] Recent alerts updated:', alerts)
+
+                const messages = alerts?.map(a => a.message).join(', ') || 'Có hành vi đáng ngờ được phát hiện trong phiên thi.'
+                toast.warning(messages)
+
+                if(alerts[0].level === CheatLevelAutoSubmit) {
+                  setCheatLevel({level: CheatLevelAutoSubmit, message: alerts[0].message || ''});
+                }
               }
             }
           } else {
@@ -486,7 +474,7 @@ export default function Candidate() {
         console.warn('Cleanup error:', e)
       }
     }
-  }, [roomId, userId, kycComplete, checkInComplete])
+  }, [roomId, userId, kycComplete, checkInComplete, cheatLevel])
 
   useEffect(() => {
     const setupPreview = () => {
@@ -806,50 +794,6 @@ export default function Candidate() {
         </Card>
       )}
 
-      {/* AI Monitoring Status Panel */}
-      {connected && aiStatus && (
-        <AIStatusPanel
-          $hasAlerts={recentAlerts.length > 0}
-          style={{ marginBottom: 24 }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <RobotOutlined style={{ fontSize: 24, color: recentAlerts.length > 0 ? '#faad14' : '#52c41a' }} />
-            <div style={{ flex: 1 }}>
-              <Typography.Text strong>
-                Hệ thống AI đang giám sát phiên thi của bạn
-              </Typography.Text>
-              <div style={{ marginTop: 4 }}>
-                <Tag color={recentAlerts.length > 0 ? 'orange' : 'green'}>
-                  {aiStatus.scenario === 'normal' ? '✓ Bình thường' : `⚠ ${aiStatus.scenario}`}
-                </Tag>
-              </div>
-            </div>
-            {recentAlerts.length > 0 && (
-              <Badge count={recentAlerts.length} style={{ backgroundColor: '#faad14' }} />
-            )}
-          </div>
-
-          {recentAlerts.length > 0 && (
-            <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #ffe58f' }}>
-              <Typography.Text type="warning" strong>
-                Cảnh báo gần đây:
-              </Typography.Text>
-              <List
-                size="small"
-                dataSource={recentAlerts.slice(0, 3)}
-                renderItem={(alert, idx) => (
-                  <List.Item>
-                    <Typography.Text type="warning" style={{ fontSize: 12 }}>
-                      • {alert.message}
-                    </Typography.Text>
-                  </List.Item>
-                )}
-              />
-            </div>
-          )}
-        </AIStatusPanel>
-      )}
-
       {!loading && !error && (
         <MainGrid>
           {/* Left Column - Phần làm bài kiểm tra (75%) */}
@@ -864,7 +808,15 @@ export default function Candidate() {
                         }
                         style={{ flex: 1 }}
                       >
-                        <TakeExamContent />
+                        <TakeExamContent 
+                        // cheatLevel={cheatLevel.level} cheatMessage={cheatLevel.message} onCheatAutoSubmit={() => {
+                        //   setAutoSubmitCheatVisible(true);
+                        // }}
+                        cheatDetected={{
+                          level: cheatLevel.level,
+                          message: cheatLevel.message
+                        }}
+                        />
                       </Card>
                     </ExamSection>
 
@@ -958,61 +910,6 @@ export default function Candidate() {
                 <canvas ref={canvasRef} style={{ display: 'none' }} />
               </VideoContainer>
             </VideoCard>
-
-            {/* Proctor View */}
-            <VideoCard
-              title={
-                <Space>
-                  <EyeOutlined />
-                  Góc nhìn giám thị
-                </Space>
-              }
-            >
-              <VideoContainer $isScreen>
-                <StyledVideo ref={remoteVideoRef} autoPlay playsInline />
-                {!connected && (
-                  <VideoPlaceholder>
-                    <EyeOutlined />
-                    <div>Chờ kết nối giám thị...</div>
-                  </VideoPlaceholder>
-                )}
-              </VideoContainer>
-              <div style={{ marginTop: 8 }}>
-                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                  Giám thị đang xem: {isSharingScreen ? 'Màn hình của bạn' : 'Camera của bạn'} + Âm thanh
-                </Typography.Text>
-              </div>
-            </VideoCard>
-
-            {/* Checklist */}
-            <Card
-              title={
-                <Space>
-                  <CheckCircleOutlined />
-                  Checklist
-                </Space>
-              }
-            >
-              <ChecklistItem $checked={checklist.cam}>
-                {checklist.cam ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
-                <Typography.Text>Camera rõ mặt, ánh sáng đủ</Typography.Text>
-              </ChecklistItem>
-
-              <ChecklistItem $checked={checklist.screen}>
-                {checklist.screen ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
-                <Typography.Text>Đang chia sẻ màn hình</Typography.Text>
-              </ChecklistItem>
-
-              <ChecklistItem $checked={checklist.oneDisplay}>
-                {checklist.oneDisplay ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
-                <Typography.Text>Chỉ một màn hình</Typography.Text>
-              </ChecklistItem>
-
-              <ChecklistItem $checked={checklist.noHeadset}>
-                {checklist.noHeadset ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
-                <Typography.Text>Không sử dụng tai nghe</Typography.Text>
-              </ChecklistItem>
-            </Card>
           </MonitoringSection>
         </MainGrid>
       )}

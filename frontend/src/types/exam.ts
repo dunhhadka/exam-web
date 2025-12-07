@@ -24,6 +24,7 @@ export interface ExamRequest {
 }
 
 export interface ExamSearchRequest extends PagingRequest {
+  keyword?: string
   me?: boolean
   level?: ExamLevel
   status?: ExamStatus

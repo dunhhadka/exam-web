@@ -82,14 +82,14 @@ export const QuestionList = () => {
     }),
 
     createActionColumns<Question>([
-      {
-        label: 'Sao chép',
-        icon: <CopyOutlined />,
-        onClick: (record) => {
-          setShowQuestionCopyModal(true)
-          setQuestionSelectedId(record.id)
-        },
-      },
+      // {
+      //   label: 'Sao chép',
+      //   icon: <CopyOutlined />,
+      //   onClick: (record) => {
+      //     setShowQuestionCopyModal(true)
+      //     setQuestionSelectedId(record.id)
+      //   },
+      // },
       {
         label: 'Cập nhật',
         icon: <EditOutlined />,
@@ -177,10 +177,8 @@ export const QuestionList = () => {
     }
   }
 
-  console.log(filter)
-
   return (
-    <div>
+    <div style={{ padding: '20px' }}>
       <CustomTable<Question>
         columns={columns}
         emptyText="Danh sách câu hỏi trống"
@@ -217,12 +215,12 @@ export const QuestionList = () => {
           />
         }
         actions={[
-          {
-            title: 'Tải xuống',
-            icon: <DownloadOutlined />,
-            onClick: handleDownloadExcel,
-            color: 'secondary',
-          },
+          // {
+          //   title: 'Tải xuống',
+          //   icon: <DownloadOutlined />,
+          //   onClick: handleDownloadExcel,
+          //   color: 'secondary',
+          // },
           {
             title: 'Thêm câu hỏi mới',
             icon: <PlusCircleOutlined />,

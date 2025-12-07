@@ -9,6 +9,7 @@ import org.hibernate.annotations.FetchMode;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 
 @Entity
@@ -36,7 +37,7 @@ public class Exam extends AuditableEntity{
 
     @OneToMany(mappedBy = "exam", fetch = FetchType.EAGER,cascade = CascadeType.ALL, orphanRemoval = true)
     @Fetch(FetchMode.SUBSELECT)
-    private List<ExamQuestion> examQuestions;
+    private List<ExamQuestion> examQuestions = new LinkedList<>();
 
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
@@ -44,7 +45,7 @@ public class Exam extends AuditableEntity{
             joinColumns = @JoinColumn(name = "exam_id"),
             inverseJoinColumns = @JoinColumn(name = "tag_id")
     )
-    private List<Tag> tags;
+    private List<Tag> tags = new LinkedList<>();
 
     @OneToMany(mappedBy = "exam", fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true)
     @Fetch(FetchMode.SUBSELECT)
