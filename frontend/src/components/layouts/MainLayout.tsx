@@ -18,6 +18,7 @@ import { Footer } from '../common/Footer'
 import { useDispatch, useSelector } from 'react-redux'
 import { RootState } from '../../store'
 import { setProfile } from '../../store/slices/authSlice'
+import { logout } from '../../store/slices/authSlice'
 
 const MainLayout = () => {
   const [collapsed, setCollapsed] = useState(false)
@@ -67,16 +68,16 @@ const MainLayout = () => {
       path: '/examsessions',
     },
     {
-      key: 'results',
+      key: 'store',
       icon: <BarChartOutlined />,
-      label: 'Kết quả thi',
-      path: '/results',
+      label: 'Lưu trữ',
+      path: '/store',
     },
     {
-      key: 'users',
+      key: 'my-course',
       icon: <TeamOutlined />,
-      label: 'Quản lý người dùng',
-      path: '/users',
+      label: 'Khóa học của tôi',
+      path: '/my-course',
     },
     {
       key: 'settings',
@@ -88,11 +89,8 @@ const MainLayout = () => {
 
   const handleLogout = () => {
     console.log('Logout clicked')
-    localStorage.removeItem('accessToken')
-    localStorage.removeItem('refreshToken')
-    localStorage.removeItem('userProfile')
-
-    window.location.href = '/login'
+    dispatch(logout())
+    navigate('/login', { replace: true })
   }
 
   const userMenuItems = [

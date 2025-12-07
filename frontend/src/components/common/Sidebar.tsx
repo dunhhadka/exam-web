@@ -198,7 +198,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           ) : (
             <>
               <LogoBadge>E</LogoBadge>
-              <LogoText strong>Exam System</LogoText>
+              <LogoText strong>Exam.vn</LogoText>
             </>
           )}
         </div>

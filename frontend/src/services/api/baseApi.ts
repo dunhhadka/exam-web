@@ -24,6 +24,7 @@ export const authenticatedApi = createApi({
     'ExamSession',
     'Attempt',
     'Profile',
+    'Storage',
   ],
   endpoints: () => ({}),
 })

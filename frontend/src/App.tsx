@@ -26,6 +26,9 @@ import CheckExamIdentity from './pages/take-exams/CheckExamIdentity'
 import PrepareCheckCandidateSystem from './pages/take-exams/PrepareCheckCandidateSystem'
 import ProctorTrackingSystem from './pages/take-exams/ProctorTrackingSystem'
 import TakeExamV2 from './pages/take-exams/TakeExamV2'
+import StorePage from './pages/Store/StorePage'
+import MyCoursePage from './pages/my-course/MyCoursePage'
+import LandingPage from './web-public/LandingPage'
 import UserInfo from './pages/auth/UserInfo'
 
 function App() {
@@ -41,7 +44,8 @@ function App() {
                   <Route path="/register" element={<Register />} />
                 </Route>
                 <Route>
-                  <Route path="/" element={<DefaultHomePage />} />
+                  <Route path="/" element={<LandingPage />} />
+                  <Route path="/home-public" element={<DefaultHomePage />} />
                   <Route path="/exam-checkin" element={<CheckinExam />} />
                   <Route
                     path="/exam-checkin-verify-code"
@@ -73,6 +77,8 @@ function App() {
                     path="/examsessions"
                     element={<ExamSessionListPage />}
                   />
+                  <Route path="/store" element={<StorePage />} />
+                  <Route path="/my-course" element={<MyCoursePage />} />
                   <Route
                     path="/questions/create"
                     element={<QuestionCreatePage />}

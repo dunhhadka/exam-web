@@ -273,7 +273,7 @@ const QuestionContent = ({ question }: { question: QuestionGradingDetail }) => {
         <ContentSection>
           <SectionTitle>Đáp án</SectionTitle>
           <AnswersList>
-            {answers?.map((answer) => (
+            {answers && answers.length > 0 ? answers.map((answer) => (
               <AnswerItem
                 key={answer.answerId}
                 $selected={answer.selected}
@@ -296,7 +296,11 @@ const QuestionContent = ({ question }: { question: QuestionGradingDetail }) => {
                   )}
                 </AnswerTagsWrapper>
               </AnswerItem>
-            ))}
+            )) : (
+              <div style={{ padding: '16px', color: '#999' }}>
+                Không có đáp án
+              </div>
+            )}
           </AnswersList>
         </ContentSection>
       )
@@ -316,10 +320,10 @@ const QuestionContent = ({ question }: { question: QuestionGradingDetail }) => {
                 </tr>
               </thead>
               <tbody>
-                {rows?.map((row, idx) => (
+                {rows && rows.length > 0 ? rows.map((row, idx) => (
                   <tr key={idx}>
                     <td>{row.label}</td>
-                    {row.columns.map((col, colIdx) => (
+                    {row.columns && row.columns.map((col, colIdx) => (
                       <td
                         key={colIdx}
                         className={
@@ -336,7 +340,13 @@ const QuestionContent = ({ question }: { question: QuestionGradingDetail }) => {
                       </td>
                     ))}
                   </tr>
-                ))}
+                )) : (
+                  <tr>
+                    <td colSpan={100} style={{ textAlign: 'center', padding: '16px', color: '#999' }}>
+                      Không có dữ liệu
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </StyledTable>
           </TableContainer>
