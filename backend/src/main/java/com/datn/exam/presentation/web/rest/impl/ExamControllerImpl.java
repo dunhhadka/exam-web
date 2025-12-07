@@ -39,4 +39,9 @@ public class ExamControllerImpl implements ExamController {
         examService.delete(request.getIds());
         return Response.ok();
     }
+
+    @Override
+    public Response<ExamResponse> getById(long id) {
+        return Response.of(examService.getById(id));
+    }
 }
