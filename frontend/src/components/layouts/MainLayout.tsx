@@ -29,6 +29,21 @@ const MainLayout = () => {
 
   const navigate = useNavigate()
 
+  const { profile } = useSelector((state: RootState) => state.auth)
+
+  useEffect(() => {
+    const savedProfile = localStorage.getItem('userProfile')
+    if (savedProfile && !profile) {
+      try {
+        const parsedProfile = JSON.parse(savedProfile)
+        dispatch(setProfile(parsedProfile))
+      } catch (error) {
+        console.error('Failed to parse saved profile:', error)
+        localStorage.removeItem('userProfile')
+      }
+    }
+  }, [dispatch, profile])
+
   const menuItems: MenuItem[] = [
     {
       key: 'Home',
@@ -165,6 +180,7 @@ const MainLayout = () => {
           collapsed={collapsed}
           onToggleCollapse={() => setCollapsed(!collapsed)}
           userMenuItems={userMenuItems}
+          profile={profile}
         />
         <div style={{ minHeight: '100vh' }}>
           <Outlet />
