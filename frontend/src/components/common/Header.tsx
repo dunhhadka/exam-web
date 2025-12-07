@@ -1,20 +1,6 @@
-import {
-  BellOutlined,
-  MenuFoldOutlined,
-  MenuUnfoldOutlined,
-  SearchOutlined,
-  UserOutlined,
-} from '@ant-design/icons'
-import {
-  Avatar,
-  Badge,
-  Button,
-  Dropdown,
-  Layout,
-  Space,
-  theme,
-  Typography,
-} from 'antd'
+import { UserOutlined } from '@ant-design/icons'
+import { Avatar, Dropdown, Layout, Space, theme, Typography } from 'antd'
+import { Profile } from '../../types/auth'
 
 interface HeaderProps {
   collapsed: boolean
@@ -26,17 +12,14 @@ interface HeaderProps {
     role: string
     avatar?: string
   }
+  profile?: Profile
 }
 
 export const Header: React.FC<HeaderProps> = ({
   collapsed,
   onToggleCollapse,
   userMenuItems,
-  user = {
-    fullName: 'John Doe',
-    email: 'john@example.com',
-    role: 'Administrator',
-  },
+  profile,
 }) => {
   const { Header: AntHeader } = Layout
   const { Text } = Typography
@@ -59,39 +42,15 @@ export const Header: React.FC<HeaderProps> = ({
         boxShadow: '0 1px 4px rgba(0, 0, 0, 0.08)',
       }}
     >
-      {/* Left side - Collapse button */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-        <Button
-          type="text"
-          icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-          onClick={onToggleCollapse}
-          style={{
-            fontSize: '16px',
-            width: 40,
-            height: 40,
-          }}
-        />
-
-        {/* Search */}
-        <Button
-          type="text"
-          icon={<SearchOutlined />}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            minWidth: collapsed ? 40 : 120,
-          }}
-          onClick={() => console.log('Search clicked')}
-        >
-          {!collapsed && 'Tìm kiếm...'}
-        </Button>
-      </div>
+      {/* Left side - reserved (toggle moved to Sidebar) */}
+      <div
+        style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 40 }}
+      />
 
       {/* Right side - User info */}
       <Space size="middle">
         {/* Notifications */}
-        <Badge count={5} size="small">
+        {/* <Badge count={5} size="small">
           <Button
             type="text"
             icon={<BellOutlined />}
@@ -102,7 +61,7 @@ export const Header: React.FC<HeaderProps> = ({
               height: 40,
             }}
           />
-        </Badge>
+        </Badge> */}
 
         {/* User dropdown */}
         <Dropdown
@@ -127,13 +86,17 @@ export const Header: React.FC<HeaderProps> = ({
               e.currentTarget.style.backgroundColor = 'transparent'
             }}
           >
-            <Avatar size="small" icon={<UserOutlined />} src={user.avatar} />
+            <Avatar
+              size="small"
+              icon={<UserOutlined />}
+              src={profile?.avatarUrl}
+            />
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <Text style={{ fontSize: 14, lineHeight: 1.2 }}>
-                {user.fullName || user.email}
+                {profile?.firstName + ' ' + profile?.lastName}
               </Text>
               <Text type="secondary" style={{ fontSize: 12, lineHeight: 1.2 }}>
-                {user.role}
+                {'Teacher'}
               </Text>
             </div>
           </div>

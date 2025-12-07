@@ -7,8 +7,9 @@ import CustomInput from '../../components/common/FormInput'
 import { LockOutlined, MailOutlined } from '@ant-design/icons'
 import { useDispatch } from 'react-redux'
 import { useLoginMutation } from '../../services/api/authApi'
-import { setCredentials } from '../../store/slices/authSlice'
+import { setCredentials, setProfile } from '../../store/slices/authSlice'
 import { useToast } from '../../hooks/useToast'
+import { useLazyGetProfileQuery } from '../../services/api/accountApi'
 
 const Login = () => {
   const dispatch = useDispatch()
@@ -26,6 +27,8 @@ const Login = () => {
   })
   const [loginMutation] = useLoginMutation()
 
+  const [getProfile] = useLazyGetProfileQuery()
+
   const toast = useToast()
 
   const onSubmit = async (request: LoginRequest) => {
@@ -41,6 +44,12 @@ const Login = () => {
           refreshToken: response.refreshToken,
         })
       )
+
+      // TODO: use redux persist to save profile
+      const profile = await getProfile().unwrap()
+      if (profile) {
+        dispatch(setProfile(profile))
+      }
 
       toast.success('Đăng nhập thành công')
     } catch (error) {

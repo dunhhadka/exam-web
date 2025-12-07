@@ -1,5 +1,5 @@
 import { Outlet, useNavigate } from 'react-router-dom'
-import { useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { MenuItem } from '../../types/common'
 import {
   BarChartOutlined,
@@ -15,11 +15,15 @@ import { Layout } from 'antd'
 import { Sidebar } from '../common/Sidebar'
 import { Header } from '../common/Header'
 import { Footer } from '../common/Footer'
+import { useDispatch, useSelector } from 'react-redux'
+import { RootState } from '../../store'
+import { setProfile } from '../../store/slices/authSlice'
 
 const MainLayout = () => {
   const [collapsed, setCollapsed] = useState(false)
   const [selectedKey, setSelectedKey] = useState('home')
   const [openKeys, setOpenKeys] = useState<string[]>(['exams'])
+  const dispatch = useDispatch()
 
   const navigate = useNavigate()
 
@@ -86,8 +90,9 @@ const MainLayout = () => {
     console.log('Logout clicked')
     localStorage.removeItem('accessToken')
     localStorage.removeItem('refreshToken')
+    localStorage.removeItem('userProfile')
 
-    navigate('/login')
+    window.location.href = '/login'
   }
 
   const userMenuItems = [
@@ -140,6 +145,21 @@ const MainLayout = () => {
     setOpenKeys(keys)
   }
 
+  const { profile } = useSelector((state: RootState) => state.auth)
+
+  useEffect(() => {
+    const savedProfile = localStorage.getItem('userProfile')
+    if (savedProfile && !profile) {
+      try {
+        const parsedProfile = JSON.parse(savedProfile)
+        dispatch(setProfile(parsedProfile))
+      } catch (error) {
+        console.error('Failed to parse saved profile:', error)
+        localStorage.removeItem('userProfile')
+      }
+    }
+  }, [dispatch, profile])
+
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Sidebar
@@ -149,6 +169,7 @@ const MainLayout = () => {
         openKeys={openKeys}
         onMenuClick={handleMenuClick}
         onOpenChange={handleOpenChange}
+        onToggleCollapse={() => setCollapsed(!collapsed)}
       />
       <Layout
         style={{
@@ -160,6 +181,7 @@ const MainLayout = () => {
           collapsed={collapsed}
           onToggleCollapse={() => setCollapsed(!collapsed)}
           userMenuItems={userMenuItems}
+          profile={profile}
         />
         <div style={{ minHeight: '100vh' }}>
           <Outlet />

@@ -16,11 +16,6 @@ export const Footer: React.FC = () => {
         borderTop: '1px solid #f0f0f0',
         padding: '16px 24px',
       }}
-    >
-      <Space>
-        <CopyrightOutlined />
-        <Text type="secondary">2024 Exam System. All rights reserved.</Text>
-      </Space>
-    </AntFooter>
+    ></AntFooter>
   )
 }

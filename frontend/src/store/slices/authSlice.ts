@@ -1,5 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit'
 import { User } from '../../types/user'
+import { Profile } from '../../types/auth'
 
 interface AuthState {
   user: User | null
@@ -7,6 +8,7 @@ interface AuthState {
   refreshToken: string | null
   isAuthenticated: boolean
   isRefreshing: boolean
+  profile?: Profile
 }
 
 const initialState: AuthState = {
@@ -15,6 +17,7 @@ const initialState: AuthState = {
   refreshToken: localStorage.getItem('refetchToken'),
   isAuthenticated: !!localStorage.getItem('accessToken'),
   isRefreshing: false,
+  profile: undefined,
 }
 
 const authSlide = createSlice({
@@ -71,9 +74,29 @@ const authSlide = createSlice({
       localStorage.setItem('accessToken', accessToken)
       localStorage.setItem('refreshToken', refreshToken)
     },
+
+    setProfile: (state, action: PayloadAction<Profile>) => {
+      state.profile = action.payload
+
+      localStorage.setItem('userProfile', JSON.stringify(action.payload))
+    },
+
+    loadProfileFromStorage: (state) => {
+      const savedProfile = localStorage.getItem('userProfile')
+      if (savedProfile) {
+        state.profile = JSON.parse(savedProfile)
+      }
+    },
   },
 })
 
-export const { login, setCredentials, logout, setRefreshing, updateTokens } =
-  authSlide.actions
+export const {
+  login,
+  setCredentials,
+  logout,
+  setRefreshing,
+  updateTokens,
+  setProfile,
+  loadProfileFromStorage,
+} = authSlide.actions
 export default authSlide.reducer

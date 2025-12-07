@@ -10,6 +10,7 @@ interface Props {
   max?: number
   min?: number
   disabled?: boolean
+  value?: string | number
   onChange?: (value: string | number) => void
   error?: boolean
   errorMessage?: string
@@ -24,6 +25,7 @@ export const Input = ({
   max,
   min,
   disabled,
+  value,
   onChange,
   error,
   errorMessage,
@@ -38,17 +40,19 @@ export const Input = ({
       <InputWrapper>
         {numberic ? (
           <InputNumberStyled
+            value={value as number}
             min={min}
             max={max}
             disabled={disabled}
             $error={error}
             placeholder={placeholder}
-            onChange={(value) => {
-              if (onChange) onChange(value ?? '')
+            onChange={(val) => {
+              if (onChange) onChange(val ?? '')
             }}
           />
         ) : (
           <AntdInput
+            value={value as string}
             placeholder={placeholder}
             disabled={disabled}
             style={{

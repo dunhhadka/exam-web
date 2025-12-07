@@ -1,6 +1,5 @@
 import { ColumnType } from 'antd/es/table'
 import { Tooltip } from 'antd'
-import { CopyOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import React from 'react'
 
 export interface ActionConfig<T> {
@@ -28,7 +27,10 @@ export const createActionColumns = <T extends Record<string, any>>(
           return (
             <Tooltip key={index} title={action.label}>
               <button
-                onClick={() => !isDisabled && action.onClick(record)}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  !isDisabled && action.onClick(record)
+                }}
                 disabled={isDisabled}
                 style={{
                   width: 32,

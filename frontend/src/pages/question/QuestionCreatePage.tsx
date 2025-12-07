@@ -238,22 +238,22 @@ export const QuestionCreatePage = () => {
   }
 
   const actions: ActionItem[] = [
-    {
-      icon: <HistoryOutlined />,
-      title: 'Lịch sử',
-      onAction: () => {
-        console.log('View history')
-      },
-      ariaLabel: 'Xem lịch sử',
-    },
-    {
-      icon: <EditOutlined />,
-      title: 'Chỉnh sửa',
-      onAction: () => {
-        console.log('Edit question')
-      },
-      ariaLabel: 'Chỉnh sửa câu hỏi',
-    },
+    // {
+    //   icon: <HistoryOutlined />,
+    //   title: 'Lịch sử',
+    //   onAction: () => {
+    //     console.log('View history')
+    //   },
+    //   ariaLabel: 'Xem lịch sử',
+    // },
+    // {
+    //   icon: <EditOutlined />,
+    //   title: 'Chỉnh sửa',
+    //   onAction: () => {
+    //     console.log('Edit question')
+    //   },
+    //   ariaLabel: 'Chỉnh sửa câu hỏi',
+    // },
     {
       icon: <EyeOutlined />,
       title: 'Xem trước',
@@ -745,9 +745,9 @@ export const QuestionCreatePage = () => {
             <>
               <Space size="middle">
                 <CancelButton onClick={handleCancel}>Hủy</CancelButton>
-                <SaveDraftButton onClick={handleSaveDraft}>
+                {/* <SaveDraftButton onClick={handleSaveDraft}>
                   Lưu bản nháp
-                </SaveDraftButton>
+                </SaveDraftButton> */}
                 <PublishButton
                   type="primary"
                   onClick={handlePublish}
