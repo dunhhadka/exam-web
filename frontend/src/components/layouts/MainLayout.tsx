@@ -81,7 +81,7 @@ const MainLayout = () => {
     {
       key: 'settings',
       icon: <SettingOutlined />,
-      label: 'Cài đặt',
+      label: 'Thông tin cá nhân',
       path: '/settings',
     },
   ]
