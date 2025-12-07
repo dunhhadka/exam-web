@@ -4,6 +4,7 @@ import com.datn.exam.model.dto.PageDTO;
 import com.datn.exam.model.dto.mapper.ExamMapper;
 import com.datn.exam.model.dto.request.*;
 import com.datn.exam.model.dto.response.ExamResponse;
+import com.datn.exam.model.dto.response.InvalidFieldError;
 import com.datn.exam.model.entity.Exam;
 import com.datn.exam.model.entity.ExamQuestion;
 import com.datn.exam.model.entity.Question;
@@ -15,10 +16,10 @@ import com.datn.exam.repository.data.dao.ExamDao;
 import com.datn.exam.repository.data.dao.JdbcQuestionDao;
 import com.datn.exam.repository.data.dto.ExamDto;
 import com.datn.exam.service.ExamService;
-import com.datn.exam.support.enums.ActiveStatus;
 import com.datn.exam.support.enums.Status;
 import com.datn.exam.support.enums.error.BadRequestError;
 import com.datn.exam.support.enums.error.NotFoundError;
+import com.datn.exam.support.exception.DomainValidationException;
 import com.datn.exam.support.exception.ResponseException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -141,6 +142,8 @@ public class ExamServiceImpl implements ExamService {
 
         List<Tag> tags = validateAndGetTags(request.getIdsTag());
 
+        clearDataBeforeUpdate(exam);
+
         this.examMapper.updateExam(exam, request);
 
         List<ExamQuestion> examQuestions = new ArrayList<>();
@@ -156,11 +159,20 @@ public class ExamServiceImpl implements ExamService {
             examQuestions.add(examQuestion);
         }
 
-        exam.setExamQuestions(examQuestions);
-        exam.setTags(tags);
+        exam.getExamQuestions().addAll(examQuestions);
+        exam.getTags().addAll(tags);
 
         examRepository.save(exam);
         return examMapper.toExamResponse(exam);
+    }
+
+    private void clearDataBeforeUpdate(Exam exam) {
+        if (CollectionUtils.isNotEmpty(exam.getExamQuestions())) {
+            exam.getExamQuestions().clear();
+        }
+        if (CollectionUtils.isEmpty(exam.getTags())) {
+            exam.getTags().clear();
+        }
     }
 
     @Override
@@ -184,6 +196,15 @@ public class ExamServiceImpl implements ExamService {
     @Override
     public Integer count(ExamFilterRequest request) {
         return this.examDao.count(request).intValue();
+    }
+
+    @Override
+    public ExamResponse getById(long id) {
+        var exam = this.examRepository.findById(id)
+                .orElseThrow(() -> new DomainValidationException(InvalidFieldError.builder()
+                        .message("Không tìm thấy bài thi")
+                        .build()));
+        return examMapper.toExamResponse(exam);
     }
 
     private List<Tag> validateAndGetTags(List<Long> tagIds) {
