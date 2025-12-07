@@ -128,12 +128,59 @@ export const questionApi = authenticatedApi.injectEndpoints({
       invalidatesTags: [{ type: 'Question', id: 'LIST' }],
     }),
 
-    downloadTemplate: builder.query<Blob, void>({
-      query: () => ({
-        url: '/question/template/download',
-        method: 'GET',
-        responseHandler: (response) => response.blob(),
-      }),
+    downloadTemplate: builder.mutation<void, void>({
+      queryFn: async (_arg, _api, _extraOptions, baseQuery) => {
+        try {
+          // QUAN TRỌNG: responseHandler trả về Promise<Blob>
+          const response = await fetch('/api/question/template/download', {
+            method: 'GET',
+            headers: {
+              Accept:
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            },
+          })
+
+          console.log('Response status:', response.status)
+          console.log('Response ok:', response.ok)
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`)
+          }
+
+          const blob = await response.blob()
+
+          console.log('Blob received:', blob)
+          console.log('Blob size:', blob.size)
+          console.log('Blob type:', blob.type)
+
+          if (!blob || blob.size === 0) {
+            return { error: { status: 'CUSTOM_ERROR', error: 'File rỗng' } }
+          }
+
+          // Download file
+          const url = window.URL.createObjectURL(blob)
+          const link = document.createElement('a')
+          link.href = url
+          link.download = 'import_question_template.xlsx'
+          document.body.appendChild(link)
+          link.click()
+
+          setTimeout(() => {
+            document.body.removeChild(link)
+            window.URL.revokeObjectURL(url)
+          }, 100)
+
+          return { data: undefined }
+        } catch (error) {
+          console.error('Download error:', error)
+          return {
+            error: {
+              status: 'FETCH_ERROR',
+              error: String(error),
+            },
+          }
+        }
+      },
     }),
   }),
 })
@@ -148,5 +195,5 @@ export const {
   useLazyFindByIdQuery,
   useUpdateQuestionMutation,
   useImportQuestionsMutation,
-  useLazyDownloadTemplateQuery,
+  useDownloadTemplateMutation,
 } = questionApi

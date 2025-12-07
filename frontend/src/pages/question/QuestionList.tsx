@@ -1,41 +1,40 @@
-import { Tag, Tooltip, message, Modal, Radio, Button } from 'antd'
+import {
+  DeleteOutlined,
+  EditOutlined,
+  ImportOutlined,
+  PlusCircleOutlined,
+} from '@ant-design/icons'
+import styled from '@emotion/styled'
+import { Button, message, Modal, Radio, Tag, Tooltip } from 'antd'
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import ConfirmModal from '../../components/common/ConfirmModal'
+import { createActionColumns } from '../../components/search/createActionColumn'
 import { createColumn } from '../../components/search/createColumn'
 import { CustomTable } from '../../components/search/CustomTable'
+import { useFilterQuestionQuery } from '../../hooks/useFilterQuestionQuery'
+import { useToast } from '../../hooks/useToast'
+import {
+  useDeleteQuestionMutation,
+  useDownloadTemplateMutation,
+  useImportQuestionsMutation,
+} from '../../services/api/questionApi'
 import {
   Level,
   LevelColor,
   LevelLabel,
   Question,
+  Tag as QuestionTag,
   QuestionType,
   QuestionTypeColor,
   QuestionTypeLabel,
   Status,
   StatusColor,
   StatusLabel,
-  Tag as QuestionTag,
 } from '../../types/question'
-import styled from '@emotion/styled'
-import { createActionColumns } from '../../components/search/createActionColumn'
-import {
-  DeleteOutlined,
-  EditOutlined,
-  PlusCircleOutlined,
-  ImportOutlined,
-  DownloadOutlined,
-} from '@ant-design/icons'
-import { useNavigate } from 'react-router-dom'
-import { useState } from 'react'
-import { QuestionTypeCreate } from './QuestionTypeCreate'
-import { QuestionFilter } from './filter/QuestionFilter'
-import { useFilterQuestionQuery } from '../../hooks/useFilterQuestionQuery'
-import ConfirmModal from '../../components/common/ConfirmModal'
-import {
-  useDeleteQuestionMutation,
-  useImportQuestionsMutation,
-  useLazyDownloadTemplateQuery,
-} from '../../services/api/questionApi'
-import { useToast } from '../../hooks/useToast'
 import { formatInstant } from '../../utils/times'
+import { QuestionFilter } from './filter/QuestionFilter'
+import { QuestionTypeCreate } from './QuestionTypeCreate'
 
 export const QuestionList = () => {
   const columns = [
@@ -137,7 +136,7 @@ export const QuestionList = () => {
   const [importQuestions] = useImportQuestionsMutation()
 
   const [downloadTemplate, { isLoading: isDownloadingTemplate }] =
-    useLazyDownloadTemplateQuery()
+    useDownloadTemplateMutation()
 
   const [showQuestionCreateModal, setShowQuestionCreateModal] = useState(false)
 
@@ -261,24 +260,27 @@ export const QuestionList = () => {
   }
 
   const handleDownloadTemplate = async () => {
-    try {
-      const blob = await downloadTemplate().unwrap()
+    const response = await fetch('/api/question/template/download', {
+      method: 'GET',
+    })
 
-      const url = window.URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = 'import_question_template.xlsx'
-      document.body.appendChild(link)
-      link.click()
-
-      document.body.removeChild(link)
-      window.URL.revokeObjectURL(url)
-
-      message.success('Tải template thành công!')
-    } catch (error) {
-      console.error('Download failed:', error)
-      message.error('Tải template thất bại. Vui lòng thử lại!')
+    if (!response.ok) {
+      throw new Error('Download failed')
     }
+
+    const blob = await response.blob()
+
+    // Download
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'import_question_template.xlsx'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+
+    console.log('Download success!')
   }
 
   const handleDirectImport = () => {

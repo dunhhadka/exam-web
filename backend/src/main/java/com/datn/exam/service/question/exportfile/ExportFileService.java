@@ -4,7 +4,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
@@ -24,13 +23,13 @@ public class ExportFileService {
         }
 
         HttpHeaders headers = new HttpHeaders();
-        headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=import_question_template.xlsx");
+        headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"import_question_template.xlsx\"");
         headers.add(HttpHeaders.CONTENT_TYPE, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        headers.add(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate");
 
         return ResponseEntity.ok()
                 .headers(headers)
                 .contentLength(resource.contentLength())
-                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
                 .body(resource);
     }
 }
