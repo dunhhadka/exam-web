@@ -1,0 +1,79 @@
+{
+  "frame_capture": {
+    "iterations": 100,
+    "min": 12.859582901000977,
+    "max": 65.08445739746094,
+    "mean": 22.83698081970215,
+    "median": 17.40086078643799,
+    "stdev": 9.956070605858157,
+    "p95": 42.877912521362305,
+    "p99": 65.08445739746094
+  },
+  "single_model": {
+    "face_detection": {
+      "iterations": 100,
+      "min": 0.0,
+      "max": 3.4,
+      "mean": 0.152,
+      "median": 0.0
+    },
+    "face_recognition": {
+      "iterations": 100,
+      "min": 0.0,
+      "max": 3.4,
+      "mean": 0.152,
+      "median": 0.0
+    },
+    "screen_analysis": {
+      "iterations": 100,
+      "min": 0.0,
+      "max": 3.4,
+      "mean": 0.152,
+      "median": 0.0
+    },
+    "audio_analysis": {
+      "iterations": 100,
+      "min": 0.0,
+      "max": 3.4,
+      "mean": 0.152,
+      "median": 0.0
+    },
+    "behavior_analysis": {
+      "iterations": 100,
+      "min": 0.0,
+      "max": 3.4,
+      "mean": 0.152,
+      "median": 0.0
+    }
+  },
+  "full_pipeline": {
+    "iterations": 100,
+    "min": 0.0,
+    "max": 14.093637466430664,
+    "mean": 0.6167769432067871,
+    "median": 0.0,
+    "stdev": 1.9822238418649838,
+    "p95": 1.3065338134765625,
+    "p99": 14.093637466430664
+  },
+  "throughput": {
+    "duration_seconds": 10.026057004928589,
+    "total_frames": 433,
+    "fps": 43.18746639752265,
+    "ms_per_frame": 23.154866062190738
+  },
+  "concurrent_load": {
+    "num_candidates": 5,
+    "frames_per_candidate": 10,
+    "total_frames": 50,
+    "total_time_ms": 5868.996143341064,
+    "mean": 6.655697822570801,
+    "median": 3.314971923828125,
+    "p95": 18.853425979614258,
+    "p99": 35.92061996459961
+  },
+  "memory": {
+    "process_mb": 65.859375,
+    "gpu_available": false
+  }
+}

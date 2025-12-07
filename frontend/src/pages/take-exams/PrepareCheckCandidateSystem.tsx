@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { Modal } from 'antd'
 import { useToast } from '../../hooks/useToast'
 import { useRequestOtpMutation, useLazyGetSessionInfoQuery } from '../../services/api/take-exam'
+import axios from 'axios'
 import CheckInWizard from './check-component/CheckInWizard'
 import KYCFlow from './check-component/KYCFlow'
 
@@ -17,6 +18,9 @@ const PrepareCheckCandidateSystem = () => {
   const [checkInComplete, setCheckInComplete] = useState(false)
   const [kycComplete, setKycComplete] = useState(false)
   const [sessionSettings, setSessionSettings] = useState<any>(null)
+  const [sessionInfo, setSessionInfo] = useState<any>(null)
+  const [whitelistStatus, setWhitelistStatus] = useState<{hasAvatar: boolean} | null>(null)
+  const [checkingWhitelist, setCheckingWhitelist] = useState(false)
   
   // Thêm ref để ngăn chặn gọi API nhiều lần
   const hasRequestedOtp = useRef(false)
@@ -58,6 +62,7 @@ const PrepareCheckCandidateSystem = () => {
         console.log('📡 PrepareCheckCandidateSystem - Fetching session info for roomId:', roomId)
         try {
           const response = await getSessionInfo(roomId).unwrap()
+          setSessionInfo(response)
           console.log('📡 PrepareCheckCandidateSystem - Session info received:', {
             hasSettings: !!response.settings,
             backendSettings: response.settings,
@@ -89,6 +94,55 @@ const PrepareCheckCandidateSystem = () => {
     }
     fetchSessionInfo()
   }, [roomId, getSessionInfo])
+
+  // Check whitelist status when session info is loaded and mode is UPLOAD
+  useEffect(() => {
+    const checkWhitelist = async () => {
+      const settings = sessionInfo?.settings
+      const proctoring = settings?.proctoring
+      const identityMode = proctoring?.identity_mode || proctoring?.identityMode
+
+      if (identityMode === 'UPLOAD' && userId && sessionInfo.sessionId) {
+        setCheckingWhitelist(true)
+        try {
+          const formData = new FormData()
+          formData.append('email', userId)
+          formData.append('session_id', sessionInfo.sessionId.toString())
+          
+          const response = await axios.post('http://localhost:8000/api/kyc/check-whitelist', formData)
+          setWhitelistStatus({ hasAvatar: response.data.has_avatar })
+          console.log('Whitelist check result:', response.data)
+        } catch (err) {
+          console.error("Error checking whitelist:", err)
+          setWhitelistStatus({ hasAvatar: false })
+        } finally {
+          setCheckingWhitelist(false)
+        }
+      }
+    }
+    
+    const settings = sessionInfo?.settings
+    const proctoring = settings?.proctoring
+    const identityMode = proctoring?.identity_mode || proctoring?.identityMode
+
+    if (sessionInfo && !whitelistStatus && !checkingWhitelist && identityMode === 'UPLOAD') {
+        checkWhitelist()
+    }
+  }, [sessionInfo, userId, whitelistStatus, checkingWhitelist])
+
+  // Skip KYC if identity_mode is not UPLOAD
+  useEffect(() => {
+    if (sessionInfo && checkInComplete && !kycComplete) {
+      const settings = sessionInfo?.settings
+      const proctoring = settings?.proctoring
+      const identityMode = proctoring?.identity_mode || proctoring?.identityMode
+      
+      if (identityMode !== 'UPLOAD') {
+         console.log('Skipping KYC because identity_mode is', identityMode)
+         setKycComplete(true)
+      }
+    }
+  }, [sessionInfo, checkInComplete, kycComplete])
 
   // Handle OTP request with navigation
   const handleRequestOtp = async () => {
@@ -184,6 +238,14 @@ const PrepareCheckCandidateSystem = () => {
   }
 
   if (!kycComplete) {
+    if (checkingWhitelist) {
+        return <div style={{ padding: 24, textAlign: 'center' }}>Đang kiểm tra thông tin xác thực...</div>
+    }
+    
+    const settings = sessionInfo?.settings
+    const proctoring = settings?.proctoring
+    const identityMode = proctoring?.identity_mode || proctoring?.identityMode
+
     return (
       <div style={{ padding: 24 }}>
         <KYCFlow
@@ -195,6 +257,10 @@ const PrepareCheckCandidateSystem = () => {
             // Optional: Handle cancel
             console.log('KYC cancelled')
           }}
+          isWhitelistMode={identityMode === 'UPLOAD' && whitelistStatus?.hasAvatar === true}
+          email={userId}
+          sessionId={sessionInfo?.sessionId}
+          candidateId={userId}
         />
       </div>
     )
