@@ -64,18 +64,6 @@ public class ExamAttempt extends AuditableEntity{
     @Column(name = "grading_status")
     private GradingStatus gradingStatus;
 
-    @Column(name = "ip_address")
-    private String ipAddress;
-
-    @Column(name = "device_info")
-    private String deviceInfo;
-
-    @Column(name = "identity_photo_url")
-    private String identityPhotoUrl;
-
-    @Column(name = "webcam_stream_url")
-    private String webcamStreamUrl;
-
     @Convert(converter = MapObjectConverter.class)
     @Column(name = "snapshot_exam")
     private Map<String, Objects> snapshotExam;
@@ -83,6 +71,9 @@ public class ExamAttempt extends AuditableEntity{
     @Column(name = "fullscreen_exit_count", nullable = false)
     @Builder.Default
     private Integer fullscreenExitCount = 0;
+
+    @OneToMany(mappedBy = "attempt", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Log> logs;
 
     public enum GradingStatus {
         PENDING,

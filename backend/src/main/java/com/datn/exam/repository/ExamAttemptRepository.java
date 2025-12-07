@@ -47,4 +47,11 @@ public interface ExamAttemptRepository extends JpaRepository<ExamAttempt, Long> 
             """)
     List<ExamAttempt> findBySessionIdsWithRelations(@Param("sessionIds") Collection<Long> sessionIds);
 
+    @Query("""
+            SELECT a FROM ExamAttempt a
+            LEFT JOIN FETCH a.examSession es
+            WHERE a.status = :status
+            """)
+    List<ExamAttempt> findByStatus(@Param("status") ExamAttempt.AttemptStatus status);
+
 }

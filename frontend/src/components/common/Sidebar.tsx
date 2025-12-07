@@ -62,42 +62,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
         }}
       >
         {collapsed ? (
-          <div
-            style={{
-              width: 32,
-              height: 32,
-              background: '#1677ff',
-              borderRadius: 8,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white',
-              fontSize: '18px',
-              fontWeight: 'bold',
-            }}
-          >
-            E
-          </div>
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+            <path
+              d="M8 12L20 4L32 12V28L20 36L8 28V12Z"
+              fill="#1890ff"
+            />
+            <path
+              d="M20 16L26 20V28L20 32L14 28V20L20 16Z"
+              fill="#fff"
+            />
+          </svg>
         ) : (
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div
-              style={{
-                width: 32,
-                height: 32,
-                background: '#1677ff',
-                borderRadius: 8,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                fontSize: '18px',
-                fontWeight: 'bold',
-              }}
-            >
-              E
-            </div>
-            <Text strong style={{ fontSize: 16 }}>
-              Exam System
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+              <path
+                d="M8 12L20 4L32 12V28L20 36L8 28V12Z"
+                fill="#1890ff"
+              />
+              <path
+                d="M20 16L26 20V28L20 32L14 28V20L20 16Z"
+                fill="#fff"
+              />
+            </svg>
+            <Text strong style={{ fontSize: 20, color: '#1890ff' }}>
+              exam.vn
             </Text>
           </div>
         )}

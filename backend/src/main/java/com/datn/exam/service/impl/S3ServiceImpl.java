@@ -229,4 +229,85 @@ public class S3ServiceImpl implements S3Service {
         }
         return String.format("https://%s.s3.%s.amazonaws.com/%s", bucketName, region, key);
     }
+
+    @Override
+    public java.util.List<String> listObjects(String prefix) {
+        try {
+            ListObjectsV2Request listRequest = ListObjectsV2Request.builder()
+                    .bucket(bucketName)
+                    .prefix(prefix)
+                    .build();
+
+            ListObjectsV2Response response = s3Client.listObjectsV2(listRequest);
+            
+            return response.contents().stream()
+                    .map(S3Object::key)
+                    .collect(java.util.stream.Collectors.toList());
+        } catch (S3Exception e) {
+            log.error("Failed to list objects with prefix: {}", prefix, e);
+            return java.util.Collections.emptyList();
+        }
+    }
+
+    @Override
+    public long getObjectSize(String key) {
+        try {
+            HeadObjectRequest headRequest = HeadObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(key)
+                    .build();
+
+            HeadObjectResponse response = s3Client.headObject(headRequest);
+            return response.contentLength();
+        } catch (S3Exception e) {
+            log.error("Failed to get object size: {}", key, e);
+            return 0;
+        }
+    }
+
+    @Override
+    public boolean deleteFolder(String prefix) {
+        try {
+            java.util.List<String> keys = listObjects(prefix);
+            
+            if (keys.isEmpty()) {
+                return true;
+            }
+
+            for (String key : keys) {
+                deleteFile(key);
+            }
+
+            log.info("Deleted folder and {} files: {}", keys.size(), prefix);
+            return true;
+        } catch (Exception e) {
+            log.error("Failed to delete folder: {}", prefix, e);
+            return false;
+        }
+    }
+
+    @Override
+    public java.util.Map<String, Long> getFolderSizes(String prefix) {
+        java.util.Map<String, Long> folderSizes = new java.util.HashMap<>();
+        
+        try {
+            java.util.List<String> keys = listObjects(prefix);
+            
+            for (String key : keys) {
+                // Extract folder name from key (e.g., "whitelists/123/" from "whitelists/123/user_at_gmail_com/1")
+                String relativePath = key.substring(prefix.length());
+                String[] parts = relativePath.split("/");
+                
+                if (parts.length > 0 && !parts[0].isEmpty()) {
+                    String folderName = parts[0];
+                    long size = getObjectSize(key);
+                    folderSizes.merge(folderName, size, Long::sum);
+                }
+            }
+        } catch (Exception e) {
+            log.error("Failed to get folder sizes for prefix: {}", prefix, e);
+        }
+        
+        return folderSizes;
+    }
 }

@@ -96,7 +96,6 @@ public class ExamAttemptServiceImpl implements ExamAttemptService {
                 .gradingStatus(ExamAttempt.GradingStatus.PENDING)
                 .scoreAuto(BigDecimal.ZERO)
                 .scoreManual(BigDecimal.ZERO)
-                .ipAddress(request.getIpAddress())
                 .fullscreenExitCount(0)
                 .build();
 
@@ -516,7 +515,9 @@ public class ExamAttemptServiceImpl implements ExamAttemptService {
         ExamSession session = attempt.getExamSession();
         // Check authorization if needed
         
-        if (attempt.getStatus() != ExamAttempt.AttemptStatus.SUBMITTED) {
+        // Allow grading for both SUBMITTED and ABANDONED (auto-submitted) attempts
+        if (attempt.getStatus() != ExamAttempt.AttemptStatus.SUBMITTED 
+            && attempt.getStatus() != ExamAttempt.AttemptStatus.ABANDONED) {
             throw new ResponseException(BadRequestError.EXAM_ATTEMPT_NOT_SUBMITTED);
         }
 
@@ -534,7 +535,9 @@ public class ExamAttemptServiceImpl implements ExamAttemptService {
         ExamSession session = attempt.getExamSession();
         // Check authorization if needed
         
-        if (attempt.getStatus() != ExamAttempt.AttemptStatus.SUBMITTED) {
+        // Allow grading for both SUBMITTED and ABANDONED (auto-submitted) attempts
+        if (attempt.getStatus() != ExamAttempt.AttemptStatus.SUBMITTED 
+            && attempt.getStatus() != ExamAttempt.AttemptStatus.ABANDONED) {
             throw new ResponseException(BadRequestError.EXAM_ATTEMPT_NOT_SUBMITTED);
         }
 
@@ -611,7 +614,6 @@ public class ExamAttemptServiceImpl implements ExamAttemptService {
                 .scoreAuto(attempt.getScoreAuto())
                 .scoreManual(attempt.getScoreManual())
                 .totalScore(finalScore)
-                .ipAddress(attempt.getIpAddress())
                 .totalQuestions(totalQuestions)
                 .correctAnswers(correctAnswers)
                 .wrongAnswers(wrongAnswers)

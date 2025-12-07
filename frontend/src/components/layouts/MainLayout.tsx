@@ -1,5 +1,5 @@
 import { Outlet, useNavigate } from 'react-router-dom'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { MenuItem } from '../../types/common'
 import {
   BarChartOutlined,
@@ -15,17 +15,16 @@ import { Layout } from 'antd'
 import { Sidebar } from '../common/Sidebar'
 import { Header } from '../common/Header'
 import { Footer } from '../common/Footer'
-import { useDispatch, useSelector } from 'react-redux'
-import { RootState } from '../../store'
-import { setProfile } from '../../store/slices/authSlice'
+import { useDispatch } from 'react-redux'
+import { logout } from '../../store/slices/authSlice'
 
 const MainLayout = () => {
   const [collapsed, setCollapsed] = useState(false)
   const [selectedKey, setSelectedKey] = useState('home')
   const [openKeys, setOpenKeys] = useState<string[]>(['exams'])
-  const dispatch = useDispatch()
 
   const navigate = useNavigate()
+  const dispatch = useDispatch()
 
   const menuItems: MenuItem[] = [
     {
@@ -67,16 +66,16 @@ const MainLayout = () => {
       path: '/examsessions',
     },
     {
-      key: 'results',
+      key: 'store',
       icon: <BarChartOutlined />,
-      label: 'Kết quả thi',
-      path: '/results',
+      label: 'Lưu trữ',
+      path: '/store',
     },
     {
-      key: 'users',
+      key: 'my-course',
       icon: <TeamOutlined />,
-      label: 'Quản lý người dùng',
-      path: '/users',
+      label: 'Khóa học của tôi',
+      path: '/my-course',
     },
     {
       key: 'settings',
@@ -88,11 +87,8 @@ const MainLayout = () => {
 
   const handleLogout = () => {
     console.log('Logout clicked')
-    localStorage.removeItem('accessToken')
-    localStorage.removeItem('refreshToken')
-    localStorage.removeItem('userProfile')
-
-    window.location.href = '/login'
+    dispatch(logout())
+    navigate('/login', { replace: true })
   }
 
   const userMenuItems = [
@@ -145,21 +141,6 @@ const MainLayout = () => {
     setOpenKeys(keys)
   }
 
-  const { profile } = useSelector((state: RootState) => state.auth)
-
-  useEffect(() => {
-    const savedProfile = localStorage.getItem('userProfile')
-    if (savedProfile && !profile) {
-      try {
-        const parsedProfile = JSON.parse(savedProfile)
-        dispatch(setProfile(parsedProfile))
-      } catch (error) {
-        console.error('Failed to parse saved profile:', error)
-        localStorage.removeItem('userProfile')
-      }
-    }
-  }, [dispatch, profile])
-
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Sidebar
@@ -180,7 +161,6 @@ const MainLayout = () => {
           collapsed={collapsed}
           onToggleCollapse={() => setCollapsed(!collapsed)}
           userMenuItems={userMenuItems}
-          profile={profile}
         />
         <div style={{ minHeight: '100vh' }}>
           <Outlet />
