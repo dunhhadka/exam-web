@@ -179,7 +179,7 @@ public class QuestionServiceImpl implements QuestionService {
         }
     }
 
-    private Question buildQuestionEntity(QuestionCreateBase request, Status status) {
+    public Question buildQuestionEntity(QuestionCreateBase request, Status status) {
         Question.BaseQuestion questionValue = buildQuestionValue(request, status);
 
         Question question = Question.builder()
@@ -198,7 +198,7 @@ public class QuestionServiceImpl implements QuestionService {
         return question;
     }
 
-    private Question.BaseQuestion buildQuestionValue(QuestionCreateBase request, Status status) {
+    public Question.BaseQuestion buildQuestionValue(QuestionCreateBase request, Status status) {
         Level level = request.getLevel();
         boolean isPublic = request.isPublic();
 

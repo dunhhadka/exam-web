@@ -19,15 +19,36 @@ import { useDispatch, useSelector } from 'react-redux'
 import { RootState } from '../../store'
 import { setProfile } from '../../store/slices/authSlice'
 import { logout } from '../../store/slices/authSlice'
+import { useGetProfileQuery } from '../../services/api/profile'
 
 const MainLayout = () => {
   const [collapsed, setCollapsed] = useState(false)
   const [selectedKey, setSelectedKey] = useState('home')
   const [openKeys, setOpenKeys] = useState<string[]>(['exams'])
+  const { data: userProfile } = useGetProfileQuery()
 
   const dispatch = useDispatch()
 
   const navigate = useNavigate()
+
+  const { profile } = useSelector((state: RootState) => state.auth)
+
+  useEffect(() => {
+    const savedProfile = localStorage.getItem('userProfile')
+    if (userProfile) {
+      dispatch(setProfile(userProfile))
+      return
+    }
+    if (savedProfile && !profile) {
+      try {
+        const parsedProfile = JSON.parse(savedProfile)
+        dispatch(setProfile(parsedProfile))
+      } catch (error) {
+        console.error('Failed to parse saved profile:', error)
+        localStorage.removeItem('userProfile')
+      }
+    }
+  }, [dispatch, profile])
 
   const menuItems: MenuItem[] = [
     {
@@ -165,6 +186,7 @@ const MainLayout = () => {
           collapsed={collapsed}
           onToggleCollapse={() => setCollapsed(!collapsed)}
           userMenuItems={userMenuItems}
+          profile={profile}
         />
         <div style={{ minHeight: '100vh' }}>
           <Outlet />
