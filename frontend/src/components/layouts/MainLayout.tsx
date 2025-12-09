@@ -25,7 +25,7 @@ const MainLayout = () => {
   const [collapsed, setCollapsed] = useState(false)
   const [selectedKey, setSelectedKey] = useState('home')
   const [openKeys, setOpenKeys] = useState<string[]>(['exams'])
-  const {data: userProfile} = useGetProfileQuery();
+  const { data: userProfile } = useGetProfileQuery()
 
   const dispatch = useDispatch()
 
@@ -35,7 +35,7 @@ const MainLayout = () => {
 
   useEffect(() => {
     const savedProfile = localStorage.getItem('userProfile')
-    if(userProfile && !profile) {
+    if (userProfile) {
       dispatch(setProfile(userProfile))
       return
     }
