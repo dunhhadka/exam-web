@@ -3,6 +3,7 @@ import {
   EditOutlined,
   ImportOutlined,
   PlusCircleOutlined,
+  DownloadOutlined,
 } from '@ant-design/icons'
 import styled from '@emotion/styled'
 import { Button, message, Modal, Radio, Tag, Tooltip } from 'antd'
@@ -13,11 +14,10 @@ import { createActionColumns } from '../../components/search/createActionColumn'
 import { createColumn } from '../../components/search/createColumn'
 import { CustomTable } from '../../components/search/CustomTable'
 import { useFilterQuestionQuery } from '../../hooks/useFilterQuestionQuery'
-import { useToast } from '../../hooks/useToast'
 import {
   useDeleteQuestionMutation,
-  useDownloadTemplateMutation,
   useImportQuestionsMutation,
+  useLazyDownloadTemplateQuery,
 } from '../../services/api/questionApi'
 import {
   Level,
@@ -35,6 +35,10 @@ import {
 import { formatInstant } from '../../utils/times'
 import { QuestionFilter } from './filter/QuestionFilter'
 import { QuestionTypeCreate } from './QuestionTypeCreate'
+import { useSelector } from 'react-redux'
+import { RootState } from '../../store'
+import { useToast } from '../../hooks/useToast'
+import { BASE_URL } from '../../store/slices/baseQueries'
 
 export const QuestionList = () => {
   const columns = [
@@ -135,9 +139,6 @@ export const QuestionList = () => {
 
   const [importQuestions] = useImportQuestionsMutation()
 
-  const [downloadTemplate, { isLoading: isDownloadingTemplate }] =
-    useDownloadTemplateMutation()
-
   const [showQuestionCreateModal, setShowQuestionCreateModal] = useState(false)
 
   const [showModalDeleteQuestion, setShowModalDeleteQuestion] = useState(false)
@@ -158,6 +159,9 @@ export const QuestionList = () => {
 
   const [showImportModal, setShowImportModal] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
+
+  const accessToken = useSelector((state: RootState) => state.auth.accessToken)
+  const [isDownloadingTemplate, setIsDownloadingTemplate] = useState(false)
 
   const handleAddQuestionAction = () => {
     setShowQuestionCreateModal(true)
@@ -260,27 +264,44 @@ export const QuestionList = () => {
   }
 
   const handleDownloadTemplate = async () => {
-    const response = await fetch('/api/question/template/download', {
-      method: 'GET',
-    })
+    try {
+      setIsDownloadingTemplate(true)
 
-    if (!response.ok) {
-      throw new Error('Download failed')
+      const response = await fetch(
+        BASE_URL + '/question/template/download',
+        {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`)
+      }
+
+      const blob = await response.blob()
+      console.log('Downloaded blob:', blob.type, blob.size)
+
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `import_question_template_${new Date()
+        .toISOString()
+        .split('T')[0]}.xlsx`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+
+      toast.success('Tải file mẫu thành công')
+    } catch (error) {
+      console.error('Download error:', error)
+      toast.error('Lỗi khi tải file')
+    } finally {
+      setIsDownloadingTemplate(false)
     }
-
-    const blob = await response.blob()
-
-    // Download
-    const url = window.URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = 'import_question_template.xlsx'
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    window.URL.revokeObjectURL(url)
-
-    console.log('Download success!')
   }
 
   const handleDirectImport = () => {
@@ -360,12 +381,6 @@ export const QuestionList = () => {
           onChange: (keys) => setSelectedRowKeys(keys),
         }}
         actions={[
-          // {
-          //   title: 'Tải Excel',
-          //   icon: <DownloadOutlined />,
-          //   onClick: () => setShowExportModal(true),
-          //   color: 'secondary',
-          // },
           {
             title: 'Nhập Excel',
             icon: <ImportOutlined />,

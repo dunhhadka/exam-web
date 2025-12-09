@@ -76,7 +76,7 @@ public class QuestionControllerImpl implements QuestionController {
     }
 
     @Override
-    public ResponseEntity<Resource> downloadTemplateImport() throws IOException {
+    public ResponseEntity<byte[]> downloadTemplateImport() throws IOException {
         return exportFileService.downloadTemplate();
     }
 }

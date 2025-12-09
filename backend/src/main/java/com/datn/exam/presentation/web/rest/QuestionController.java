@@ -49,5 +49,5 @@ public interface QuestionController {
     Response<MultiSheetImportResult> importFile(@RequestBody QuestionImportRequest request);
 
     @GetMapping("/template/download")
-    ResponseEntity<Resource> downloadTemplateImport() throws IOException;
+    ResponseEntity<byte[]> downloadTemplateImport() throws IOException;
 }

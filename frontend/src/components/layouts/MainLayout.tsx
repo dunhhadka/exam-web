@@ -19,11 +19,13 @@ import { useDispatch, useSelector } from 'react-redux'
 import { RootState } from '../../store'
 import { setProfile } from '../../store/slices/authSlice'
 import { logout } from '../../store/slices/authSlice'
+import { useGetProfileQuery } from '../../services/api/profile'
 
 const MainLayout = () => {
   const [collapsed, setCollapsed] = useState(false)
   const [selectedKey, setSelectedKey] = useState('home')
   const [openKeys, setOpenKeys] = useState<string[]>(['exams'])
+  const {data: userProfile} = useGetProfileQuery();
 
   const dispatch = useDispatch()
 
@@ -33,6 +35,10 @@ const MainLayout = () => {
 
   useEffect(() => {
     const savedProfile = localStorage.getItem('userProfile')
+    if(userProfile && !profile) {
+      dispatch(setProfile(userProfile))
+      return
+    }
     if (savedProfile && !profile) {
       try {
         const parsedProfile = JSON.parse(savedProfile)

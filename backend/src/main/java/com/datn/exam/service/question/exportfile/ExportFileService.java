@@ -4,10 +4,14 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 @Service
 @RequiredArgsConstructor
@@ -15,21 +19,26 @@ public class ExportFileService {
 
     private static final String downloadPath = "templates/excels/import_question.xlsx";
 
-    public ResponseEntity<Resource> downloadTemplate() throws IOException {
-        Resource resource = new ClassPathResource(downloadPath);
+    public ResponseEntity<byte[]> downloadTemplate() throws IOException {
+        ClassPathResource resource = new ClassPathResource(downloadPath);
 
         if (!resource.exists()) {
-            throw new RuntimeException("Template file không tồn tại");
+            throw new RuntimeException("File không tồn tại: " + downloadPath);
         }
 
+        // Đọc file thành byte array
+        byte[] fileContent = resource.getInputStream().readAllBytes();
+
+        String now = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+        String filename = "import_file_template_" + now + ".xlsx";
+
         HttpHeaders headers = new HttpHeaders();
-        headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"import_question_template.xlsx\"");
-        headers.add(HttpHeaders.CONTENT_TYPE, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-        headers.add(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate");
+        headers.setContentDispositionFormData("attachment", filename);
+        headers.setContentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+        headers.setContentLength(fileContent.length);
 
         return ResponseEntity.ok()
                 .headers(headers)
-                .contentLength(resource.contentLength())
-                .body(resource);
+                .body(fileContent);
     }
 }
