@@ -102,7 +102,7 @@ const PrepareCheckCandidateSystem = () => {
       const proctoring = settings?.proctoring
       const identityMode = proctoring?.identity_mode || proctoring?.identityMode
 
-      if (identityMode === 'UPLOAD' && userId && sessionInfo.sessionId) {
+      if (identityMode === 'WEBCAM' && userId && sessionInfo.sessionId) {
         setCheckingWhitelist(true)
         try {
           const formData = new FormData()
@@ -125,7 +125,7 @@ const PrepareCheckCandidateSystem = () => {
     const proctoring = settings?.proctoring
     const identityMode = proctoring?.identity_mode || proctoring?.identityMode
 
-    if (sessionInfo && !whitelistStatus && !checkingWhitelist && identityMode === 'UPLOAD') {
+    if (sessionInfo && !whitelistStatus && !checkingWhitelist && identityMode === 'WEBCAM') {
         checkWhitelist()
     }
   }, [sessionInfo, userId, whitelistStatus, checkingWhitelist])
@@ -137,7 +137,7 @@ const PrepareCheckCandidateSystem = () => {
       const proctoring = settings?.proctoring
       const identityMode = proctoring?.identity_mode || proctoring?.identityMode
       
-      if (identityMode !== 'UPLOAD') {
+    if (identityMode !== 'WEBCAM') {
          console.log('Skipping KYC because identity_mode is', identityMode)
          setKycComplete(true)
       }
@@ -257,7 +257,7 @@ const PrepareCheckCandidateSystem = () => {
             // Optional: Handle cancel
             console.log('KYC cancelled')
           }}
-          isWhitelistMode={identityMode === 'UPLOAD' && whitelistStatus?.hasAvatar === true}
+          isWhitelistMode={identityMode === 'WEBCAM' && whitelistStatus?.hasAvatar === true}
           email={userId}
           sessionId={sessionInfo?.sessionId}
           candidateId={userId}

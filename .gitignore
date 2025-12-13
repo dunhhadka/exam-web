@@ -1,0 +1,54 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# ---- Virtual Environments ----
+venv/
+.venv/
+ENV/
+env/
+*/venv/
+*/.venv/
+
+# ---- FastAPI / Uvicorn ----
+*.log
+
+# ---- IDEs ----
+.vscode/
+.idea/
+
+# ---- OS files ----
+.DS_Store
+Thumbs.db
+
+# ---- PyInstaller ----
+build/
+dist/
+*.spec
+
+# ---- Unit test ----
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ---- Jupyter ----
+.ipynb_checkpoints/
+
+# ---- dotenv ----
+.env
+.env.*
+
+# ---- MyPy ----
+.mypy_cache/
+
+# ---- SQLite ----
+*.sqlite3
+*.db
+*.sqlite
+
+# ---- Node (nếu backend có frontend) ----
+node_modules/
+dist/

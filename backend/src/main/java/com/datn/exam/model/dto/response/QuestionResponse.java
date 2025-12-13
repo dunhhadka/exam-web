@@ -43,10 +43,10 @@ public class QuestionResponse {
     private List<String> headers;
     private List<RowCompactResponse> rows;
 
-    private Instant createdAt;
+    private LocalDateTime createdAt;
     private String createdBy;
 
-    private Instant lastModifiedAt;
+    private LocalDateTime lastModifiedAt;
     private String lastModifiedBy;
 
     @Data

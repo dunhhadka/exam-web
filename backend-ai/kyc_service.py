@@ -1,6 +1,7 @@
 import os
 import json
 import time
+from datetime import datetime
 from typing import Optional, List
 from sqlalchemy import create_engine, String, Integer, LargeBinary, DateTime, func, Text, text
 from sqlalchemy.orm import sessionmaker, DeclarativeBase, Mapped, mapped_column
@@ -42,17 +43,27 @@ class Whitelist(Base):
     exam_session_id: Mapped[int] = mapped_column(Integer, index=True)
     avatar_urls: Mapped[str] = mapped_column(Text) 
 
-class CheatingLog(Base):
-    __tablename__ = "cheating_logs"
+class ExamSession(Base):
+    __tablename__ = "exam_sessions"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    code: Mapped[str] = mapped_column(String(50), index=True)
+
+class ExamAttempt(Base):
+    __tablename__ = "exam_attempts"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    exam_session_id: Mapped[int] = mapped_column(Integer)
+    student_email: Mapped[str] = mapped_column(String(255))
+    attempt_no: Mapped[int] = mapped_column(Integer)
+    submitted_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+
+class Log(Base):
+    __tablename__ = "logs"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    exam_session_id: Mapped[str] = mapped_column(String(64), index=True)
-    candidate_id: Mapped[str] = mapped_column(String(64), index=True)
-    incident_type: Mapped[str] = mapped_column(String(10))  # A1, A2...
-    severity_level: Mapped[str] = mapped_column(String(10)) # S1, S2...
-    description: Mapped[str] = mapped_column(Text, nullable=True)
-    proof_path: Mapped[str] = mapped_column(String(255), nullable=True)
-    timestamp: Mapped[int] = mapped_column(Integer) # Unix timestamp
-    created_at: Mapped[int] = mapped_column(Integer, default=lambda: int(time.time()))
+    attempt_id: Mapped[int] = mapped_column(Integer)
+    log_type: Mapped[str] = mapped_column(String(50)) # Enum as string
+    severity: Mapped[str] = mapped_column(String(50)) # Enum as string
+    message: Mapped[str] = mapped_column(String(500))
+    logged_at: Mapped[datetime] = mapped_column(DateTime)
 
 def init_db():
     global _engine, _SessionLocal, _whitelist_engine, _WhitelistSessionLocal
@@ -233,20 +244,69 @@ def save_cheating_log(
     timestamp: int,
     proof_path: Optional[str] = None
 ) -> bool:
-    sess = get_session()
+    sess = get_whitelist_session() # Use whitelist session (Exam DB)
     if sess is None:
         return False
     try:
-        log = CheatingLog(
-            exam_session_id=exam_session_id,
-            candidate_id=candidate_id,
-            incident_type=incident_type,
-            severity_level=severity_level,
-            description=description,
-            timestamp=timestamp,
-            proof_path=proof_path
+        # 1. Resolve Session ID
+        # exam_session_id can be the numeric ID (str or int) or the Code (str)
+        session_id_int = None
+        
+        # Try to parse as integer
+        if isinstance(exam_session_id, int):
+            session_id_int = exam_session_id
+        elif isinstance(exam_session_id, str) and exam_session_id.isdigit():
+            session_id_int = int(exam_session_id)
+            
+        # If not an integer, treat as Code
+        if session_id_int is None:
+            session_obj = sess.query(ExamSession).filter(ExamSession.code == str(exam_session_id)).first()
+            if session_obj:
+                session_id_int = session_obj.id
+            else:
+                print(f"[KYC] Could not resolve session ID from: {exam_session_id}")
+                return False
+
+        # 2. Find Attempt using Session ID and Student Email
+        attempt = sess.query(ExamAttempt).filter(
+            ExamAttempt.exam_session_id == session_id_int,
+            ExamAttempt.student_email == candidate_id
+        ).order_by(ExamAttempt.attempt_no.desc()).first()
+
+        if not attempt:
+            print(f"[KYC] No attempt found for session_id={session_id_int} ({exam_session_id}) and email={candidate_id}")
+            return False
+
+        # Map fields
+        log_type_map = {
+            "A5": "TAB_SWITCH",
+            "A6": "FULLSCREEN_EXIT",
+            "A7": "COPY_PASTE_ATTEMPT",
+            "A8": "DEVTOOLS_OPEN",
+        }
+        log_type = log_type_map.get(incident_type, "SUSPICIOUS_ACTIVITY")
+
+        severity_map = {
+            "S1": "INFO",
+            "S2": "WARNING",
+            "S3": "SERIOUS",
+            "S4": "CRITICAL"
+        }
+        severity = severity_map.get(severity_level, "INFO")
+        
+        # Append incident type to message for clarity
+        full_message = f"[{incident_type}] {description}"
+        if len(full_message) > 500:
+            full_message = full_message[:497] + "..."
+
+        log_entry = Log(
+            attempt_id=attempt.id,
+            log_type=log_type,
+            severity=severity,
+            message=full_message,
+            logged_at=datetime.fromtimestamp(timestamp / 1000.0)
         )
-        sess.add(log)
+        sess.add(log_entry)
         sess.commit()
         return True
     except SQLAlchemyError as e:

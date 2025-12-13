@@ -1347,56 +1347,14 @@ const ExamSessionCreate = ({
                                     }
                                   }}
                                 >
-                                  Chụp ảnh bằng webcam
+                                  Xác thực bằng chụp ảnh webcam
                                 </StyledCheckbox>
                               )}
                             />
-                            <Controller
-                              name="antiCheatSettings.uploadImage"
-                              control={control}
-                              render={({ field }) => (
-                                <StyledCheckbox
-                                  checked={field.value}
-                                  onChange={(e) => {
-                                    const checked = e.target.checked
-                                    field.onChange(checked)
-                                    if (checked) {
-                                      setValue('antiCheatSettings.webcamCapture', false)
-                                    } else {
-                                      setValue('antiCheatSettings.uploadId', false)
-                                    }
-                                  }}
-                                >
-                                  Upload ảnh chân dung
-                                </StyledCheckbox>
-                              )}
-                            />
-                            <Controller
-                              name="antiCheatSettings.uploadId"
-                              control={control}
-                              render={({ field }) => (
-                                !uploadImage ? (
-                                  <Tooltip title={'Bật "Upload ảnh chân dung" trước khi yêu cầu ảnh ID'}>
-                                    <span>
-                                      <StyledCheckbox
-                                        checked={field.value}
-                                        onChange={(e) => field.onChange(e.target.checked)}
-                                        disabled
-                                      >
-                                        Upload ảnh ID <InfoCircleOutlined style={{ color: '#1890ff', fontSize: 12 }} />
-                                      </StyledCheckbox>
-                                    </span>
-                                  </Tooltip>
-                                ) : (
-                                  <StyledCheckbox
-                                    checked={field.value}
-                                    onChange={(e) => field.onChange(e.target.checked)}
-                                  >
-                                    Upload ảnh ID <InfoCircleOutlined style={{ color: '#1890ff', fontSize: 12 }} />
-                                  </StyledCheckbox>
-                                )
-                              )}
-                            />
+                            <div style={{ marginTop: 8, color: '#666', fontSize: 13, fontStyle: 'italic' }}>
+                              <InfoCircleOutlined style={{ marginRight: 4 }} />
+                              Lưu ý: Nếu ảnh ID đã được import, thí sinh sẽ không cần upload. Nếu chưa, thí sinh sẽ cần upload.
+                            </div>
                           </PanelContent>
                         </Panel>
 

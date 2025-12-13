@@ -108,7 +108,7 @@ const CheckInInfo = () => {
         name: name,
       }
 
-      dispatch(setUserId(name.trim()))
+      dispatch(setUserId(email))
       dispatch(setUserEmail(email))
 
       navigate('/do-exam', { 
