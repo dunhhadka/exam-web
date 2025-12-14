@@ -16,7 +16,7 @@ DB_NAME = os.getenv("MYSQL_DB", "exam_proctor")
 DATABASE_URL = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"  # noqa: E501
 
 # Whitelist DB Connection (Separate DB)
-WHITELIST_DB_URL = os.getenv("WHITELIST_DB_URL", "mysql+pymysql://root:@localhost:3306/exam?charset=utf8mb4")
+WHITELIST_DB_URL = os.getenv("WHITELIST_DB_URL", "mysql+pymysql://root:123456@localhost:3306/exam?charset=utf8mb4")
 
 _engine = None
 _SessionLocal = None
