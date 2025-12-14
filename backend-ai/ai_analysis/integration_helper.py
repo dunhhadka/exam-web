@@ -9,6 +9,8 @@ import json
 import time
 from typing import Optional, Callable
 
+from ai_analysis.evidence_store import save_evidence_image
+
 logger = logging.getLogger(__name__)
 
 # Global real analyzer instance (singleton)
@@ -192,14 +194,23 @@ async def run_real_analysis_loop(
                             # Save A4 to DB
                             if save_cheating_log:
                                 try:
+                                    ts_ms = int(now * 1000)
+                                    evidence_path = save_evidence_image(
+                                        frame_data=frame_data,
+                                        incident_type="A4",
+                                        room_id=room_id,
+                                        candidate_id=candidate_id,
+                                        timestamp_ms=ts_ms,
+                                        prefer="camera",
+                                    )
                                     save_cheating_log(
                                         exam_session_id=room_id,
                                         candidate_id=candidate_id,
                                         incident_type="A4",
                                         severity_level="S2",
                                         description=f"Screen share missing for {int(missing_duration)}s",
-                                        timestamp=int(now * 1000),
-                                        proof_path=None
+                                        timestamp=ts_ms,
+                                        evidence=evidence_path
                                     )
                                 except Exception as db_err:
                                     logger.error(f"Failed to save A4 cheating log: {db_err}")
@@ -243,14 +254,23 @@ async def run_real_analysis_loop(
                                 # Save A11 to DB
                                 if save_cheating_log:
                                     try:
+                                        ts_ms = int(now_s * 1000)
+                                        evidence_path = save_evidence_image(
+                                            frame_data=frame_data,
+                                            incident_type="A11",
+                                            room_id=room_id,
+                                            candidate_id=candidate_id,
+                                            timestamp_ms=ts_ms,
+                                            prefer="camera",
+                                        )
                                         save_cheating_log(
                                             exam_session_id=room_id,
                                             candidate_id=candidate_id,
                                             incident_type="A11",
                                             severity_level="S1",
                                             description=f"Idle for {int(idle_dur)}s",
-                                            timestamp=int(now_s * 1000),
-                                            proof_path=None
+                                            timestamp=ts_ms,
+                                            evidence=evidence_path
                                         )
                                     except Exception as db_err:
                                         logger.error(f"Failed to save A11 cheating log: {db_err}")
@@ -317,14 +337,22 @@ async def run_real_analysis_loop(
                         # Save to DB
                         if save_cheating_log:
                             try:
+                                ts_ms = int(time.time() * 1000)
+                                evidence_path = save_evidence_image(
+                                    frame_data=frame_data,
+                                    incident_type=alert["type"],
+                                    room_id=room_id,
+                                    candidate_id=candidate_id,
+                                    timestamp_ms=ts_ms,
+                                )
                                 save_cheating_log(
                                     exam_session_id=room_id,
                                     candidate_id=candidate_id,
                                     incident_type=alert['type'],
                                     severity_level=alert['level'],
                                     description=alert['message'],
-                                    timestamp=int(time.time() * 1000),
-                                    proof_path=None # TODO: Save frame if needed
+                                    timestamp=ts_ms,
+                                    evidence=evidence_path
                                 )
                             except Exception as db_err:
                                 logger.error(f"Failed to save cheating log: {db_err}")

@@ -114,6 +114,31 @@ class ArcFaceModel(BaseModel):
             if face_image.size == 0 or face_image.ndim < 2:
                 logger.warning("infer received empty face_image")
                 return None
+
+            # Ensure HxWx3 RGB
+            if face_image.ndim == 2:
+                try:
+                    face_image = cv2.cvtColor(face_image, cv2.COLOR_GRAY2RGB)
+                except Exception as e:
+                    logger.warning(f"failed to convert gray->rgb: {e}")
+                    return None
+            elif face_image.ndim == 3 and face_image.shape[2] == 1:
+                try:
+                    face_image = cv2.cvtColor(face_image, cv2.COLOR_GRAY2RGB)
+                except Exception as e:
+                    logger.warning(f"failed to convert 1ch->rgb: {e}")
+                    return None
+            elif face_image.ndim == 3 and face_image.shape[2] == 4:
+                # Assume RGBA
+                try:
+                    face_image = cv2.cvtColor(face_image, cv2.COLOR_RGBA2RGB)
+                except Exception as e:
+                    logger.warning(f"failed to convert rgba->rgb: {e}")
+                    return None
+            elif face_image.ndim == 3 and face_image.shape[2] != 3:
+                logger.warning(f"infer received unexpected channel count: {face_image.shape}")
+                return None
+
             h, w = face_image.shape[:2]
             if h == 0 or w == 0:
                 logger.warning("infer received zero-dimension face_image")

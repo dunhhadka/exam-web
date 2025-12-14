@@ -33,6 +33,9 @@ public class Log extends AuditableEntity{
     @Column(name = "message", length = 500)
     private String message;
 
+    @Column(name = "evidence", length = 255)
+    private String evidence;
+
     @Column(name = "logged_at", nullable = false)
     private LocalDateTime loggedAt;
 

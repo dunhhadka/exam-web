@@ -228,10 +228,28 @@ async def kyc_verify(
         
     # Load selfie
     import cv2
-    selfie_bgr = cv2.imread(selfie_path)
+    selfie_bgr = cv2.imread(selfie_path, cv2.IMREAD_COLOR)
     if selfie_bgr is None:
         raise HTTPException(status_code=400, detail="Invalid selfie image")
     selfie_rgb = cv2.cvtColor(selfie_bgr, cv2.COLOR_BGR2RGB)
+
+    def ensure_rgb3(img: np.ndarray) -> np.ndarray:
+        """Ensure image is HxWx3 RGB uint8 for downstream models."""
+        if img is None or not isinstance(img, np.ndarray) or img.size == 0:
+            raise ValueError("Empty image")
+        if img.ndim == 2:
+            return cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+        if img.ndim == 3 and img.shape[2] == 1:
+            return cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+        if img.ndim == 3 and img.shape[2] == 4:
+            # Assume RGBA -> RGB
+            return cv2.cvtColor(img, cv2.COLOR_RGBA2RGB)
+        return img
+
+    try:
+        selfie_rgb = ensure_rgb3(selfie_rgb)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid selfie image")
 
     # Ensure models
     global arcface_singleton, yolo_singleton
@@ -242,7 +260,25 @@ async def kyc_verify(
         yolo_singleton = YOLODetector(device="cpu", confidence_threshold=0.4)
         yolo_singleton.load()
 
+    # Fast-path: if selfie has no detectable face, return a clear message
+    # This avoids falling into lower-level model code that can emit confusing OpenCV warnings.
+    try:
+        selfie_bgr_for_detect = cv2.cvtColor(selfie_rgb, cv2.COLOR_RGB2BGR)
+        faces = arcface_singleton.app.get(selfie_bgr_for_detect)
+        if not faces or len(faces) == 0:
+            raise HTTPException(status_code=400, detail="Ảnh selfie không có mặt")
+    except HTTPException:
+        raise
+    except Exception:
+        # If detector fails for any reason, continue with the existing embedding pipeline
+        pass
+
     def extract_embedding(img_rgb):
+        try:
+            img_rgb = ensure_rgb3(img_rgb)
+        except Exception:
+            return None
+
         # First try ArcFace internal detection
         emb = arcface_singleton.infer(img_rgb)
         if emb is not None:
@@ -262,7 +298,11 @@ async def kyc_verify(
             for target in [1024, 800, 640]:
                 scale = min(target / max(h, w), 1.0)
                 if scale < 1.0:
-                    resized = cv2.resize(img_rgb, (int(w*scale), int(h*scale)))
+                    new_w = max(1, int(round(w * scale)))
+                    new_h = max(1, int(round(h * scale)))
+                    if new_w <= 1 or new_h <= 1:
+                        continue
+                    resized = cv2.resize(img_rgb, (new_w, new_h))
                     emb = arcface_singleton.infer(resized)
                     if emb is not None:
                         return emb
@@ -288,7 +328,7 @@ async def kyc_verify(
     # 1. Extract Selfie Embedding
     selfie_emb = extract_embedding(selfie_rgb)
     if selfie_emb is None:
-        raise HTTPException(status_code=400, detail="Failed to extract embedding from selfie")
+        raise HTTPException(status_code=400, detail="ảnh selfie không có mặt")
 
     # 2. Determine Reference Image (Whitelist vs Manual Upload)
     reference_emb = None
@@ -311,6 +351,10 @@ async def kyc_verify(
                             ref_img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
                             if ref_img is not None:
                                 ref_rgb = cv2.cvtColor(ref_img, cv2.COLOR_BGR2RGB)
+                                try:
+                                    ref_rgb = ensure_rgb3(ref_rgb)
+                                except Exception:
+                                    continue
                                 reference_emb = extract_embedding(ref_rgb)
                                 if reference_emb is not None:
                                     used_whitelist = True
@@ -330,10 +374,14 @@ async def kyc_verify(
         with open(id_path, "wb") as f:
             shutil.copyfileobj(id_image.file, f)
             
-        id_bgr = cv2.imread(id_path)
+        id_bgr = cv2.imread(id_path, cv2.IMREAD_COLOR)
         if id_bgr is None:
             raise HTTPException(status_code=400, detail="Invalid ID image")
         id_rgb = cv2.cvtColor(id_bgr, cv2.COLOR_BGR2RGB)
+        try:
+            id_rgb = ensure_rgb3(id_rgb)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid ID image")
         
         reference_emb = extract_embedding(id_rgb)
         if reference_emb is None:

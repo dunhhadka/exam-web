@@ -1,5 +1,6 @@
 import os
 import json
+import re
 import time
 from datetime import datetime
 from typing import Optional, List
@@ -7,10 +8,17 @@ from sqlalchemy import create_engine, String, Integer, LargeBinary, DateTime, fu
 from sqlalchemy.orm import sessionmaker, DeclarativeBase, Mapped, mapped_column
 from sqlalchemy.exc import SQLAlchemyError
 
+
+def _int_env(name: str, default: int) -> int:
+    try:
+        return int(os.getenv(name, str(default)))
+    except Exception:
+        return default
+
 DB_HOST = os.getenv("MYSQL_HOST", "localhost")
 DB_PORT = os.getenv("MYSQL_PORT", "3306")
 DB_USER = os.getenv("MYSQL_USER", "root")
-DB_PASSWORD = os.getenv("MYSQL_PASSWORD", "")
+DB_PASSWORD = os.getenv("MYSQL_PASSWORD", "123456")
 DB_NAME = os.getenv("MYSQL_DB", "exam_proctor")
 
 DATABASE_URL = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"  # noqa: E501
@@ -63,13 +71,25 @@ class Log(Base):
     log_type: Mapped[str] = mapped_column(String(50)) # Enum as string
     severity: Mapped[str] = mapped_column(String(50)) # Enum as string
     message: Mapped[str] = mapped_column(String(500))
+    evidence: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    created_by: Mapped[str] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(DateTime)
+    last_modified_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    last_modified_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     logged_at: Mapped[datetime] = mapped_column(DateTime)
 
 def init_db():
     global _engine, _SessionLocal, _whitelist_engine, _WhitelistSessionLocal
     if _engine is None:
         try:
-            _engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+            _engine = create_engine(
+                DATABASE_URL,
+                pool_pre_ping=True,
+                pool_recycle=_int_env("MYSQL_POOL_RECYCLE", 3600),
+                pool_size=_int_env("MYSQL_POOL_SIZE", 10),
+                max_overflow=_int_env("MYSQL_MAX_OVERFLOW", 20),
+                pool_timeout=_int_env("MYSQL_POOL_TIMEOUT", 30),
+            )
             _SessionLocal = sessionmaker(bind=_engine, autoflush=False, autocommit=False)
             Base.metadata.create_all(_engine)
             # Ensure column type can store large JSON; migrate if needed
@@ -88,9 +108,22 @@ def init_db():
     # Init Whitelist DB
     if _whitelist_engine is None:
         try:
-            _whitelist_engine = create_engine(WHITELIST_DB_URL, pool_pre_ping=True)
+            _whitelist_engine = create_engine(
+                WHITELIST_DB_URL,
+                pool_pre_ping=True,
+                pool_recycle=_int_env("WHITELIST_POOL_RECYCLE", 3600),
+                pool_size=_int_env("WHITELIST_POOL_SIZE", 10),
+                max_overflow=_int_env("WHITELIST_MAX_OVERFLOW", 20),
+                pool_timeout=_int_env("WHITELIST_POOL_TIMEOUT", 30),
+            )
             _WhitelistSessionLocal = sessionmaker(bind=_whitelist_engine, autoflush=False, autocommit=False)
             # We do NOT create tables for whitelist as it exists in another DB
+            # Best-effort migration for evidence column (ignore if already applied)
+            try:
+                with _whitelist_engine.begin() as conn:
+                    conn.execute(text("ALTER TABLE logs ADD COLUMN evidence VARCHAR(255) NULL"))
+            except Exception:
+                pass
         except SQLAlchemyError as e:
             print(f"[KYC] Whitelist DB init error: {e}")
             _whitelist_engine = None
@@ -242,6 +275,7 @@ def save_cheating_log(
     severity_level: str,
     description: str,
     timestamp: int,
+    evidence: Optional[str] = None,
     proof_path: Optional[str] = None
 ) -> bool:
     sess = get_whitelist_session() # Use whitelist session (Exam DB)
@@ -294,17 +328,35 @@ def save_cheating_log(
         }
         severity = severity_map.get(severity_level, "INFO")
         
-        # Append incident type to message for clarity
-        full_message = f"[{incident_type}] {description}"
+        # Store only the message text (no incident type prefix like "[A1] ...").
+        # Also strip any leading "[ ... ]" tag if upstream included it.
+        msg = "" if description is None else str(description)
+        msg = re.sub(r"^\[[^\]]+\]\s*", "", msg).strip()
+        full_message = msg
         if len(full_message) > 500:
             full_message = full_message[:497] + "..."
+
+        # Backward compat
+        if evidence is None and proof_path:
+            evidence = proof_path
+
+        logged_at = datetime.fromtimestamp(timestamp / 1000.0)
+
+        # Populate required audit fields present in the Spring/JPA schema.
+        # These columns are NOT nullable in many DBs (e.g. created_at/created_by).
+        created_by = os.getenv("AI_LOG_CREATED_BY", "backend-ai")
 
         log_entry = Log(
             attempt_id=attempt.id,
             log_type=log_type,
             severity=severity,
             message=full_message,
-            logged_at=datetime.fromtimestamp(timestamp / 1000.0)
+            evidence=evidence,
+            created_by=created_by,
+            created_at=logged_at,
+            last_modified_by=None,
+            last_modified_at=None,
+            logged_at=logged_at
         )
         sess.add(log_entry)
         sess.commit()

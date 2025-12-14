@@ -125,6 +125,10 @@ const PreviewImage = styled(Image)`
 const VideoContainer = styled.div`
   position: relative;
   margin: 16px 0;
+  width: 100%;
+  max-width: 400px;
+  margin-left: auto;
+  margin-right: auto;
   border-radius: 8px;
   overflow: hidden;
   border: 2px solid #f0f0f0;
@@ -132,7 +136,6 @@ const VideoContainer = styled.div`
 
 const SelfieVideo = styled.video`
   width: 100%;
-  max-width: 400px;
   display: block;
   margin: 0 auto;
 `
@@ -198,10 +201,12 @@ export default function KYCFlow({
   const [selfieBlob, setSelfieBlob] = useState<Blob | null>(null)
   const [verifying, setVerifying] = useState<boolean>(false)
   const [result, setResult] = useState<VerificationResult | null>(null)
+  const [cameraError, setCameraError] = useState<string | null>(null)
 
   const idInputRef = useRef<HTMLInputElement>(null)
   const selfieVideoRef = useRef<HTMLVideoElement>(null)
   const selfieCanvasRef = useRef<HTMLCanvasElement>(null)
+  const selfieStreamRef = useRef<MediaStream | null>(null)
 
   // Skip ID upload step if in whitelist mode
   useEffect(() => {
@@ -217,6 +222,71 @@ export default function KYCFlow({
       }
     }
   }, [isWhitelistMode, currentStep, email, sessionId, idImage, idFile])
+
+  const stopSelfieCamera = () => {
+    const stream = selfieStreamRef.current
+    if (stream) {
+      stream.getTracks().forEach((t) => t.stop())
+      selfieStreamRef.current = null
+    }
+    if (selfieVideoRef.current) {
+      selfieVideoRef.current.srcObject = null
+    }
+  }
+
+  const startSelfieCamera = async (): Promise<void> => {
+    setCameraError(null)
+
+    if (selfieStreamRef.current) {
+      // Already started
+      return
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          facingMode: 'user',
+        },
+      })
+
+      selfieStreamRef.current = stream
+
+      if (selfieVideoRef.current) {
+        selfieVideoRef.current.srcObject = stream
+        await new Promise<void>((resolve) => {
+          if (!selfieVideoRef.current) return resolve()
+          // If metadata already loaded, resolve immediately
+          if (selfieVideoRef.current.readyState >= 2) return resolve()
+          selfieVideoRef.current.onloadedmetadata = () => resolve()
+        })
+        await selfieVideoRef.current.play().catch(() => {
+          // Some browsers may block autoplay; user can still press "Chụp ảnh"
+        })
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+      setCameraError('Không thể truy cập camera: ' + errorMessage)
+      stopSelfieCamera()
+    }
+  }
+
+  // Auto-start camera preview on selfie step
+  useEffect(() => {
+    if (currentStep === 1) {
+      void startSelfieCamera()
+      return
+    }
+
+    // Stop camera when leaving selfie step
+    stopSelfieCamera()
+  }, [currentStep])
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => stopSelfieCamera()
+  }, [])
 
   const handleIDUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -234,47 +304,44 @@ export default function KYCFlow({
 
   const captureSelfie = async (): Promise<void> => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          facingMode: 'user',
-        },
-      })
-
-      if (selfieVideoRef.current) {
-        selfieVideoRef.current.srcObject = stream
-        await new Promise<void>((resolve) => {
-          if (selfieVideoRef.current) {
-            selfieVideoRef.current.onloadedmetadata = () => resolve()
-          }
-        })
-
-        // Capture frame
-        const canvas = selfieCanvasRef.current
-        const video = selfieVideoRef.current
-        if (canvas && video) {
-          canvas.width = video.videoWidth
-          canvas.height = video.videoHeight
-          const ctx = canvas.getContext('2d')
-          if (ctx) {
-            ctx.drawImage(video, 0, 0)
-            const dataUrl = canvas.toDataURL('image/jpeg')
-            setSelfieImage(dataUrl)
-            
-            // Convert to blob for upload
-            canvas.toBlob((blob) => {
-              if (blob) setSelfieBlob(blob)
-            }, 'image/jpeg', 0.95)
-          }
-        }
-        // Stop stream
-        stream.getTracks().forEach((t) => t.stop())
-        setCurrentStep(2)
+      // Ensure camera is started (for cases where autoplay is blocked)
+      if (!selfieStreamRef.current) {
+        await startSelfieCamera()
       }
+
+      // Capture frame from active video
+      const canvas = selfieCanvasRef.current
+      const video = selfieVideoRef.current
+      if (!canvas || !video) return
+
+      // Wait for actual video dimensions
+      if (!video.videoWidth || !video.videoHeight) {
+        await new Promise<void>((resolve) => {
+          if (!video) return resolve()
+          video.onloadedmetadata = () => resolve()
+        })
+      }
+
+      canvas.width = video.videoWidth
+      canvas.height = video.videoHeight
+      const ctx = canvas.getContext('2d')
+      if (ctx) {
+        ctx.drawImage(video, 0, 0)
+        const dataUrl = canvas.toDataURL('image/jpeg')
+        setSelfieImage(dataUrl)
+
+        // Convert to blob for upload
+        canvas.toBlob((blob) => {
+          if (blob) setSelfieBlob(blob)
+        }, 'image/jpeg', 0.95)
+      }
+
+      // Stop camera after capture
+      stopSelfieCamera()
+      setCurrentStep(2)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error'
-      alert('Không thể truy cập camera: ' + errorMessage)
+      setCameraError('Không thể truy cập camera: ' + errorMessage)
     }
   }
 
@@ -283,6 +350,7 @@ export default function KYCFlow({
     if (!isWhitelistMode && !idFile) return
 
     setVerifying(true)
+    setResult(null)
     
     try {
       const formData = new FormData()
@@ -313,26 +381,46 @@ export default function KYCFlow({
       }
       
       setResult(verificationResult)
-      
-      if (data.passed) {
-        setTimeout(() => onComplete?.(verificationResult), 1500)
-      }
+
+      // Do not auto-advance. Show "Tiếp tục" button on success.
     } catch (error) {
       console.error('KYC Verification error:', error)
+
+      const backendMessage = (() => {
+        if (axios.isAxiosError(error)) {
+          const data: any = error.response?.data
+          return (
+            data?.detail ||
+            data?.message ||
+            (typeof data === 'string' ? data : null) ||
+            error.message
+          )
+        }
+        if (error instanceof Error) return error.message
+        return 'Lỗi không xác định'
+      })()
+
       setResult({
         faceMatch: 0,
         livenessScore: 0,
         passed: false,
-        message: 'Lỗi kết nối server hoặc xác thực thất bại',
+        message: backendMessage || 'Lỗi kết nối server hoặc xác thực thất bại',
       })
     } finally {
       setVerifying(false)
     }
   }
 
+  const handleContinue = () => {
+    if (result?.passed) {
+      onComplete?.(result)
+    }
+  }
+
   const handleRetakeSelfie = () => {
     setSelfieImage(null)
     setSelfieBlob(null)
+    setResult(null)
     setCurrentStep(1)
   }
 
@@ -344,6 +432,7 @@ export default function KYCFlow({
     } else {
       setIdImage(null)
       setIdFile(null)
+      setResult(null)
       setCurrentStep(0)
     }
   }
@@ -457,8 +546,17 @@ export default function KYCFlow({
               Đảm bảo khuôn mặt được nhìn thấy rõ ràng trong khung hình
             </Text>
 
+            {cameraError && (
+              <Alert
+                type="error"
+                showIcon
+                message={cameraError}
+                style={{ marginBottom: 16, textAlign: 'left' }}
+              />
+            )}
+
             <VideoContainer>
-              <SelfieVideo ref={selfieVideoRef} autoPlay playsInline />
+              <SelfieVideo ref={selfieVideoRef} autoPlay playsInline muted />
             </VideoContainer>
             <canvas ref={selfieCanvasRef} style={{ display: 'none' }} />
 
@@ -577,13 +675,21 @@ export default function KYCFlow({
                   </div>
 
                   {result.passed && (
-                    <Alert
-                      message="Xác thực thành công"
-                      description="Bạn đã hoàn thành quá trình xác thực danh tính"
-                      type="success"
-                      showIcon
-                      style={{ marginTop: 16 }}
-                    />
+                    <>
+                      <Alert
+                        message="Xác thực thành công"
+                        description="Bạn đã hoàn thành quá trình xác thực danh tính"
+                        type="success"
+                        showIcon
+                        style={{ marginTop: 16 }}
+                      />
+
+                      <div style={{ marginTop: 16 }}>
+                        <Button type="primary" onClick={handleContinue}>
+                          Tiếp tục
+                        </Button>
+                      </div>
+                    </>
                   )}
                   
                   {!result.passed && (
