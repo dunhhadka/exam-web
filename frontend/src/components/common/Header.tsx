@@ -1,6 +1,18 @@
-import { UserOutlined } from '@ant-design/icons'
-import { Avatar, Dropdown, Layout, Space, theme, Typography } from 'antd'
+import { BellOutlined, UserOutlined } from '@ant-design/icons'
+import {
+  Avatar,
+  Badge,
+  Button,
+  Dropdown,
+  Layout,
+  Space,
+  theme,
+  Typography,
+} from 'antd'
 import { Profile } from '../../types/auth'
+import { useState } from 'react'
+import NotificationDropDown from './NotificationDropDown'
+import NotificationDropdown from './NotificationDropDown'
 
 interface HeaderProps {
   collapsed: boolean
@@ -27,6 +39,10 @@ export const Header: React.FC<HeaderProps> = ({
     token: { colorBgContainer },
   } = theme.useToken()
 
+  const [notificationOpen, setNotificationOpen] = useState(false)
+
+  const unreadCount = 3 // Giả sử có 3 thông báo chưa đọc
+
   return (
     <AntHeader
       style={{
@@ -42,27 +58,30 @@ export const Header: React.FC<HeaderProps> = ({
         boxShadow: '0 1px 4px rgba(0, 0, 0, 0.08)',
       }}
     >
-      {/* Left side - reserved (toggle moved to Sidebar) */}
       <div
         style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 40 }}
       />
 
-      {/* Right side - User info */}
       <Space size="middle">
-        {/* Notifications */}
-        {/* <Badge count={5} size="small">
-          <Button
-            type="text"
-            icon={<BellOutlined />}
-            onClick={() => console.log('Notifications clicked')}
-            style={{
-              fontSize: '16px',
-              width: 40,
-              height: 40,
-            }}
-          />
-        </Badge> */}
-
+        <Dropdown
+          dropdownRender={() => <NotificationDropdown />}
+          placement="bottomRight"
+          trigger={['click']}
+          open={notificationOpen}
+          onOpenChange={setNotificationOpen}
+        >
+          <Badge count={unreadCount} size="small" offset={[-2, 2]}>
+            <Button
+              type="text"
+              icon={<BellOutlined />}
+              style={{
+                fontSize: '16px',
+                width: 40,
+                height: 40,
+              }}
+            />
+          </Badge>
+        </Dropdown>
         {/* User dropdown */}
         <Dropdown
           menu={{ items: userMenuItems }}
@@ -95,8 +114,11 @@ export const Header: React.FC<HeaderProps> = ({
               <Text style={{ fontSize: 14, lineHeight: 1.2 }}>
                 {profile?.firstName + ' ' + profile?.lastName}
               </Text>
-              <Text type="secondary" style={{ fontSize: 12, lineHeight: 1.2 }}>
-                {'Teacher'}
+              <Text
+                type="secondary"
+                style={{ fontSize: 12, lineHeight: 1.2, marginTop: 10 }}
+              >
+                {profile?.roles?.[0] ?? 'STUDENT'}
               </Text>
             </div>
           </div>
