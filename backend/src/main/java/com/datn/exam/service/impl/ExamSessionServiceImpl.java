@@ -46,6 +46,7 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
@@ -171,7 +172,17 @@ public class ExamSessionServiceImpl implements ExamSessionService {
                 .map(ExamSessionDto::getId)
                 .toList();
 
-        return PageDTO.of(this.getResponseByIds(examSessionIds), request.getPageIndex(), request.getPageSize(), count);
+        var responses = this.getResponseByIds(examSessionIds).stream()
+                .collect(Collectors.toMap(ExamSessionResponse::getId, Function.identity()));
+
+        return PageDTO.of(
+                examSessionDtoList.stream()
+                        .map(e -> responses.get(e.getId()))
+                        .toList(),
+                request.getPageIndex(),
+                request.getPageSize(),
+                count
+        );
     }
 
     private List<ExamSessionResponse> getResponseByIds(List<Long> examSessionIds) {
