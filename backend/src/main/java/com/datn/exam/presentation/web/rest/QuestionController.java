@@ -4,12 +4,18 @@ import com.datn.exam.model.dto.request.DraftCreateRequest;
 import com.datn.exam.model.dto.request.QuestionCreateRequest;
 import com.datn.exam.model.dto.request.QuestionSearchRequest;
 import com.datn.exam.model.dto.request.question.QuestionEditRequest;
+import com.datn.exam.model.dto.request.question.QuestionImportRequest;
 import com.datn.exam.model.dto.response.PagingResponse;
 import com.datn.exam.model.dto.response.QuestionResponse;
 import com.datn.exam.model.dto.response.Response;
+import com.datn.exam.service.question.importfile.MultiSheetImportResult;
 import jakarta.validation.Valid;
+import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.io.IOException;
 
 @RequestMapping("/api/question")
 public interface QuestionController {
@@ -38,4 +44,10 @@ public interface QuestionController {
 
     @PutMapping("/{questionId}")
     Response<QuestionResponse> edit(@PathVariable int questionId, @RequestBody QuestionEditRequest request);
+
+    @PostMapping("/import")
+    Response<MultiSheetImportResult> importFile(@RequestBody QuestionImportRequest request);
+
+    @GetMapping("/template/download")
+    ResponseEntity<byte[]> downloadTemplateImport() throws IOException;
 }
