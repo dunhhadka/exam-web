@@ -57,6 +57,10 @@ public class ExamJoinServiceImpl implements ExamJoinService {
                 .isPrivate(session.getAccessMode() == ExamSession.AccessMode.PRIVATE)
                 .examName(session.getExam() != null ? session.getExam().getName() : null)
                 .settings(session.getSettings())
+                .startTime(session.getStartTime())
+                .endTime(session.getEndTime())
+                .duration(session.getDurationMinutes())
+                .code(session.getCode())
                 .build();
     }
 

@@ -54,10 +54,12 @@ const authSlide = createSlice({
       state.refreshToken = null
       state.isAuthenticated = false
       state.isRefreshing = false
+      state.profile = undefined
 
       // remove from LocalStorage
       localStorage.removeItem('accessToken')
       localStorage.removeItem('refreshToken')
+      localStorage.removeItem('userProfile')
     },
 
     updateTokens: (

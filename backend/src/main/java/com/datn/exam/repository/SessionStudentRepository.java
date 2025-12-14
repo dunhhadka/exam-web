@@ -1,6 +1,7 @@
 package com.datn.exam.repository;
 
 import com.datn.exam.model.entity.SessionStudent;
+import com.datn.exam.repository.projection.SessionUserProjection;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -28,6 +29,12 @@ public interface SessionStudentRepository extends JpaRepository<SessionStudent, 
     
     void deleteByExamSessionId(Long sessionId);
     
-    @Query("SELECT ss.user.id FROM SessionStudent ss WHERE ss.examSession.id = :sessionId")
-    List<UUID> findUserIdsBySessionId(@Param("sessionId") Long sessionId);
+    @Query(value = """
+                SELECT 
+                    ss.exam_session_id as examSessionId,
+                    ss.user_id as userId
+                FROM session_students ss
+                WHERE ss.exam_session_id IN (:sessionIds)
+            """, nativeQuery = true)
+    List<SessionUserProjection> findUserIdsBySessionIds(@Param("sessionIds") List<Long> sessionIds);
 }

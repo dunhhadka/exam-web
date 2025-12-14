@@ -1,7 +1,6 @@
 package com.datn.exam.repository;
 
 import com.datn.exam.model.entity.User;
-
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -90,4 +89,6 @@ public interface UserRepository extends JpaRepository<User, UUID> {
                   AND r.code = 'STUDENT'
             """)
     List<User> findAllStudents();
+
+    List<User> findByEmail(String email);
 }

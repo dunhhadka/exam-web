@@ -1,8 +1,10 @@
 package com.datn.exam.presentation.web.rest.impl;
 
+import com.datn.exam.model.dto.request.ExamStudentFilterRequest;
 import com.datn.exam.model.dto.response.Response;
 import com.datn.exam.model.dto.response.SessionStudentPreviewResponse;
 import com.datn.exam.presentation.web.rest.SessionStudentController;
+import com.datn.exam.service.ExamSessionReadService;
 import com.datn.exam.service.SessionStudentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.RestController;
@@ -12,6 +14,7 @@ import org.springframework.web.multipart.MultipartFile;
 @RequiredArgsConstructor
 public class SessionStudentControllerImpl implements SessionStudentController {
     private final SessionStudentService sessionStudentService;
+    private final ExamSessionReadService examSessionReadService;
 
     @Override
     public Response<SessionStudentPreviewResponse> previewForCreate(MultipartFile file) {
@@ -41,5 +44,10 @@ public class SessionStudentControllerImpl implements SessionStudentController {
     public Response<Void> replaceAvatar(Long sessionStudentId, Integer index, MultipartFile file) {
         sessionStudentService.replaceAvatar(sessionStudentId, index, file);
         return Response.ok();
+    }
+
+    @Override
+    public Response<?> filterExamSessions(ExamStudentFilterRequest request) {
+        return Response.of(examSessionReadService.filter(request));
     }
 }

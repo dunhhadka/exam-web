@@ -1,5 +1,5 @@
-import { Outlet, useNavigate } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { useEffect, useState, useMemo } from 'react'
 import { MenuItem } from '../../types/common'
 import {
   BarChartOutlined,
@@ -10,6 +10,8 @@ import {
   SettingOutlined,
   TeamOutlined,
   UserOutlined,
+  DashboardOutlined,
+  CalendarOutlined,
 } from '@ant-design/icons'
 import { Layout } from 'antd'
 import { Sidebar } from '../common/Sidebar'
@@ -19,26 +21,20 @@ import { useDispatch, useSelector } from 'react-redux'
 import { RootState } from '../../store'
 import { setProfile } from '../../store/slices/authSlice'
 import { logout } from '../../store/slices/authSlice'
-import { useGetProfileQuery } from '../../services/api/profile'
 
 const MainLayout = () => {
   const [collapsed, setCollapsed] = useState(false)
   const [selectedKey, setSelectedKey] = useState('home')
   const [openKeys, setOpenKeys] = useState<string[]>(['exams'])
-  const { data: userProfile } = useGetProfileQuery()
 
   const dispatch = useDispatch()
-
   const navigate = useNavigate()
 
   const { profile } = useSelector((state: RootState) => state.auth)
+  const location = useLocation()
 
   useEffect(() => {
     const savedProfile = localStorage.getItem('userProfile')
-    if (userProfile) {
-      dispatch(setProfile(userProfile))
-      return
-    }
     if (savedProfile && !profile) {
       try {
         const parsedProfile = JSON.parse(savedProfile)
@@ -50,7 +46,8 @@ const MainLayout = () => {
     }
   }, [dispatch, profile])
 
-  const menuItems: MenuItem[] = [
+  // Menu items cho TEACHER
+  const teacherMenuItems: MenuItem[] = [
     {
       key: 'Home',
       icon: <HomeOutlined />,
@@ -96,10 +93,26 @@ const MainLayout = () => {
       path: '/store',
     },
     {
-      key: 'my-course',
-      icon: <TeamOutlined />,
-      label: 'Quản lý thông báo',
-      path: '/my-course',
+      key: 'settings',
+      icon: <SettingOutlined />,
+      label: 'Thông tin cá nhân',
+      path: '/settings',
+    },
+  ]
+
+  // Menu items cho STUDENT
+  const studentMenuItems: MenuItem[] = [
+    {
+      key: 'overview',
+      icon: <DashboardOutlined />,
+      label: 'Tổng quan',
+      path: '/overview',
+    },
+    {
+      key: 'student-exam-sessions',
+      icon: <CalendarOutlined />,
+      label: 'Bài kiểm tra của tôi',
+      path: '/student-exam-sessions',
     },
     {
       key: 'settings',
@@ -108,6 +121,13 @@ const MainLayout = () => {
       path: '/settings',
     },
   ]
+
+  // Lấy menu items dựa trên role
+  const menuItems = useMemo(() => {
+    const userRole = profile?.roles[0]
+    return userRole === 'STUDENT' ? studentMenuItems : teacherMenuItems
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.roles])
 
   const handleLogout = () => {
     console.log('Logout clicked')
@@ -120,13 +140,13 @@ const MainLayout = () => {
       key: 'profile',
       icon: <UserOutlined />,
       label: 'Thông tin cá nhân',
-      onClick: () => console.log('Profile clicked'),
+      onClick: () => navigate('/settings'),
     },
     {
       key: 'settings',
       icon: <SettingOutlined />,
       label: 'Cài đặt',
-      onClick: () => console.log('Settings clicked'),
+      onClick: () => navigate('/settings'),
     },
     {
       type: 'divider' as const,
@@ -144,8 +164,8 @@ const MainLayout = () => {
     navigate(findPathByKey(key, menuItems))
   }
 
-  const findPathByKey = (key: string, menuItems: MenuItem[]): string => {
-    for (const item of menuItems) {
+  const findPathByKey = (key: string, items: MenuItem[]): string => {
+    for (const item of items) {
       if (item.key === key) {
         return item.path
       }
