@@ -98,7 +98,7 @@ const MainLayout = () => {
     {
       key: 'my-course',
       icon: <TeamOutlined />,
-      label: 'Khóa học của tôi',
+      label: 'Quản lý thông báo',
       path: '/my-course',
     },
     {

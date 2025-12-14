@@ -5,21 +5,25 @@ import com.datn.exam.model.dto.PageDTO;
 import com.datn.exam.model.dto.mapper.ExamSessionMapper;
 import com.datn.exam.model.dto.request.ExamSessionFilterRequest;
 import com.datn.exam.model.dto.request.ExamSessionRequest;
-import com.datn.exam.model.dto.request.ExamSessionWhitelistEntryRequest;
 import com.datn.exam.model.dto.request.IdsRequest;
+import com.datn.exam.model.dto.request.PrivateAccessConfig;
 import com.datn.exam.model.dto.request.SessionUserFilterRequest;
+import com.datn.exam.model.dto.request.StudentImportEntry;
 import com.datn.exam.model.dto.response.ExamSessionResponse;
-import com.datn.exam.model.dto.response.ExamSessionWhitelistEntryResponse;
 import com.datn.exam.model.dto.response.SessionStatsResponse;
+import com.datn.exam.model.dto.response.SessionStudentEntryResponse;
+import com.datn.exam.model.dto.response.SessionStudentResponse;
 import com.datn.exam.model.dto.response.SessionUserResponse;
 import com.datn.exam.model.entity.Exam;
 import com.datn.exam.model.entity.ExamAttempt;
 import com.datn.exam.model.entity.ExamSession;
-import com.datn.exam.model.entity.Whitelist;
+import com.datn.exam.model.entity.SessionStudent;
+import com.datn.exam.model.entity.User;
 import com.datn.exam.repository.ExamAttemptRepository;
 import com.datn.exam.repository.ExamRepository;
 import com.datn.exam.repository.ExamSessionRepository;
-import com.datn.exam.repository.WhitelistRepository;
+import com.datn.exam.repository.SessionStudentRepository;
+import com.datn.exam.repository.UserRepository;
 import com.datn.exam.repository.data.dao.ExamSessionDao;
 import com.datn.exam.repository.data.dto.ExamSessionDto;
 import com.datn.exam.service.ExamSessionService;
@@ -36,7 +40,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -58,8 +61,8 @@ public class ExamSessionServiceImpl implements ExamSessionService {
     private final ExamSessionMapper examSessionMapper;
     private final ExamAttemptRepository examAttemptRepository;
     private final S3Service s3Service;
-    private final WhitelistRepository whitelistRepository;
-    private final PasswordEncoder passwordEncoder;
+    private final SessionStudentRepository sessionStudentRepository;
+    private final UserRepository userRepository;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -73,10 +76,10 @@ public class ExamSessionServiceImpl implements ExamSessionService {
 
         this.validateWindow(request.getStartTime(), request.getEndTime());
         this.validateSettings(request);
+        
         ExamSession.AccessMode accessMode = Optional.ofNullable(request.getAccessMode())
                 .orElse(ExamSession.AccessMode.PUBLIC);
         this.validateAccessRequirements(accessMode, request, null);
-        String encodedPassword = encodeAccessPassword(accessMode, request.getPassword(), null);
 
         String code = InviteCodeUtils.generate();
         while (examSessionRepository.existsByCode(code)) code = InviteCodeUtils.generate();
@@ -101,7 +104,7 @@ public class ExamSessionServiceImpl implements ExamSessionService {
                 .shuffleAnswers(request.isShuffleAnswers())
                 .isPublic(publicFlag)
                 .accessMode(accessMode)
-                .accessPassword(encodedPassword)
+                .accessPassword(null) // Removed PASSWORD mode
                 .attemptLimit(request.getAttemptLimit())
                 .settings(settingsMap)
                 .examStatus(ExamSession.ExamStatus.OPEN)
@@ -110,9 +113,9 @@ public class ExamSessionServiceImpl implements ExamSessionService {
 
         examSessionRepository.save(session);
 
-        List<Whitelist> whitelists = synchronizeWhitelistEntries(session, request);
+        List<SessionStudent> sessionStudents = synchronizeSessionStudents(session, request);
 
-        return buildExamSessionResponse(session, whitelists);
+        return buildExamSessionResponse(session, sessionStudents);
     }
 
 
@@ -133,10 +136,10 @@ public class ExamSessionServiceImpl implements ExamSessionService {
 
         this.validateWindow(request.getStartTime(), request.getEndTime());
         this.validateSettings(request);
+        
         ExamSession.AccessMode accessMode = Optional.ofNullable(request.getAccessMode())
                 .orElse(examSession.getAccessMode());
         this.validateAccessRequirements(accessMode, request, examSession);
-        String encodedPassword = encodeAccessPassword(accessMode, request.getPassword(), examSession.getAccessPassword());
 
         String code = examSession.getCode();
         String joinToken = examSession.getJoinToken();
@@ -148,13 +151,13 @@ public class ExamSessionServiceImpl implements ExamSessionService {
         examSession.setAccessMode(accessMode);
         boolean publicFlag = accessMode == ExamSession.AccessMode.PUBLIC && request.isPublic();
         examSession.setPublic(publicFlag);
-        examSession.setAccessPassword(encodedPassword);
+        examSession.setAccessPassword(null); // Removed PASSWORD mode
 
         examSessionRepository.save(examSession);
 
-        List<Whitelist> whitelists = synchronizeWhitelistEntries(examSession, request);
+        List<SessionStudent> sessionStudents = synchronizeSessionStudents(examSession, request);
 
-        return buildExamSessionResponse(examSession, whitelists);
+        return buildExamSessionResponse(examSession, sessionStudents);
     }
 
 
@@ -229,20 +232,17 @@ public class ExamSessionServiceImpl implements ExamSessionService {
         var proctoring = settings.getProctoring();
         if (proctoring != null) {
 
-            //Nếu requireIdUpload = true → bắt buộc phải dùng UPLOAD mode
             if (Boolean.TRUE.equals(proctoring.getRequireIdUpload())) {
                 if (proctoring.getIdentityMode() != ExamSessionSetting.IdentityMode.UPLOAD) {
                     throw new ResponseException(BadRequestError.ID_UPLOAD_REQUIRES_UPLOAD_MODE);
                 }
             }
 
-            //Nếu identityMode = WEBCAM → bắt buộc phải bật giám sát
             if (proctoring.getIdentityMode() == ExamSessionSetting.IdentityMode.WEBCAM &&
                     !Boolean.TRUE.equals(proctoring.getMonitorEnabled())) {
                 throw new ResponseException(BadRequestError.WEBCAM_MODE_REQUIRES_MONITORING);
             }
 
-            //Nếu identityMode = NONE nhưng lại yêu cầu giám sát → sai
             if (proctoring.getIdentityMode() == ExamSessionSetting.IdentityMode.NONE &&
                     Boolean.TRUE.equals(proctoring.getMonitorEnabled())) {
                 throw new ResponseException(BadRequestError.NONE_MODE_CANNOT_ENABLE_MONITORING);
@@ -253,65 +253,23 @@ public class ExamSessionServiceImpl implements ExamSessionService {
     private void validateAccessRequirements(ExamSession.AccessMode accessMode,
                                             ExamSessionRequest request,
                                             ExamSession existingSession) {
-        if (accessMode == ExamSession.AccessMode.PASSWORD) {
-            boolean hasExistingPassword = existingSession != null &&
-                    StringUtils.isNotBlank(existingSession.getAccessPassword());
-            if (StringUtils.isBlank(request.getPassword()) && !hasExistingPassword) {
-                throw new ResponseException(BadRequestError.PASSWORD_REQUIRED);
-            }
-        }
-
-        if (accessMode == ExamSession.AccessMode.WHITELIST) {
-            boolean hasWhitelistPayload = CollectionUtils.isNotEmpty(request.getWhitelistEntries())
-                    || CollectionUtils.isNotEmpty(request.getWhitelistEmails());
-            if (!hasWhitelistPayload) {
-                throw new ResponseException(BadRequestError.WHITELIST_REQUIRED);
+        if (accessMode == ExamSession.AccessMode.PRIVATE) {
+            if (CollectionUtils.isEmpty(request.getStudentIds())) {
+                throw new ResponseException(BadRequestError.STUDENT_IDS_REQUIRED);
             }
         }
     }
 
-    private String encodeAccessPassword(ExamSession.AccessMode accessMode,
-                                        String rawPassword,
-                                        String existingEncoded) {
-        if (accessMode != ExamSession.AccessMode.PASSWORD) {
-            return null;
-        }
-
-        if (StringUtils.isNotBlank(rawPassword)) {
-            return passwordEncoder.encode(rawPassword);
-        }
-
-        if (StringUtils.isNotBlank(existingEncoded)) {
-            return existingEncoded;
-        }
-
-        throw new ResponseException(BadRequestError.PASSWORD_REQUIRED);
-    }
-
-    private List<Whitelist> synchronizeWhitelistEntries(ExamSession session, ExamSessionRequest request) {
+    private List<SessionStudent> synchronizeSessionStudents(ExamSession session, ExamSessionRequest request) {
         if (session.getId() == 0) {
             return Collections.emptyList();
         }
 
-        if (session.getAccessMode() != ExamSession.AccessMode.WHITELIST) {
-            List<Whitelist> existingWhitelists = whitelistRepository.findByExamSessionId(session.getId());
-            if (CollectionUtils.isNotEmpty(existingWhitelists)) {
-                // Xóa các file S3 cũ
-                for (Whitelist existing : existingWhitelists) {
-                    List<String> avatarUrls = existing.getAvatarUrls();
-                    if (CollectionUtils.isNotEmpty(avatarUrls)) {
-                        for (String url : avatarUrls) {
-                            if (StringUtils.isNotBlank(url) && url.startsWith("http")) {
-                                try {
-                                    s3Service.deleteFile(url);
-                                } catch (Exception ex) {
-                                    log.warn("Failed to delete whitelist avatar {}", url, ex);
-                                }
-                            }
-                        }
-                    }
-                }
-                whitelistRepository.deleteAll(existingWhitelists);
+        if (session.getAccessMode() != ExamSession.AccessMode.PRIVATE) {
+            List<SessionStudent> existingStudents = sessionStudentRepository.findByExamSessionId(session.getId());
+            if (CollectionUtils.isNotEmpty(existingStudents)) {
+                deleteStudentAvatars(existingStudents);
+                sessionStudentRepository.deleteAll(existingStudents);
                 
                 entityManager.flush();
                 entityManager.clear();
@@ -319,151 +277,149 @@ public class ExamSessionServiceImpl implements ExamSessionService {
             return Collections.emptyList();
         }
 
-        List<ExamSessionWhitelistEntryRequest> entries = resolveWhitelistEntries(request);
-        if (CollectionUtils.isEmpty(entries)) {
-            throw new ResponseException(BadRequestError.WHITELIST_REQUIRED);
+        List<UUID> studentIds = request.getStudentIds();
+        if (CollectionUtils.isEmpty(studentIds)) {
+            throw new ResponseException(BadRequestError.STUDENT_IDS_REQUIRED);
         }
 
-        List<Whitelist> existingWhitelists = whitelistRepository.findByExamSessionId(session.getId());
-        Map<String, Whitelist> existingByEmail = existingWhitelists.stream()
-                .collect(Collectors.toMap(Whitelist::getEmail, w -> w));
+        List<SessionStudent> existingStudents = sessionStudentRepository.findByExamSessionId(session.getId());
+        Map<UUID, SessionStudent> existingByUserId = existingStudents.stream()
+                .collect(Collectors.toMap(
+                        ss -> ss.getUser().getId(),
+                        ss -> ss
+                ));
 
-        List<Whitelist> whitelists = buildWhitelistEntitiesWithReuse(session, entries, existingByEmail);
-        
-        Set<String> urlsToKeep = whitelists.stream()
-                .filter(Objects::nonNull)
-                .map(Whitelist::getAvatarUrls)
-                .filter(Objects::nonNull)
-                .flatMap(Collection::stream)
-                .filter(StringUtils::isNotBlank)
+        List<SessionStudent> newStudents = createStudentsFromIds(session, studentIds, existingByUserId);
+
+        Set<UUID> newUserIds = newStudents.stream()
+                .map(ss -> ss.getUser().getId())
                 .collect(Collectors.toSet());
+        
+        List<SessionStudent> removedStudents = existingStudents.stream()
+                .filter(ss -> !newUserIds.contains(ss.getUser().getId()))
+                .collect(Collectors.toList());
 
-        if (CollectionUtils.isNotEmpty(existingWhitelists)) {
-            for (Whitelist existing : existingWhitelists) {
-                List<String> avatarUrls = existing.getAvatarUrls();
-                if (CollectionUtils.isNotEmpty(avatarUrls)) {
-                    for (String url : avatarUrls) {
-                        if (StringUtils.isNotBlank(url) && url.startsWith("http")) {
-                            if (!urlsToKeep.contains(url)) {
-                                try {
-                                    s3Service.deleteFile(url);
-                                } catch (Exception ex) {
-                                    log.warn("Failed to delete whitelist avatar {}", url, ex);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            whitelistRepository.deleteAll(existingWhitelists);
-            
-            entityManager.flush();
-            entityManager.clear();
-            log.debug("Flushed {} existing whitelist entries for session {}", existingWhitelists.size(), session.getId());
+        if (CollectionUtils.isNotEmpty(removedStudents)) {
+            deleteStudentAvatars(removedStudents);
+            sessionStudentRepository.deleteAll(removedStudents);
         }
 
-        if (whitelists.isEmpty()) {
+        entityManager.flush();
+        entityManager.clear();
+
+        if (newStudents.isEmpty()) {
             return Collections.emptyList();
         }
 
-        return whitelistRepository.saveAll(whitelists);
+        return sessionStudentRepository.saveAll(newStudents);
     }
 
-    private List<Whitelist> buildWhitelistEntitiesWithReuse(ExamSession session,
-                                                            List<ExamSessionWhitelistEntryRequest> entries,
-                                                            Map<String, Whitelist> existingByEmail) {
-        List<Whitelist> results = new ArrayList<>();
-        Set<String> seenEmails = new HashSet<>();
+    private List<SessionStudent> createStudentsFromIds(ExamSession session,
+                                                        List<UUID> studentIds,
+                                                        Map<UUID, SessionStudent> existingByUserId) {
+        if (CollectionUtils.isEmpty(studentIds)) {
+            throw new ResponseException(BadRequestError.STUDENT_IDS_REQUIRED);
+        }
 
-        for (ExamSessionWhitelistEntryRequest entry : entries) {
-            String email = entry.getEmail();
-            if (StringUtils.isBlank(email)) {
-                continue;
+        List<User> students = userRepository.findStudentsByIds(studentIds);
+        if (students.size() != studentIds.size()) {
+            throw new ResponseException(BadRequestError.USER_NOT_STUDENT);
+        }
+
+        List<SessionStudent> results = new ArrayList<>();
+        for (User student : students) {
+            SessionStudent existing = existingByUserId.get(student.getId());
+            
+            List<String> avatarUrls = (existing != null && CollectionUtils.isNotEmpty(existing.getAvatarUrls()))
+                    ? new ArrayList<>(existing.getAvatarUrls())
+                    : Collections.emptyList();
+
+            if (existing != null) {
+                log.debug("Reusing {} avatar URLs for student: {}", avatarUrls.size(), student.getEmail());
             }
 
-            String normalizedEmail = email.trim().toLowerCase();
-            if (!EmailUtils.isValidEmail(normalizedEmail)) {
+            results.add(SessionStudent.builder()
+                    .examSession(session)
+                    .user(student)
+                    .avatarUrls(avatarUrls)
+                    .build());
+        }
+
+        return results;
+    }
+
+    private List<SessionStudent> createStudentsFromImport(ExamSession session,
+                                                           List<StudentImportEntry> importEntries,
+                                                           Map<UUID, SessionStudent> existingByUserId) {
+        if (CollectionUtils.isEmpty(importEntries)) {
+            throw new ResponseException(BadRequestError.PRIVATE_CONFIG_REQUIRED);
+        }
+
+        List<String> emails = importEntries.stream()
+                .map(StudentImportEntry::getEmail)
+                .filter(StringUtils::isNotBlank)
+                .map(email -> email.trim().toLowerCase())
+                .distinct()
+                .collect(Collectors.toList());
+
+        if (emails.isEmpty()) {
+            throw new ResponseException(BadRequestError.STUDENT_IDS_REQUIRED);
+        }
+
+        for (String email : emails) {
+            if (!EmailUtils.isValidEmail(email)) {
                 throw new ResponseException(BadRequestError.INVALID_EMAIL_FORMAT);
             }
+        }
 
-            if (!seenEmails.add(normalizedEmail)) {
+        List<User> students = userRepository.findStudentsByEmails(emails);
+        if (students.size() != emails.size()) {
+            throw new ResponseException(BadRequestError.USER_NOT_STUDENT);
+        }
+
+        Map<String, User> userByEmail = students.stream()
+                .collect(Collectors.toMap(
+                        user -> user.getEmail().toLowerCase(),
+                        user -> user
+                ));
+
+        List<SessionStudent> results = new ArrayList<>();
+        for (StudentImportEntry entry : importEntries) {
+            String email = entry.getEmail().trim().toLowerCase();
+            User student = userByEmail.get(email);
+            if (student == null) {
                 continue;
             }
 
-            Whitelist existingWhitelist = existingByEmail.get(normalizedEmail);
+            SessionStudent existing = existingByUserId.get(student.getId());
             List<String> avatarUrls;
 
             if (CollectionUtils.isNotEmpty(entry.getAvatarImages())) {
-                avatarUrls = uploadWhitelistAvatars(session.getId(), normalizedEmail, entry.getAvatarImages());
-            } 
-            else if (existingWhitelist != null && CollectionUtils.isNotEmpty(existingWhitelist.getAvatarUrls())) {
-                avatarUrls = new ArrayList<>(existingWhitelist.getAvatarUrls());
-                log.debug("Reusing {} existing avatar URLs for email: {}", avatarUrls.size(), normalizedEmail);
-            } 
+                avatarUrls = uploadStudentAvatars(session.getId(), email, entry.getAvatarImages());
+            }
+            else if (existing != null && CollectionUtils.isNotEmpty(existing.getAvatarUrls())) {
+                avatarUrls = new ArrayList<>(existing.getAvatarUrls());
+                log.debug("Reusing {} avatar URLs for student: {}", avatarUrls.size(), email);
+            }
             else {
                 avatarUrls = Collections.emptyList();
             }
 
-            results.add(Whitelist.builder()
+            results.add(SessionStudent.builder()
                     .examSession(session)
-                    .email(normalizedEmail)
-                    .avatarUrls(new ArrayList<>(avatarUrls))
+                    .user(student)
+                    .avatarUrls(avatarUrls)
                     .build());
         }
 
         return results;
     }
 
-    private List<ExamSessionWhitelistEntryRequest> resolveWhitelistEntries(ExamSessionRequest request) {
-        if (CollectionUtils.isNotEmpty(request.getWhitelistEntries())) {
-            return request.getWhitelistEntries();
-        }
 
-        if (CollectionUtils.isEmpty(request.getWhitelistEmails())) {
-            return Collections.emptyList();
-        }
 
-        return request.getWhitelistEmails().stream()
-                .filter(StringUtils::isNotBlank)
-                .map(email -> ExamSessionWhitelistEntryRequest.builder().email(email).build())
-                .collect(Collectors.toList());
-    }
-
-    private List<Whitelist> buildWhitelistEntities(ExamSession session,
-                                                   List<ExamSessionWhitelistEntryRequest> entries) {
-        List<Whitelist> results = new ArrayList<>();
-        Set<String> seenEmails = new HashSet<>();
-
-        for (ExamSessionWhitelistEntryRequest entry : entries) {
-            String email = entry.getEmail();
-            if (StringUtils.isBlank(email)) {
-                continue;
-            }
-
-            String normalizedEmail = email.trim().toLowerCase();
-            if (!EmailUtils.isValidEmail(normalizedEmail)) {
-                throw new ResponseException(BadRequestError.INVALID_EMAIL_FORMAT);
-            }
-
-            if (!seenEmails.add(normalizedEmail)) {
-                continue;
-            }
-
-            List<String> avatarUrls = uploadWhitelistAvatars(session.getId(), normalizedEmail, entry.getAvatarImages());
-
-            results.add(Whitelist.builder()
-                    .examSession(session)
-                    .email(normalizedEmail)
-                    .avatarUrls(new ArrayList<>(avatarUrls))
-                    .build());
-        }
-
-        return results;
-    }
-
-    private List<String> uploadWhitelistAvatars(Long sessionId,
-                                                String normalizedEmail,
-                                                List<String> avatarImages) {
+    private List<String> uploadStudentAvatars(Long sessionId,
+                                               String normalizedEmail,
+                                               List<String> avatarImages) {
         if (CollectionUtils.isEmpty(avatarImages)) {
             return Collections.emptyList();
         }
@@ -486,13 +442,13 @@ public class ExamSessionServiceImpl implements ExamSessionService {
             }
 
             String sanitizedEmail = normalizedEmail.replace("@", "_at_").replace(".", "_");
-            String key = String.format("whitelists/%d/%s/%d", sessionId, sanitizedEmail, ++index);
+            String key = String.format("session-students/%d/%s/%d", sessionId, sanitizedEmail, ++index);
 
             try {
                 String url = s3Service.uploadFromBase64(avatar, key);
                 uploadedUrls.add(url);
             } catch (IOException e) {
-                log.error("Failed to upload whitelist avatar for {}", normalizedEmail, e);
+                log.error("Failed to upload student avatar for {}", normalizedEmail, e);
                 throw new ResponseException(BadRequestError.FILE_UPLOAD_FAILED);
             }
         }
@@ -500,42 +456,64 @@ public class ExamSessionServiceImpl implements ExamSessionService {
         return uploadedUrls;
     }
 
-    private ExamSessionResponse buildExamSessionResponse(ExamSession session, List<Whitelist> persistedWhitelists) {
-        ExamSessionResponse response = examSessionMapper.toExamSessionResponse(session);
-        response.setAccessMode(session.getAccessMode());
-        response.setHasAccessPassword(StringUtils.isNotBlank(session.getAccessPassword()));
-
-        List<Whitelist> whitelistList = persistedWhitelists;
-        if (whitelistList == null && session.getId() != 0) {
-            whitelistList = whitelistRepository.findByExamSessionId(session.getId());
+    private void deleteStudentAvatars(List<SessionStudent> students) {
+        if (CollectionUtils.isEmpty(students)) {
+            return;
         }
 
-        if (CollectionUtils.isEmpty(whitelistList)) {
-            response.setWhitelistEntries(Collections.emptyList());
+        for (SessionStudent student : students) {
+            List<String> avatarUrls = student.getAvatarUrls();
+            if (CollectionUtils.isNotEmpty(avatarUrls)) {
+                for (String url : avatarUrls) {
+                    if (StringUtils.isNotBlank(url) && url.startsWith("http")) {
+                        try {
+                            s3Service.deleteFile(url);
+                        } catch (Exception ex) {
+                            log.warn("Failed to delete student avatar {}", url, ex);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private ExamSessionResponse buildExamSessionResponse(ExamSession session, List<SessionStudent> persistedStudents) {
+        ExamSessionResponse response = examSessionMapper.toExamSessionResponse(session);
+        response.setAccessMode(session.getAccessMode());
+
+        List<SessionStudent> studentList = persistedStudents;
+        if (studentList == null && session.getId() != 0) {
+            studentList = sessionStudentRepository.findByExamSessionId(session.getId());
+        }
+
+        if (CollectionUtils.isEmpty(studentList)) {
+            response.setAssignedStudents(Collections.emptyList());
         } else {
-            response.setWhitelistEntries(
-                    whitelistList.stream()
-                            .map(this::toWhitelistResponse)
-                            .filter(Objects::nonNull)
-                            .collect(Collectors.toList())
-            );
+            List<SessionStudentEntryResponse> entries = studentList.stream()
+                    .map(this::toSessionStudentResponse)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+            
+            response.setAssignedStudents(entries);
         }
 
         return response;
     }
 
-    private ExamSessionWhitelistEntryResponse toWhitelistResponse(Whitelist whitelist) {
-        if (whitelist == null) {
+    private SessionStudentEntryResponse toSessionStudentResponse(SessionStudent student) {
+        if (student == null || student.getUser() == null) {
             return null;
         }
 
-        List<String> avatarUrls = whitelist.getAvatarUrls();
+        List<String> avatarUrls = student.getAvatarUrls();
         List<String> sanitized = CollectionUtils.isEmpty(avatarUrls)
                 ? Collections.emptyList()
                 : new ArrayList<>(avatarUrls);
 
-        return ExamSessionWhitelistEntryResponse.builder()
-                .email(whitelist.getEmail())
+        return SessionStudentEntryResponse.builder()
+                .userId(student.getUser().getId())
+                .email(student.getUser().getEmail())
+                .fullName(student.getUser().getInformation().buildFullName())
                 .avatarImages(sanitized)
                 .build();
     }
@@ -586,14 +564,13 @@ public class ExamSessionServiceImpl implements ExamSessionService {
                             .name(latestAttempt.getStudentName())
                             .role("Học viên")
                             .email(email)
-                            .code(latestAttempt.getStudentName()) // Using name as code for now
+                            .code(latestAttempt.getStudentName())
                             .gender("Không rõ")
                             .status("Hoạt động")
                             .build();
                 })
                 .toList();
 
-        // Apply filters
         List<SessionUserResponse> filteredUsers = users.stream()
                 .filter(user -> {
                     if (StringUtils.isNotBlank(request.getSearchText())) {
@@ -606,7 +583,6 @@ public class ExamSessionServiceImpl implements ExamSessionService {
                 })
                 .collect(Collectors.toList());
 
-        // Pagination
         int total = filteredUsers.size();
         int pageIndex = request.getPageIndex();
         int pageSize = request.getPageSize();

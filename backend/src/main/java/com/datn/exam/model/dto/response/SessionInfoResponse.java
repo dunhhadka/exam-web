@@ -14,8 +14,7 @@ public class SessionInfoResponse {
     private Long sessionId;
     private String sessionName;
     private ExamSession.AccessMode accessMode;
-    private boolean requiresPassword;
-    private boolean requiresWhitelist;
+    private boolean isPrivate;
     private String examName;
     private java.util.Map<String, Object> settings; // Anti-cheat settings
 }

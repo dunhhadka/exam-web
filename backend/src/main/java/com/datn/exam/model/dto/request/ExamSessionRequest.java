@@ -37,7 +37,15 @@ public class ExamSessionRequest {
     private ExamSessionSetting settings;
 
     private ExamSession.AccessMode accessMode;
+    
+    // PRIVATE mode: List student IDs được assign vào session
+    // (Lấy từ preview API sau khi import Excel)
+    private List<java.util.UUID> studentIds;
+    
+    @Deprecated // Backward compatibility
     private String password;
+    @Deprecated
     private List<String> whitelistEmails;
+    @Deprecated
     private List<ExamSessionWhitelistEntryRequest> whitelistEntries;
 }

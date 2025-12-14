@@ -97,7 +97,17 @@ public enum BadRequestError implements ResponseError {
     INVALID_AVATAR_INDEX(400211, "Chỉ số ảnh không hợp lệ"),
     FILE_UPLOAD_FAILED(400212, "Upload file thất bại"),
     EXAM_ATTEMPT_NOT_SUBMITTED(400213, "Bài thi chưa được nộp"),
-    INVALID_SCORE_VALUE(400214, "Điểm số không hợp lệ")
+    INVALID_SCORE_VALUE(400214, "Điểm số không hợp lệ"),
+    
+    // Private mode errors
+    PRIVATE_CONFIG_REQUIRED(400220, "Chế độ PRIVATE yêu cầu cấu hình"),
+    STUDENT_IDS_REQUIRED(400221, "Chế độ chọn thủ công yêu cầu danh sách ID học sinh"),
+    IMPORT_ENTRIES_REQUIRED(400222, "Chế độ import yêu cầu danh sách entries"),
+    STUDENTS_NOT_FOUND(400223, "Không tìm thấy học sinh với ID: %s"),
+    INVALID_STUDENT_EMAILS(400224, "Email không hợp lệ hoặc không phải học sinh: %s"),
+    USER_NOT_STUDENT(400225, "Email này không thuộc tài khoản học sinh"),
+    STUDENT_NOT_ASSIGNED_TO_SESSION(400226, "Học sinh chưa được thêm vào phiên thi này"),
+    STUDENT_ALREADY_ASSIGNED(400227, "Học sinh đã được thêm vào phiên thi")
     ;
 
     private final int code;
