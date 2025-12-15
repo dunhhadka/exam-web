@@ -19,6 +19,7 @@ spring:
         jdbc:
           time_zone: UTC
         dialect: org.hibernate.dialect.MySQL8Dialect
+        show_sql: true
 
   data:
     redis:

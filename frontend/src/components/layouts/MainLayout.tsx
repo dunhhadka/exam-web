@@ -21,13 +21,11 @@ import { useDispatch, useSelector } from 'react-redux'
 import { RootState } from '../../store'
 import { setProfile } from '../../store/slices/authSlice'
 import { logout } from '../../store/slices/authSlice'
-import { useGetProfileQuery } from '../../services/api/profile'
 
 const MainLayout = () => {
   const [collapsed, setCollapsed] = useState(false)
   const [selectedKey, setSelectedKey] = useState('home')
   const [openKeys, setOpenKeys] = useState<string[]>(['exams'])
-  const { data: userProfile } = useGetProfileQuery()
 
   const dispatch = useDispatch()
   const navigate = useNavigate()
@@ -36,10 +34,6 @@ const MainLayout = () => {
 
   useEffect(() => {
     const savedProfile = localStorage.getItem('userProfile')
-    if (userProfile) {
-      dispatch(setProfile(userProfile))
-      return
-    }
     if (savedProfile && !profile) {
       try {
         const parsedProfile = JSON.parse(savedProfile)
@@ -49,7 +43,7 @@ const MainLayout = () => {
         localStorage.removeItem('userProfile')
       }
     }
-  }, [dispatch, profile, userProfile])
+  }, [dispatch, profile])
 
   // Menu items cho TEACHER
   const teacherMenuItems: MenuItem[] = [
@@ -129,10 +123,10 @@ const MainLayout = () => {
 
   // Lấy menu items dựa trên role
   const menuItems = useMemo(() => {
-    const userRole = profile?.roles[0] || userProfile?.roles[0]
+    const userRole = profile?.roles[0]
     return userRole === 'STUDENT' ? studentMenuItems : teacherMenuItems
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile?.roles, userProfile?.roles])
+  }, [profile?.roles])
 
   const handleLogout = () => {
     console.log('Logout clicked')

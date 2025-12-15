@@ -63,3 +63,14 @@ export function isNowBetween(startTime: string, endTime: string): boolean {
 
   return now.isBetween(start, end, null, '[]') // [] bao gồm cả biên
 }
+
+export const formatStartOfDay = (date: Date | Dayjs): string => {
+  return dayjs(date).startOf('day').format('DD-MM-YYYY HH:mm:ss')
+}
+
+/**
+ * Chuyển Date thành string với format DD-MM-YYYY 23:59:59
+ */
+export const formatEndOfDay = (date: Date | Dayjs): string => {
+  return dayjs(date).endOf('day').format('DD-MM-YYYY HH:mm:ss')
+}

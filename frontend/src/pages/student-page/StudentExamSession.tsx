@@ -1,200 +1,134 @@
 // pages/student-page/StudentExamSession.tsx
 import {
   CalendarOutlined,
-  ClockCircleOutlined,
-  FileTextOutlined,
-  KeyOutlined,
-  PlayCircleOutlined,
   CheckCircleOutlined,
+  ClockCircleOutlined,
   CloseCircleOutlined,
-  SearchOutlined,
+  FileTextOutlined,
   FilterOutlined,
-} from '@ant-design/icons'
+  PlayCircleOutlined,
+  SearchOutlined,
+} from "@ant-design/icons";
+import styled from "@emotion/styled";
 import {
-  Badge,
   Button,
   Card,
   Col,
+  DatePicker,
   Empty,
+  Input,
   Row,
+  Select,
   Space,
+  Spin,
   Tag,
   Typography,
-  Input,
-  DatePicker,
-  Select,
-} from 'antd'
-import styled from '@emotion/styled'
-import dayjs from 'dayjs'
-import { useState } from 'react'
-enum ExamSessionStatus {
-  NOT_STARTED = 'NOT_STARTED',
-  IN_PROGRESS = 'IN_PROGRESS',
-  COMPLETED = 'COMPLETED',
-  EXPIRED = 'EXPIRED',
-}
+} from "antd";
+import { useState } from "react";
+import { useGetExamSessionsStudentsQuery } from "../../services/api/examSessionStudentApi";
+import {
+  ExamSessionStudentResponse,
+  ExamStudentFilterRequest,
+  SessionStudentStatus,
+} from "../../types/examSessionStudent";
+import {
+  formatEndOfDay,
+  formatInstant,
+  formatStartOfDay,
+} from "../../utils/times";
 
-interface ExamSession {
-  id: number
-  name: string
-  status: ExamSessionStatus
-  joinToken: string
-  startTime: string
-  endTime: string
-  examName?: string
-  description?: string
-  duration?: number // phút
-}
-
-const mockExamSessions: ExamSession[] = [
-  {
-    id: 1,
-    name: 'Kiểm tra giữa kỳ - Toán học',
-    status: ExamSessionStatus.NOT_STARTED,
-    joinToken: 'MATH2024',
-    startTime: '2024-12-20T08:00:00',
-    endTime: '2024-12-20T10:00:00',
-    examName: 'Đề thi Toán cao cấp',
-    description: 'Kiểm tra chương 1-5',
-    duration: 90,
-  },
-  {
-    id: 2,
-    name: 'Bài kiểm tra 15 phút - Vật lý',
-    status: ExamSessionStatus.IN_PROGRESS,
-    joinToken: 'PHY2024',
-    startTime: '2024-12-15T14:00:00',
-    endTime: '2024-12-15T14:15:00',
-    examName: 'Đề thi Vật lý 1',
-    description: 'Kiểm tra nhanh chương 3',
-    duration: 15,
-  },
-  {
-    id: 3,
-    name: 'Thi cuối kỳ - Hóa học',
-    status: ExamSessionStatus.COMPLETED,
-    joinToken: 'CHEM2024',
-    startTime: '2024-12-10T08:00:00',
-    endTime: '2024-12-10T10:30:00',
-    examName: 'Đề thi Hóa hữu cơ',
-    description: 'Thi cuối kỳ học kỳ 1',
-    duration: 120,
-  },
-  {
-    id: 4,
-    name: 'Kiểm tra - Tiếng Anh',
-    status: ExamSessionStatus.NOT_STARTED,
-    joinToken: 'ENG2024',
-    startTime: '2024-12-22T10:00:00',
-    endTime: '2024-12-22T11:30:00',
-    examName: 'TOEIC Practice Test',
-    description: 'Luyện tập TOEIC',
-    duration: 90,
-  },
-  {
-    id: 5,
-    name: 'Kiểm tra - Lập trình Java',
-    status: ExamSessionStatus.EXPIRED,
-    joinToken: 'JAVA2024',
-    startTime: '2024-12-05T08:00:00',
-    endTime: '2024-12-05T10:00:00',
-    examName: 'Java OOP Test',
-    description: 'Kiểm tra OOP và Collections',
-    duration: 120,
-  },
-  {
-    id: 6,
-    name: 'Kiểm tra - Cơ sở dữ liệu',
-    status: ExamSessionStatus.COMPLETED,
-    joinToken: 'DB2024',
-    startTime: '2024-12-12T13:00:00',
-    endTime: '2024-12-12T15:00:00',
-    examName: 'Database Design Test',
-    description: 'Thiết kế CSDL',
-    duration: 120,
-  },
-]
-
-const { Title, Text, Paragraph } = Typography
-const { RangePicker } = DatePicker
-const { Option } = Select
+const { Title, Text, Paragraph } = Typography;
+const { RangePicker } = DatePicker;
+const { Option } = Select;
 
 const StudentExamSession = () => {
-  const examSessions = mockExamSessions
-  const [searchName, setSearchName] = useState('')
-  const [dateRange, setDateRange] = useState<any>(null)
-  const [statusFilter, setStatusFilter] = useState<ExamSessionStatus | 'ALL'>(
-    'ALL'
-  )
+  const [searchName, setSearchName] = useState("");
+  const [dateRange, setDateRange] = useState<any>(null);
+  const [statusFilter, setStatusFilter] = useState<
+    SessionStudentStatus | "ALL"
+  >("ALL");
+
+  const [filter, setFilter] = useState<ExamStudentFilterRequest>({});
+
+  // Lấy isLoading và isFetching từ query
+  const { data: cursorResponse, isLoading, isFetching } = useGetExamSessionsStudentsQuery(filter, {
+    refetchOnMountOrArgChange: true,
+  });
+  const examSessions = cursorResponse ? cursorResponse.data : [];
 
   // Hàm lấy status config
-  const getStatusConfig = (status: ExamSessionStatus) => {
+  const getStatusConfig = (status: SessionStudentStatus) => {
     switch (status) {
-      case ExamSessionStatus.NOT_STARTED:
+      case SessionStudentStatus.NOT_STARTED:
         return {
-          color: 'default',
-          text: 'Chưa bắt đầu',
+          color: "default",
+          text: "Chưa bắt đầu",
           icon: <ClockCircleOutlined />,
-        }
-      case ExamSessionStatus.IN_PROGRESS:
+        };
+      case SessionStudentStatus.IN_PROGRESS:
         return {
-          color: 'processing',
-          text: 'Đang diễn ra',
+          color: "processing",
+          text: "Đang diễn ra",
           icon: <PlayCircleOutlined />,
-        }
-      case ExamSessionStatus.COMPLETED:
+        };
+      case SessionStudentStatus.COMPLETED:
         return {
-          color: 'success',
-          text: 'Đã hoàn thành',
+          color: "success",
+          text: "Đã hoàn thành",
           icon: <CheckCircleOutlined />,
-        }
-      case ExamSessionStatus.EXPIRED:
+        };
+      case SessionStudentStatus.EXPIRED:
         return {
-          color: 'error',
-          text: 'Đã hết hạn',
+          color: "error",
+          text: "Đã hết hạn",
           icon: <CloseCircleOutlined />,
-        }
+        };
       default:
         return {
-          color: 'default',
-          text: 'Không xác định',
+          color: "default",
+          text: "Không xác định",
           icon: <ClockCircleOutlined />,
-        }
+        };
     }
-  }
+  };
 
-  // Hàm xử lý tham gia bài thi
-  const handleJoinExam = (session: ExamSession) => {
-    console.log('Joining exam:', session)
-  }
+  const handleJoinExam = (session: ExamSessionStudentResponse) => {
+    console.log("Joining exam:", session);
+  };
 
-  // Hàm xử lý xem kết quả
-  const handleViewResult = (session: ExamSession) => {
-    console.log('Viewing result:', session)
-  }
+  const handleViewResult = (session: ExamSessionStudentResponse) => {
+    console.log("Viewing result:", session);
+  };
 
-  // Hàm xử lý reset filter
   const handleResetFilter = () => {
-    setSearchName('')
-    setDateRange(null)
-    setStatusFilter('ALL')
-  }
+    setSearchName("");
+    setDateRange(null);
+    setStatusFilter("ALL");
+    setFilter({});
+  };
 
-  // Hàm xử lý tìm kiếm
   const handleSearch = () => {
-    console.log('Searching with:', {
+    console.log("Searching with:", {
       name: searchName,
       dateRange,
       status: statusFilter,
-    })
-    // TODO: Implement filter logic
-  }
+    });
+
+    setFilter({
+      name: searchName || undefined,
+      startTime: dateRange
+        ? formatStartOfDay(dateRange[0].toDate())
+        : undefined,
+      endTime: dateRange ? formatEndOfDay(dateRange[1].toDate()) : undefined,
+      status: statusFilter !== "ALL" ? statusFilter : undefined,
+    });
+  };
 
   // Render action buttons
-  const renderActionButtons = (session: ExamSession) => {
-    const { status } = session
+  const renderActionButtons = (session: ExamSessionStudentResponse) => {
+    const { status } = session;
 
-    if (status === ExamSessionStatus.IN_PROGRESS) {
+    if (status === SessionStudentStatus.IN_PROGRESS) {
       return (
         <Button
           type="primary"
@@ -205,10 +139,10 @@ const StudentExamSession = () => {
         >
           Vào làm bài
         </Button>
-      )
+      );
     }
 
-    if (status === ExamSessionStatus.COMPLETED) {
+    if (status === SessionStudentStatus.COMPLETED) {
       return (
         <Button
           type="default"
@@ -218,27 +152,27 @@ const StudentExamSession = () => {
         >
           Xem kết quả
         </Button>
-      )
+      );
     }
 
-    if (status === ExamSessionStatus.NOT_STARTED) {
+    if (status === SessionStudentStatus.NOT_STARTED) {
       return (
         <Button type="default" block disabled>
           Chưa đến giờ thi
         </Button>
-      )
+      );
     }
 
     return (
       <Button type="default" block disabled>
         Đã hết hạn
       </Button>
-    )
-  }
+    );
+  };
 
   // Render exam card
-  const renderExamCard = (session: ExamSession) => {
-    const statusConfig = getStatusConfig(session.status)
+  const renderExamCard = (session: ExamSessionStudentResponse) => {
+    const statusConfig = getStatusConfig(session.status);
 
     return (
       <Col xs={24} sm={24} md={12} lg={8} key={session.id}>
@@ -264,7 +198,7 @@ const StudentExamSession = () => {
           )}
 
           {/* Exam Info */}
-          <Space direction="vertical" style={{ width: '100%' }} size="small">
+          <Space direction="vertical" style={{ width: "100%" }} size="small">
             <InfoRow>
               <FileTextOutlined />
               <Text>{session.examName}</Text>
@@ -273,8 +207,8 @@ const StudentExamSession = () => {
             <InfoRow>
               <CalendarOutlined />
               <Text>
-                {dayjs(session.startTime).format('DD/MM/YYYY HH:mm')} -{' '}
-                {dayjs(session.endTime).format('HH:mm')}
+                {formatInstant(session.startTime)} -{" "}
+                {formatInstant(session.endTime)}
               </Text>
             </InfoRow>
 
@@ -298,8 +232,8 @@ const StudentExamSession = () => {
           <ActionButtons>{renderActionButtons(session)}</ActionButtons>
         </StyledCard>
       </Col>
-    )
-  }
+    );
+  };
 
   return (
     <PageContainer>
@@ -324,18 +258,20 @@ const StudentExamSession = () => {
               onChange={(e) => setSearchName(e.target.value)}
               allowClear
               size="large"
+              disabled={isLoading || isFetching}
             />
           </FilterItem>
 
           <FilterItem style={{ flex: 1.5 }}>
             <FilterLabel>Thời gian thi</FilterLabel>
             <RangePicker
-              placeholder={['Từ ngày', 'Đến ngày']}
+              placeholder={["Từ ngày", "Đến ngày"]}
               format="DD/MM/YYYY"
               value={dateRange}
               onChange={(dates) => setDateRange(dates)}
               size="large"
-              style={{ width: '100%' }}
+              style={{ width: "100%" }}
+              disabled={isLoading || isFetching}
             />
           </FilterItem>
 
@@ -346,7 +282,8 @@ const StudentExamSession = () => {
               value={statusFilter}
               onChange={(value) => setStatusFilter(value)}
               size="large"
-              style={{ width: '100%' }}
+              style={{ width: "100%" }}
+              disabled={isLoading || isFetching}
             >
               <Option value="ALL">
                 <Space>
@@ -354,44 +291,49 @@ const StudentExamSession = () => {
                   Tất cả
                 </Space>
               </Option>
-              <Option value={ExamSessionStatus.IN_PROGRESS}>
+              <Option value={SessionStudentStatus.IN_PROGRESS}>
                 <Space>
-                  <PlayCircleOutlined style={{ color: '#1890ff' }} />
+                  <PlayCircleOutlined style={{ color: "#1890ff" }} />
                   Đang diễn ra
                 </Space>
               </Option>
-              <Option value={ExamSessionStatus.NOT_STARTED}>
+              <Option value={SessionStudentStatus.NOT_STARTED}>
                 <Space>
-                  <ClockCircleOutlined style={{ color: '#666' }} />
+                  <ClockCircleOutlined style={{ color: "#666" }} />
                   Chưa bắt đầu
                 </Space>
               </Option>
-              <Option value={ExamSessionStatus.COMPLETED}>
+              <Option value={SessionStudentStatus.COMPLETED}>
                 <Space>
-                  <CheckCircleOutlined style={{ color: '#52c41a' }} />
+                  <CheckCircleOutlined style={{ color: "#52c41a" }} />
                   Đã hoàn thành
                 </Space>
               </Option>
-              <Option value={ExamSessionStatus.EXPIRED}>
+              <Option value={SessionStudentStatus.EXPIRED}>
                 <Space>
-                  <CloseCircleOutlined style={{ color: '#ff4d4f' }} />
+                  <CloseCircleOutlined style={{ color: "#ff4d4f" }} />
                   Đã hết hạn
                 </Space>
               </Option>
             </Select>
           </FilterItem>
 
-          <FilterItem style={{ flex: '0 0 auto', minWidth: 'auto' }}>
+          <FilterItem style={{ flex: "0 0 auto", minWidth: "auto" }}>
             <Space>
               <Button
                 type="primary"
                 icon={<SearchOutlined />}
                 size="large"
                 onClick={handleSearch}
+                loading={isLoading || isFetching}
               >
                 Tìm kiếm
               </Button>
-              <Button onClick={handleResetFilter} size="large">
+              <Button 
+                onClick={handleResetFilter} 
+                size="large"
+                disabled={isLoading || isFetching}
+              >
                 Đặt lại
               </Button>
             </Space>
@@ -400,63 +342,73 @@ const StudentExamSession = () => {
       </FilterSection>
 
       {/* Results Info */}
-      <ResultsInfo>
-        <Text>
-          Hiển thị <Text strong>{examSessions.length}</Text> bài kiểm tra
-        </Text>
-        <Space>
-          <Tag color="processing">
-            Đang diễn ra:{' '}
-            {
-              examSessions.filter(
-                (e) => e.status === ExamSessionStatus.IN_PROGRESS
-              ).length
-            }
-          </Tag>
-          <Tag color="default">
-            Chưa bắt đầu:{' '}
-            {
-              examSessions.filter(
-                (e) => e.status === ExamSessionStatus.NOT_STARTED
-              ).length
-            }
-          </Tag>
-          <Tag color="success">
-            Đã hoàn thành:{' '}
-            {
-              examSessions.filter(
-                (e) => e.status === ExamSessionStatus.COMPLETED
-              ).length
-            }
-          </Tag>
-        </Space>
-      </ResultsInfo>
+      {!isLoading && examSessions.length > 0 && (
+        <ResultsInfo>
+          <Text>
+            Hiển thị <Text strong>{examSessions.length}</Text> bài kiểm tra
+          </Text>
+          <Space>
+            <Tag color="processing">
+              Đang diễn ra:{" "}
+              {
+                examSessions.filter(
+                  (e) => e.status === SessionStudentStatus.IN_PROGRESS
+                ).length
+              }
+            </Tag>
+            <Tag color="default">
+              Chưa bắt đầu:{" "}
+              {
+                examSessions.filter(
+                  (e) => e.status === SessionStudentStatus.NOT_STARTED
+                ).length
+              }
+            </Tag>
+            <Tag color="success">
+              Đã hoàn thành:{" "}
+              {
+                examSessions.filter(
+                  (e) => e.status === SessionStudentStatus.COMPLETED
+                ).length
+              }
+            </Tag>
+          </Space>
+        </ResultsInfo>
+      )}
 
-      {/* Exam Cards */}
-      {examSessions.length === 0 ? (
+      {/* Loading State */}
+      {isLoading ? (
+        <LoadingContainer>
+          <Spin size="large" />
+          <Text style={{ marginTop: 16 }}>Đang tải dữ liệu...</Text>
+        </LoadingContainer>
+      ) : examSessions.length === 0 ? (
         <Empty
           description="Chưa có bài kiểm tra nào"
           image={Empty.PRESENTED_IMAGE_SIMPLE}
         />
       ) : (
-        <Row gutter={[16, 16]}>{examSessions.map(renderExamCard)}</Row>
+        <CardListContainer $isFetching={isFetching}>
+          <Row gutter={[16, 16]}>{examSessions.map(renderExamCard)}</Row>
+          {isFetching && <FetchingOverlay />}
+        </CardListContainer>
       )}
     </PageContainer>
-  )
-}
+  );
+};
 
-export default StudentExamSession
+export default StudentExamSession;
 
 // Styled Components
 const PageContainer = styled.div`
   padding: 24px;
   background: #f5f5f5;
   min-height: calc(100vh - 64px);
-`
+`;
 
 const PageHeader = styled.div`
   margin-bottom: 24px;
-`
+`;
 
 const FilterSection = styled(Card)`
   margin-bottom: 24px;
@@ -466,7 +418,7 @@ const FilterSection = styled(Card)`
   .ant-card-body {
     padding: 20px;
   }
-`
+`;
 
 const FilterRow = styled.div`
   display: flex;
@@ -478,7 +430,7 @@ const FilterRow = styled.div`
     flex-direction: column;
     align-items: stretch;
   }
-`
+`;
 
 const FilterItem = styled.div`
   flex: 1;
@@ -487,14 +439,14 @@ const FilterItem = styled.div`
   @media (max-width: 768px) {
     min-width: 100%;
   }
-`
+`;
 
 const FilterLabel = styled.div`
   margin-bottom: 8px;
   font-weight: 500;
   color: #333;
   font-size: 14px;
-`
+`;
 
 const StyledCard = styled(Card)`
   height: 100%;
@@ -515,14 +467,14 @@ const StyledCard = styled(Card)`
   .ant-card-body {
     padding: 20px;
   }
-`
+`;
 
 const CardTitle = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: start;
   gap: 12px;
-`
+`;
 
 const ExamName = styled(Title)`
   margin: 0 !important;
@@ -530,7 +482,7 @@ const ExamName = styled(Title)`
   font-weight: 600 !important;
   line-height: 1.4 !important;
   flex: 1;
-`
+`;
 
 const InfoRow = styled.div`
   display: flex;
@@ -547,7 +499,7 @@ const InfoRow = styled.div`
     font-size: 16px;
     color: #1890ff;
   }
-`
+`;
 
 const TokenBox = styled.div`
   background: #f0f5ff;
@@ -556,20 +508,20 @@ const TokenBox = styled.div`
   padding: 8px 12px;
   text-align: center;
   margin: 12px 0;
-`
+`;
 
 const TokenText = styled(Text)`
   font-size: 20px;
   font-weight: bold;
   color: #1890ff;
   letter-spacing: 2px;
-`
+`;
 
 const ActionButtons = styled.div`
   margin-top: 16px;
   display: flex;
   gap: 8px;
-`
+`;
 
 const ResultsInfo = styled.div`
   display: flex;
@@ -580,4 +532,53 @@ const ResultsInfo = styled.div`
   background: #fff;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
-`
+`;
+
+const LoadingContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+`;
+
+const CardListContainer = styled.div<{ $isFetching: boolean }>`
+  position: relative;
+  opacity: ${(props) => (props.$isFetching ? 0.6 : 1)};
+  transition: opacity 0.3s ease;
+`;
+
+const FetchingOverlay = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 8px;
+  z-index: 10;
+  backdrop-filter: blur(2px);
+
+  &::after {
+    content: "";
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    border: 4px solid #1890ff;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+`;
