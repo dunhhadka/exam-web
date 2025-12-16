@@ -4,10 +4,13 @@ import com.datn.exam.model.dto.response.CursorResponse;
 import com.datn.exam.model.dto.response.NotificationResponse;
 import com.datn.exam.model.dto.response.NotificationStatistic;
 import com.datn.exam.model.entity.Notification;
+import com.datn.exam.repository.ExamSessionRepository;
 import com.datn.exam.repository.data.NotificationRepository;
 import com.datn.exam.support.util.ExceptionUtils;
 import com.datn.exam.support.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -18,6 +21,15 @@ import java.util.Objects;
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
+
+    private final ExamSessionRepository examSessionRepository;
+
+    private final RedisTemplate<String, String> redisTemplate;
+
+    @Scheduled
+    public void sendReminderExam() {
+
+    }
 
     public CursorResponse<NotificationResponse> search() {
         String currentUserId = SecurityUtils.getCurrentUserId().toString();

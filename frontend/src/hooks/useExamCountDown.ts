@@ -1,6 +1,24 @@
 import { useEffect, useState } from 'react'
-import { parse } from 'path'
 import { parseCustomDateTime } from '../utils/times'
+
+export const getExamTimeStatus = (
+  startTime: string | number | Date,
+  endTime: string | number | Date
+): ExamTimeStatus => {
+  const now = Date.now()
+  const start = parseCustomDateTime(startTime.toString())
+  const end = parseCustomDateTime(endTime.toString())
+
+  if (now > end) return 'ENDED'
+  if (now >= start && now <= end) return 'IN_PROGRESS'
+
+  const diffToStart = start - now
+  if (diffToStart <= COUNTDOWN_THRESHOLD) {
+    return 'COUNTDOWN'
+  }
+
+  return 'NOT_STARTED'
+}
 
 const COUNTDOWN_THRESHOLD = 5 * 60 * 1000
 
@@ -11,25 +29,6 @@ export type ExamTimeStatus =
   | 'ENDED'
 
 export function useExamCountDown(startTime: string, endTime: string) {
-  const getExamTimeStatus = (
-    startTime: string | number | Date,
-    endTime: string | number | Date
-  ): ExamTimeStatus => {
-    const now = Date.now()
-    const start = parseCustomDateTime(startTime.toString())
-    const end = parseCustomDateTime(endTime.toString())
-
-    if (now > end) return 'ENDED'
-    if (now >= start && now <= end) return 'IN_PROGRESS'
-
-    const diffToStart = start - now
-    if (diffToStart <= COUNTDOWN_THRESHOLD) {
-      return 'COUNTDOWN'
-    }
-
-    return 'NOT_STARTED'
-  }
-
   const [status, setStatus] = useState<ExamTimeStatus>(() =>
     getExamTimeStatus(startTime, endTime)
   )
