@@ -1,4 +1,4 @@
-import { Outlet, useNavigate } from 'react-router-dom'
+import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useState, useMemo } from 'react'
 import { MenuItem } from '../../types/common'
 import {
@@ -31,6 +31,7 @@ const MainLayout = () => {
   const navigate = useNavigate()
 
   const { profile } = useSelector((state: RootState) => state.auth)
+  const location = useLocation()
 
   useEffect(() => {
     const savedProfile = localStorage.getItem('userProfile')

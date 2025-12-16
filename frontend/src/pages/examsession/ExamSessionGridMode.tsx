@@ -1,15 +1,19 @@
-import styled from '@emotion/styled'
+import { SearchOutlined } from "@ant-design/icons";
 import {
   Button,
-  Card,
   DatePicker,
   Empty,
   Input,
   Row,
   Space,
   Spin,
-  Typography,
-} from 'antd'
+  Typography
+} from "antd";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useFilterExamSessionQuery } from "../../services/api/examsession";
+import { ExamFilterRequest } from "../../types/examsession";
+import { formatDay } from "../../utils/times";
 import {
   CardListContainer,
   FetchingOverlay,
@@ -20,26 +24,21 @@ import {
   LoadingContainer,
   PageContainer,
   PageHeader,
-} from '../student-page/StudentExamSession'
-import { SearchOutlined } from '@ant-design/icons'
-import { useState } from 'react'
-import { useFilterExamSessionQuery } from '../../services/api/examsession'
-import { ExamFilterRequest } from '../../types/examsession'
-import ExamSessionCard from './ExamSessionCard'
-import { useNavigate } from 'react-router-dom'
+} from "../student-page/StudentExamSession";
+import ExamSessionCard from "./ExamSessionCard";
 
-const { Title, Text, Paragraph } = Typography
-const { RangePicker } = DatePicker
+const { Title, Text, Paragraph } = Typography;
+const { RangePicker } = DatePicker;
 
 const ExamSessionGridMode = () => {
-  const [searchName, setSearchName] = useState('')
-  const [dateRange, setDateRange] = useState<any>(null)
+  const [searchName, setSearchName] = useState("");
+  const [dateRange, setDateRange] = useState<any>(null);
 
   // TODO: chưa làm
   const [filter, setFilter] = useState<ExamFilterRequest>({
     pageIndex: 1,
     pageSize: 100,
-  })
+  });
 
   const {
     data: examSessionData,
@@ -47,15 +46,29 @@ const ExamSessionGridMode = () => {
     isFetching,
   } = useFilterExamSessionQuery(filter, {
     refetchOnMountOrArgChange: true,
-  })
+  });
 
-  const { data, count } = examSessionData || {}
+  const { data, count } = examSessionData || {};
 
-  const handleSearch = () => {}
+  const handleSearch = () => {
+    setFilter({
+      ...filter,
+      keyword: searchName || undefined,
+      startDate: dateRange ? formatDay(dateRange[0]) : undefined,
+      endDate: dateRange ? formatDay(dateRange[1]) : undefined,
+    });
+  };
 
-  const handleResetFilter = () => {}
+  const handleResetFilter = () => {
+    setSearchName("");
+    setDateRange(null);
+    setFilter({
+      pageIndex: 1,
+      pageSize: 100,
+    });
+  };
 
-  const navigate = useNavigate()
+  const navigate = useNavigate();
 
   return (
     <PageContainer>
@@ -84,16 +97,16 @@ const ExamSessionGridMode = () => {
           <FilterItem style={{ flex: 1.5 }}>
             <FilterLabel>Thời gian thi</FilterLabel>
             <RangePicker
-              placeholder={['Từ ngày', 'Đến ngày']}
+              placeholder={["Từ ngày", "Đến ngày"]}
               format="DD/MM/YYYY"
               value={dateRange}
               onChange={(dates) => setDateRange(dates)}
               size="large"
-              style={{ width: '100%' }}
+              style={{ width: "100%" }}
               disabled={isLoading || isFetching}
             />
           </FilterItem>
-          <FilterItem style={{ flex: '0 0 auto', minWidth: 'auto' }}>
+          <FilterItem style={{ flex: "0 0 auto", minWidth: "auto" }}>
             <Space>
               <Button
                 type="primary"
@@ -132,7 +145,7 @@ const ExamSessionGridMode = () => {
               <ExamSessionCard
                 examSession={item}
                 onMonitor={(item) => {
-                  navigate(`/protor-tracking/${item?.code}/${'proctor'}`)
+                  navigate(`/protor-tracking/${item?.code}/${"proctor"}`);
                 }}
               />
             ))}
@@ -141,7 +154,7 @@ const ExamSessionGridMode = () => {
         </CardListContainer>
       )}
     </PageContainer>
-  )
-}
+  );
+};
 
-export default ExamSessionGridMode
+export default ExamSessionGridMode;

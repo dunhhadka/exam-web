@@ -1,9 +1,14 @@
 import { useEffect, useState } from 'react'
-import { ExamTimeStatus } from '../pages/examsession/ExamSessionCard'
 import { parse } from 'path'
 import { parseCustomDateTime } from '../utils/times'
 
 const COUNTDOWN_THRESHOLD = 5 * 60 * 1000
+
+export type ExamTimeStatus =
+  | 'NOT_STARTED'
+  | 'COUNTDOWN'
+  | 'IN_PROGRESS'
+  | 'ENDED'
 
 export function useExamCountDown(startTime: string, endTime: string) {
   const getExamTimeStatus = (

@@ -122,7 +122,7 @@ export const Header: React.FC<HeaderProps> = ({
                 type="secondary"
                 style={{ fontSize: 12, lineHeight: 1.2, marginTop: 10 }}
               >
-                {profile?.roles?.[0] ?? "STUDENT"}
+                {(profile?.roles?.[0] ?? "STUDENT") === "STUDENT" ? "Học viên" : "Giảng viên"} 
               </Text>
             </div>
           </div>

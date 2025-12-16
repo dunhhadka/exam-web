@@ -1,5 +1,6 @@
 export interface ExamSessionStudentResponse {
   id: number;
+  examSessionId: number;
   name: string;
 
   joinToken: string;

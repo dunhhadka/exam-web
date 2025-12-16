@@ -10,6 +10,8 @@ import java.time.LocalDateTime;
 @Setter
 public class ExamSessionStudentDto {
     private int id;
+    private int examSessionId;
+
     private String name;
 
     private String joinToken;

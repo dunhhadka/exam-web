@@ -1,10 +1,7 @@
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "../store";
 import { Navigate, Outlet } from "react-router-dom";
-import {
-  useGetProfileQuery,
-  useLazyGetProfileQuery,
-} from "../services/api/profile";
+import { useGetProfileQuery } from "../services/api/profile";
 import { useEffect } from "react";
 import { setProfile } from "../store/slices/authSlice";
 import { Spin } from "antd";
@@ -14,23 +11,25 @@ interface Props {
 }
 
 const ProtectedRoute = ({ allowedRoles }: Props) => {
-  const [getProfile, { isLoading }] = useLazyGetProfileQuery();
+  const dispatch = useDispatch();
+
   const { isAuthenticated, profile } = useSelector(
     (state: RootState) => state.auth
   );
 
-  const dispath = useDispatch();
-
-  const fetchProfile = async () => {
-    if (!profile) {
-      const userProfile = await getProfile().unwrap();
-      dispath(setProfile(userProfile));
-    }
-  };
+  const {
+    data: fetchedProfile,
+    isLoading,
+    isError,
+  } = useGetProfileQuery(undefined, {
+    skip: !!profile,
+  });
 
   useEffect(() => {
-    fetchProfile();
-  }, []);
+    if (!profile && fetchedProfile) {
+      dispatch(setProfile(fetchedProfile));
+    }
+  }, [fetchedProfile, profile, dispatch]);
 
   if (isLoading) {
     return (
@@ -47,22 +46,20 @@ const ProtectedRoute = ({ allowedRoles }: Props) => {
     );
   }
 
-  if (!isAuthenticated) {
+  if (isError) {
     return <Navigate to="/login" replace />;
   }
 
-  if (!profile || !profile.roles || profile.roles.length === 0) {
+  if (!isAuthenticated || !profile) {
     return <Navigate to="/login" replace />;
   }
 
-  const userRole = profile.roles[0];
+  const userRole = profile.roles?.[0];
 
-  if (allowedRoles && allowedRoles.length > 0) {
-    if (!allowedRoles.includes(userRole)) {
-      return (
-        <Navigate to={userRole === "STUDENT" ? "/overview" : "/home"} replace />
-      );
-    }
+  if (allowedRoles && !allowedRoles.includes(userRole)) {
+    return (
+      <Navigate to={userRole === "STUDENT" ? "/overview" : "/home"} replace />
+    );
   }
 
   return <Outlet />;

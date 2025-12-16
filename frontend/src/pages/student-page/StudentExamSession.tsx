@@ -8,8 +8,8 @@ import {
   FilterOutlined,
   PlayCircleOutlined,
   SearchOutlined,
-} from '@ant-design/icons'
-import styled from '@emotion/styled'
+} from "@ant-design/icons";
+import styled from "@emotion/styled";
 import {
   Button,
   Card,
@@ -23,32 +23,38 @@ import {
   Spin,
   Tag,
   Typography,
-} from 'antd'
-import { useState } from 'react'
-import { useGetExamSessionsStudentsQuery } from '../../services/api/examSessionStudentApi'
+} from "antd";
+import { useState } from "react";
+import ConfirmModal from "../../components/common/ConfirmModal";
+import { useGetExamSessionsStudentsQuery } from "../../services/api/examSessionStudentApi";
 import {
   ExamSessionStudentResponse,
   ExamStudentFilterRequest,
   SessionStudentStatus,
-} from '../../types/examSessionStudent'
+} from "../../types/examSessionStudent";
 import {
   formatEndOfDay,
   formatInstant,
   formatStartOfDay,
-} from '../../utils/times'
+} from "../../utils/times";
+import ExamSessionStudent from "./ExamSessionStudent";
 
-const { Title, Text, Paragraph } = Typography
-const { RangePicker } = DatePicker
-const { Option } = Select
+const { Title, Text, Paragraph } = Typography;
+const { RangePicker } = DatePicker;
+const { Option } = Select;
 
 const StudentExamSession = () => {
-  const [searchName, setSearchName] = useState('')
-  const [dateRange, setDateRange] = useState<any>(null)
+  const [searchName, setSearchName] = useState("");
+  const [dateRange, setDateRange] = useState<any>(null);
   const [statusFilter, setStatusFilter] = useState<
-    SessionStudentStatus | 'ALL'
-  >('ALL')
+    SessionStudentStatus | "ALL"
+  >("ALL");
+  const [confirmJoinExam, setConfirmJoinExam] = useState<{
+    confirm: boolean;
+    exam?: ExamSessionStudentResponse;
+  }>({ confirm: false, exam: undefined });
 
-  const [filter, setFilter] = useState<ExamStudentFilterRequest>({})
+  const [filter, setFilter] = useState<ExamStudentFilterRequest>({});
 
   // Lấy isLoading và isFetching từ query
   const {
@@ -57,66 +63,22 @@ const StudentExamSession = () => {
     isFetching,
   } = useGetExamSessionsStudentsQuery(filter, {
     refetchOnMountOrArgChange: true,
-  })
-  const examSessions = cursorResponse ? cursorResponse.data : []
-
-  // Hàm lấy status config
-  const getStatusConfig = (status: SessionStudentStatus) => {
-    switch (status) {
-      case SessionStudentStatus.NOT_STARTED:
-        return {
-          color: 'default',
-          text: 'Chưa bắt đầu',
-          icon: <ClockCircleOutlined />,
-        }
-      case SessionStudentStatus.IN_PROGRESS:
-        return {
-          color: 'processing',
-          text: 'Đang diễn ra',
-          icon: <PlayCircleOutlined />,
-        }
-      case SessionStudentStatus.COMPLETED:
-        return {
-          color: 'success',
-          text: 'Đã hoàn thành',
-          icon: <CheckCircleOutlined />,
-        }
-      case SessionStudentStatus.EXPIRED:
-        return {
-          color: 'error',
-          text: 'Đã hết hạn',
-          icon: <CloseCircleOutlined />,
-        }
-      default:
-        return {
-          color: 'default',
-          text: 'Không xác định',
-          icon: <ClockCircleOutlined />,
-        }
-    }
-  }
-
-  const handleJoinExam = (session: ExamSessionStudentResponse) => {
-    console.log('Joining exam:', session)
-  }
-
-  const handleViewResult = (session: ExamSessionStudentResponse) => {
-    console.log('Viewing result:', session)
-  }
+  });
+  const examSessions = cursorResponse ? cursorResponse.data : [];
 
   const handleResetFilter = () => {
-    setSearchName('')
-    setDateRange(null)
-    setStatusFilter('ALL')
-    setFilter({})
-  }
+    setSearchName("");
+    setDateRange(null);
+    setStatusFilter("ALL");
+    setFilter({});
+  };
 
   const handleSearch = () => {
-    console.log('Searching with:', {
+    console.log("Searching with:", {
       name: searchName,
       dateRange,
       status: statusFilter,
-    })
+    });
 
     setFilter({
       name: searchName || undefined,
@@ -124,126 +86,17 @@ const StudentExamSession = () => {
         ? formatStartOfDay(dateRange[0].toDate())
         : undefined,
       endTime: dateRange ? formatEndOfDay(dateRange[1].toDate()) : undefined,
-      status: statusFilter !== 'ALL' ? statusFilter : undefined,
-    })
-  }
+      status: statusFilter !== "ALL" ? statusFilter : undefined,
+    });
+  };
 
-  // Render action buttons
-  const renderActionButtons = (session: ExamSessionStudentResponse) => {
-    const { status } = session
 
-    if (status === SessionStudentStatus.IN_PROGRESS) {
-      return (
-        <Button
-          type="primary"
-          icon={<PlayCircleOutlined />}
-          block
-          size="large"
-          onClick={() => handleJoinExam(session)}
-        >
-          Vào làm bài
-        </Button>
-      )
-    }
-
-    if (status === SessionStudentStatus.COMPLETED) {
-      return (
-        <Button
-          type="default"
-          icon={<FileTextOutlined />}
-          block
-          onClick={() => handleViewResult(session)}
-        >
-          Xem kết quả
-        </Button>
-      )
-    }
-
-    if (status === SessionStudentStatus.NOT_STARTED) {
-      return (
-        <Button type="default" block disabled>
-          Chưa đến giờ thi
-        </Button>
-      )
-    }
-
-    return (
-      <Button type="default" block disabled>
-        Đã hết hạn
-      </Button>
-    )
-  }
-
-  // Render exam card
-  const renderExamCard = (session: ExamSessionStudentResponse) => {
-    const statusConfig = getStatusConfig(session.status)
-
-    return (
-      <Col xs={24} sm={24} md={12} lg={8} key={session.id}>
-        <StyledCard
-          title={
-            <CardTitle>
-              <ExamName level={5}>{session.name}</ExamName>
-              <Tag color={statusConfig.color} icon={statusConfig.icon}>
-                {statusConfig.text}
-              </Tag>
-            </CardTitle>
-          }
-        >
-          {/* Description */}
-          {session.description && (
-            <Paragraph
-              type="secondary"
-              ellipsis={{ rows: 2 }}
-              style={{ marginBottom: 16, minHeight: 44 }}
-            >
-              {session.description}
-            </Paragraph>
-          )}
-
-          {/* Exam Info */}
-          <Space direction="vertical" style={{ width: '100%' }} size="small">
-            <InfoRow>
-              <FileTextOutlined />
-              <Text>{session.examName}</Text>
-            </InfoRow>
-
-            <InfoRow>
-              <CalendarOutlined />
-              <Text>
-                {formatInstant(session.startTime)} -{' '}
-                {formatInstant(session.endTime)}
-              </Text>
-            </InfoRow>
-
-            <InfoRow>
-              <ClockCircleOutlined />
-              <Text>Thời gian: {session.duration} phút</Text>
-            </InfoRow>
-          </Space>
-
-          {/* Join Token */}
-          <TokenBox>
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              Mã tham gia
-            </Text>
-            <div>
-              <TokenText>{session.joinToken}</TokenText>
-            </div>
-          </TokenBox>
-
-          {/* Action Buttons */}
-          <ActionButtons>{renderActionButtons(session)}</ActionButtons>
-        </StyledCard>
-      </Col>
-    )
-  }
 
   return (
     <PageContainer>
       <PageHeader>
         <Title level={3} style={{ margin: 0 }}>
-          Bài kiểm tra của tôi
+          Danh sách bài kiểm tra
         </Title>
         <Text type="secondary">
           Danh sách các bài kiểm tra được giao cho bạn
@@ -269,24 +122,24 @@ const StudentExamSession = () => {
           <FilterItem style={{ flex: 1.5 }}>
             <FilterLabel>Thời gian thi</FilterLabel>
             <RangePicker
-              placeholder={['Từ ngày', 'Đến ngày']}
+              placeholder={["Từ ngày", "Đến ngày"]}
               format="DD/MM/YYYY"
               value={dateRange}
               onChange={(dates) => setDateRange(dates)}
               size="large"
-              style={{ width: '100%' }}
+              style={{ width: "100%" }}
               disabled={isLoading || isFetching}
             />
           </FilterItem>
 
-          <FilterItem style={{ flex: 1 }}>
+          {/* <FilterItem style={{ flex: 1 }}>
             <FilterLabel>Trạng thái</FilterLabel>
             <Select
               placeholder="Chọn trạng thái"
               value={statusFilter}
               onChange={(value) => setStatusFilter(value)}
               size="large"
-              style={{ width: '100%' }}
+              style={{ width: "100%" }}
               disabled={isLoading || isFetching}
             >
               <Option value="ALL">
@@ -297,32 +150,32 @@ const StudentExamSession = () => {
               </Option>
               <Option value={SessionStudentStatus.IN_PROGRESS}>
                 <Space>
-                  <PlayCircleOutlined style={{ color: '#1890ff' }} />
+                  <PlayCircleOutlined style={{ color: "#1890ff" }} />
                   Đang diễn ra
                 </Space>
               </Option>
               <Option value={SessionStudentStatus.NOT_STARTED}>
                 <Space>
-                  <ClockCircleOutlined style={{ color: '#666' }} />
+                  <ClockCircleOutlined style={{ color: "#666" }} />
                   Chưa bắt đầu
                 </Space>
               </Option>
               <Option value={SessionStudentStatus.COMPLETED}>
                 <Space>
-                  <CheckCircleOutlined style={{ color: '#52c41a' }} />
+                  <CheckCircleOutlined style={{ color: "#52c41a" }} />
                   Đã hoàn thành
                 </Space>
               </Option>
               <Option value={SessionStudentStatus.EXPIRED}>
                 <Space>
-                  <CloseCircleOutlined style={{ color: '#ff4d4f' }} />
+                  <CloseCircleOutlined style={{ color: "#ff4d4f" }} />
                   Đã hết hạn
                 </Space>
               </Option>
             </Select>
-          </FilterItem>
+          </FilterItem> */}
 
-          <FilterItem style={{ flex: '0 0 auto', minWidth: 'auto' }}>
+          <FilterItem style={{ flex: "0 0 auto", minWidth: "auto" }}>
             <Space>
               <Button
                 type="primary"
@@ -353,7 +206,7 @@ const StudentExamSession = () => {
           </Text>
           <Space>
             <Tag color="processing">
-              Đang diễn ra:{' '}
+              Đang diễn ra:{" "}
               {
                 examSessions.filter(
                   (e) => e.status === SessionStudentStatus.IN_PROGRESS
@@ -361,7 +214,7 @@ const StudentExamSession = () => {
               }
             </Tag>
             <Tag color="default">
-              Chưa bắt đầu:{' '}
+              Chưa bắt đầu:{" "}
               {
                 examSessions.filter(
                   (e) => e.status === SessionStudentStatus.NOT_STARTED
@@ -369,7 +222,7 @@ const StudentExamSession = () => {
               }
             </Tag>
             <Tag color="success">
-              Đã hoàn thành:{' '}
+              Đã hoàn thành:{" "}
               {
                 examSessions.filter(
                   (e) => e.status === SessionStudentStatus.COMPLETED
@@ -393,26 +246,40 @@ const StudentExamSession = () => {
         />
       ) : (
         <CardListContainer $isFetching={isFetching}>
-          <Row gutter={[16, 16]}>{examSessions.map(renderExamCard)}</Row>
+          <Row gutter={[16, 16]}>
+            {examSessions.map((item) => (
+              <ExamSessionStudent session={item} />
+            ))}
+          </Row>
           {isFetching && <FetchingOverlay />}
         </CardListContainer>
       )}
-    </PageContainer>
-  )
-}
 
-export default StudentExamSession
+      {confirmJoinExam.confirm && confirmJoinExam.exam && (
+        <ConfirmModal
+          open={confirmJoinExam.confirm}
+          onOk={() => {}}
+          onCancel={() =>
+            setConfirmJoinExam({ confirm: false, exam: undefined })
+          }
+        />
+      )}
+    </PageContainer>
+  );
+};
+
+export default StudentExamSession;
 
 // Styled Components
 export const PageContainer = styled.div`
   padding: 24px;
   background: #f5f5f5;
   min-height: calc(100vh - 64px);
-`
+`;
 
 export const PageHeader = styled.div`
   margin-bottom: 24px;
-`
+`;
 
 export const FilterSection = styled(Card)`
   margin-bottom: 24px;
@@ -422,7 +289,7 @@ export const FilterSection = styled(Card)`
   .ant-card-body {
     padding: 20px;
   }
-`
+`;
 
 export const FilterRow = styled.div`
   display: flex;
@@ -434,7 +301,7 @@ export const FilterRow = styled.div`
     flex-direction: column;
     align-items: stretch;
   }
-`
+`;
 
 export const FilterItem = styled.div`
   flex: 1;
@@ -443,14 +310,14 @@ export const FilterItem = styled.div`
   @media (max-width: 768px) {
     min-width: 100%;
   }
-`
+`;
 
 export const FilterLabel = styled.div`
   margin-bottom: 8px;
   font-weight: 500;
   color: #333;
   font-size: 14px;
-`
+`;
 
 export const StyledCard = styled(Card)`
   height: 100%;
@@ -471,14 +338,14 @@ export const StyledCard = styled(Card)`
   .ant-card-body {
     padding: 20px;
   }
-`
+`;
 
 export const CardTitle = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: start;
   gap: 12px;
-`
+`;
 
 export const ExamName = styled(Title)`
   margin: 0 !important;
@@ -486,7 +353,7 @@ export const ExamName = styled(Title)`
   font-weight: 600 !important;
   line-height: 1.4 !important;
   flex: 1;
-`
+`;
 
 export const InfoRow = styled.div`
   display: flex;
@@ -503,7 +370,7 @@ export const InfoRow = styled.div`
     font-size: 16px;
     color: #1890ff;
   }
-`
+`;
 
 export const TokenBox = styled.div`
   background: #f0f5ff;
@@ -512,20 +379,20 @@ export const TokenBox = styled.div`
   padding: 8px 12px;
   text-align: center;
   margin: 12px 0;
-`
+`;
 
 export const TokenText = styled(Text)`
   font-size: 20px;
   font-weight: bold;
   color: #1890ff;
   letter-spacing: 2px;
-`
+`;
 
 export const ActionButtons = styled.div`
   margin-top: 16px;
   display: flex;
   gap: 8px;
-`
+`;
 
 const ResultsInfo = styled.div`
   display: flex;
@@ -536,7 +403,7 @@ const ResultsInfo = styled.div`
   background: #fff;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
-`
+`;
 
 export const LoadingContainer = styled.div`
   display: flex;
@@ -547,13 +414,13 @@ export const LoadingContainer = styled.div`
   background: #fff;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-`
+`;
 
 export const CardListContainer = styled.div<{ $isFetching: boolean }>`
   position: relative;
   opacity: ${(props) => (props.$isFetching ? 0.6 : 1)};
   transition: opacity 0.3s ease;
-`
+`;
 
 export const FetchingOverlay = styled.div`
   position: absolute;
@@ -570,7 +437,7 @@ export const FetchingOverlay = styled.div`
   backdrop-filter: blur(2px);
 
   &::after {
-    content: '';
+    content: "";
     position: absolute;
     width: 40px;
     height: 40px;
@@ -585,4 +452,4 @@ export const FetchingOverlay = styled.div`
       transform: rotate(360deg);
     }
   }
-`
+`;

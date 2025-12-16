@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 @Builder
 public class ExamSessionStudentResponse {
     private int id;
+    private int examSessionId;
     private String name;
 
     private String joinToken;

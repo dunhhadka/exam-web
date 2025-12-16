@@ -91,3 +91,8 @@ export function parseCustomDateTime(dateStr: string): number {
 
   return date.valueOf()
 }
+
+
+export const formatDay = (date: Date | Dayjs): string => {
+  return dayjs(date).format('DD-MM-YYYY')
+}

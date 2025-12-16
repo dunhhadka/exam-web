@@ -1,11 +1,19 @@
-import { useSelector } from 'react-redux'
-import { RootState } from '../store'
-import { Navigate, Outlet } from 'react-router-dom'
+import { useSelector } from "react-redux";
+import { RootState } from "../store";
+import { Navigate, Outlet, useSearchParams } from "react-router-dom";
 
 const PublicRoute = () => {
-  const { isAuthenticated } = useSelector((root: RootState) => root.auth)
+  const { isAuthenticated } = useSelector((root: RootState) => root.auth);
 
-  return !isAuthenticated ? <Outlet /> : <Navigate to="/home" replace />
-}
+  const [searchParams] = useSearchParams();
 
-export default PublicRoute
+  const isIdenpotencyWindown = searchParams.get("independent") === "true";
+
+  if (isIdenpotencyWindown) {
+    return <Outlet />;
+  }
+
+  return !isAuthenticated ? <Outlet /> : <Navigate to="/home" replace />;
+};
+
+export default PublicRoute;

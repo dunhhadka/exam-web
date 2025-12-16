@@ -2,15 +2,20 @@ package com.datn.exam.repository.data;
 
 import com.datn.exam.model.dto.request.ExamStudentFilterRequest;
 import com.datn.exam.repository.data.dto.ExamSessionStudentDto;
+import com.datn.exam.support.enums.SessionStudentStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.jdbc.core.BeanPropertyRowMapper;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Slf4j
@@ -24,6 +29,7 @@ public class SessionStudentJdbcTemplate {
                 SELECT
                     ss.id as id,
                     es.name as name,
+                    es.id as exam_session_id,
                     es.code as join_token,
                     es.start_time,
                     es.end_time,
@@ -61,7 +67,7 @@ public class SessionStudentJdbcTemplate {
         return jdbcTemplate.query(
                 sql.toString(),
                 params,
-                BeanPropertyRowMapper.newInstance(ExamSessionStudentDto.class)
+                new ExamSessionStudentRowMapper()
         );
     }
 
@@ -87,12 +93,14 @@ public class SessionStudentJdbcTemplate {
 
         if (request.getStartTime() != null) {
             clause.append(" AND es.start_time >= :start_time ");
-            params.addValue("start_time", request.getStartTime());
+            // Convert LocalDateTime to Timestamp
+            params.addValue("start_time", Timestamp.valueOf(request.getStartTime()));
         }
 
         if (request.getEndTime() != null) {
             clause.append(" AND es.end_time <= :end_time ");
-            params.addValue("end_time", request.getEndTime());
+            // Convert LocalDateTime to Timestamp
+            params.addValue("end_time", Timestamp.valueOf(request.getEndTime()));
         }
 
         if (request.getStatus() != null) {
@@ -101,5 +109,33 @@ public class SessionStudentJdbcTemplate {
         }
 
         return clause.toString();
+    }
+
+    // Custom RowMapper
+    private static class ExamSessionStudentRowMapper implements RowMapper<ExamSessionStudentDto> {
+        @Override
+        public ExamSessionStudentDto mapRow(ResultSet rs, int rowNum) throws SQLException {
+            ExamSessionStudentDto dto = new ExamSessionStudentDto();
+            dto.setId(rs.getInt("id"));
+            dto.setName(rs.getString("name"));
+            dto.setJoinToken(rs.getString("join_token"));
+            dto.setExamSessionId(rs.getInt("exam_session_id"));
+
+            Timestamp startTime = rs.getTimestamp("start_time");
+            if (startTime != null) {
+                dto.setStartTime(startTime.toLocalDateTime());
+            }
+
+            Timestamp endTime = rs.getTimestamp("end_time");
+            if (endTime != null) {
+                dto.setEndTime(endTime.toLocalDateTime());
+            }
+
+            dto.setExamName(rs.getString("exam_name"));
+            dto.setDuration(rs.getInt("duration"));
+            dto.setStatus(Optional.ofNullable(rs.getString("status")).map(SessionStudentStatus::valueOf).orElse(null));
+
+            return dto;
+        }
     }
 }

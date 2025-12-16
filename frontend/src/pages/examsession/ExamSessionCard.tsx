@@ -1,5 +1,5 @@
-import { Col, Space, Tag, Typography, Button } from 'antd'
-import { ExamSession } from '../../types/examsession'
+import { Col, Space, Tag, Typography, Button } from "antd";
+import { ExamSession } from "../../types/examsession";
 import {
   ActionButtons,
   CardTitle,
@@ -8,7 +8,7 @@ import {
   StyledCard,
   TokenBox,
   TokenText,
-} from '../student-page/StudentExamSession'
+} from "../student-page/StudentExamSession";
 import {
   CalendarOutlined,
   ClockCircleOutlined,
@@ -17,24 +17,28 @@ import {
   EditOutlined,
   PlayCircleOutlined,
   StopOutlined,
-} from '@ant-design/icons'
-import { formatInstant } from '../../utils/times'
-import styled from '@emotion/styled'
-import { useExamCountDown } from '../../hooks/useExamCountDown'
+} from "@ant-design/icons";
+import { formatInstant } from "../../utils/times";
+import styled from "@emotion/styled";
+import { useExamCountDown } from "../../hooks/useExamCountDown";
 
-const { Text } = Typography
+const { Text } = Typography;
 
-export type ExamTimeStatus =
-  | 'NOT_STARTED'
-  | 'COUNTDOWN'
-  | 'IN_PROGRESS'
-  | 'ENDED'
+export const formatRemaining = (ms: number) => {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(
+    2,
+    "0"
+  )}`;
+};
 
 interface Props {
-  examSession: ExamSession
-  onEdit?: (examSession: ExamSession) => void
-  onMonitor?: (examSession: ExamSession) => void
-  onTrack?: (examSession: ExamSession) => void
+  examSession: ExamSession;
+  onEdit?: (examSession: ExamSession) => void;
+  onMonitor?: (examSession: ExamSession) => void;
+  onTrack?: (examSession: ExamSession) => void;
 }
 
 /* ===================== Styled ===================== */
@@ -44,13 +48,13 @@ const StatusContainer = styled.div`
   flex-direction: column;
   align-items: flex-end;
   gap: 4px;
-`
+`;
 
 const CountdownText = styled(Text)`
   font-size: 14px;
   font-weight: bold;
   color: #fa8c16;
-`
+`;
 
 /* ===================== Component ===================== */
 
@@ -63,35 +67,25 @@ const ExamSessionCard = ({
   const { status: sessionStatus, remaining } = useExamCountDown(
     examSession.startTime,
     examSession.endTime
-  )
+  );
 
-  const handleEdit = () => onEdit?.(examSession)
-  const handleMonitor = () => onMonitor?.(examSession)
-  const handleTrack = () => onTrack?.(examSession)
+  const handleEdit = () => onEdit?.(examSession);
+  const handleMonitor = () => onMonitor?.(examSession);
+  const handleTrack = () => onTrack?.(examSession);
 
-  const formatRemaining = (ms: number) => {
-    const totalSeconds = Math.max(0, Math.floor(ms / 1000))
-    const minutes = Math.floor(totalSeconds / 60)
-    const seconds = totalSeconds % 60
-    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(
-      2,
-      '0'
-    )}`
-  }
-
-  console.log(sessionStatus, remaining)
+  console.log(sessionStatus, remaining);
 
   /* --------------------- Status --------------------- */
   const renderStatus = () => {
     switch (sessionStatus) {
-      case 'NOT_STARTED':
+      case "NOT_STARTED":
         return (
           <Tag color="default" icon={<ClockCircleOutlined />}>
             Chưa bắt đầu
           </Tag>
-        )
+        );
 
-      case 'COUNTDOWN':
+      case "COUNTDOWN":
         return (
           <StatusContainer>
             <Tag color="orange" icon={<ClockCircleOutlined />}>
@@ -99,55 +93,55 @@ const ExamSessionCard = ({
             </Tag>
             <CountdownText>{formatRemaining(remaining)}</CountdownText>
           </StatusContainer>
-        )
+        );
 
-      case 'IN_PROGRESS':
+      case "IN_PROGRESS":
         return (
           <Tag color="green" icon={<PlayCircleOutlined />}>
             Đang diễn ra
           </Tag>
-        )
+        );
 
-      case 'ENDED':
+      case "ENDED":
         return (
           <Tag color="red" icon={<StopOutlined />}>
             Đã kết thúc
           </Tag>
-        )
+        );
 
       default:
-        return null
+        return null;
     }
-  }
+  };
 
   const genStatusName = () => {
     switch (sessionStatus) {
-      case 'NOT_STARTED':
-        return 'Chưa bắt đầu'
-      case 'COUNTDOWN':
-        return 'Sắp bắt đầu'
-      case 'IN_PROGRESS':
-        return 'Đang diễn ra'
-      case 'ENDED':
-        return 'Đã kết thúc'
+      case "NOT_STARTED":
+        return "Chưa bắt đầu";
+      case "COUNTDOWN":
+        return "Sắp bắt đầu";
+      case "IN_PROGRESS":
+        return "Đang diễn ra";
+      case "ENDED":
+        return "Đã kết thúc";
       default:
-        return ''
+        return "";
     }
-  }
+  };
 
   /* --------------------- Actions --------------------- */
   const renderActionButtons = () => {
     switch (sessionStatus) {
-      case 'NOT_STARTED':
+      case "NOT_STARTED":
         return (
           <ActionButtons>
             <Button type="default" onClick={handleEdit} block disabled>
               Chưa bắt đầu
             </Button>
           </ActionButtons>
-        )
+        );
 
-      case 'COUNTDOWN':
+      case "COUNTDOWN":
         return (
           <ActionButtons>
             <Button
@@ -155,14 +149,14 @@ const ExamSessionCard = ({
               icon={<EyeOutlined />}
               onClick={handleTrack}
               block
-              style={{ background: '#fa8c16', borderColor: '#fa8c16' }}
+              style={{ background: "#fa8c16", borderColor: "#fa8c16" }}
             >
               Chuẩn bị thi
             </Button>
           </ActionButtons>
-        )
+        );
 
-      case 'IN_PROGRESS':
+      case "IN_PROGRESS":
         return (
           <ActionButtons>
             <Button
@@ -175,9 +169,9 @@ const ExamSessionCard = ({
               Giám sát
             </Button>
           </ActionButtons>
-        )
+        );
 
-      case 'ENDED':
+      case "ENDED":
         return (
           <ActionButtons>
             <Button
@@ -189,12 +183,12 @@ const ExamSessionCard = ({
               Xem kết quả
             </Button>
           </ActionButtons>
-        )
+        );
 
       default:
-        return null
+        return null;
     }
-  }
+  };
 
   /* ===================== Render ===================== */
 
@@ -208,16 +202,16 @@ const ExamSessionCard = ({
         }
         extra={renderStatus()}
       >
-        <Space direction="vertical" style={{ width: '100%' }} size="small">
+        <Space direction="vertical" style={{ width: "100%" }} size="small">
           <InfoRow>
             <FileTextOutlined />
-            <Text>{examSession?.exam?.name || 'Chưa có đề thi'}</Text>
+            <Text>{examSession?.exam?.name || "Chưa có đề thi"}</Text>
           </InfoRow>
 
           <InfoRow>
             <CalendarOutlined />
             <Text>
-              {formatInstant(examSession.startTime)} - {'\n'}
+              {formatInstant(examSession.startTime)} - {"\n"}
               {formatInstant(examSession.endTime)}
             </Text>
           </InfoRow>
@@ -245,7 +239,7 @@ const ExamSessionCard = ({
         {renderActionButtons()}
       </StyledCard>
     </Col>
-  )
-}
+  );
+};
 
-export default ExamSessionCard
+export default ExamSessionCard;
