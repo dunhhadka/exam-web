@@ -32,6 +32,7 @@ import LandingPage from './web-public/LandingPage'
 import UserInfo from './pages/auth/UserInfo'
 import OverviewPage from './pages/student-page/OverviewPage'
 import StudentExamSession from './pages/student-page/StudentExamSession'
+import ExamSessionFactoryPage from './pages/examsession/ExamSessionFactoryPage'
 
 function App() {
   return (
@@ -87,7 +88,7 @@ function App() {
                   <Route path="/exams/create" element={<ExamCreatePage />} />
                   <Route
                     path="/examsessions"
-                    element={<ExamSessionListPage />}
+                    element={<ExamSessionFactoryPage />}
                   />
                   <Route
                     path="/protor-tracking/:roomId/:userId"

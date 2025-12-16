@@ -74,3 +74,20 @@ export const formatStartOfDay = (date: Date | Dayjs): string => {
 export const formatEndOfDay = (date: Date | Dayjs): string => {
   return dayjs(date).endOf('day').format('DD-MM-YYYY HH:mm:ss')
 }
+
+export const getRemainingTime = (targetTime: string): number => {
+  const target = new Date(targetTime).getTime()
+  const now = Date.now()
+  return target - now
+}
+
+export function parseCustomDateTime(dateStr: string): number {
+  const date = dayjs(dateStr, 'DD-MM-YYYY HH:mm')
+
+  if (!date.isValid()) {
+    console.error('Invalid date format:', dateStr)
+    return 0
+  }
+
+  return date.valueOf()
+}
