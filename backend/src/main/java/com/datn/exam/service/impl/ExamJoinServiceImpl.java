@@ -9,8 +9,8 @@ import com.datn.exam.model.dto.response.SessionInfoResponse;
 import com.datn.exam.model.dto.response.SessionTokenResponse;
 import com.datn.exam.model.entity.ExamSession;
 import com.datn.exam.repository.ExamAttemptRepository;
-import com.datn.exam.repository.WhitelistRepository;
 import com.datn.exam.repository.ExamSessionRepository;
+import com.datn.exam.repository.SessionStudentRepository;
 import com.datn.exam.repository.UserRepository;
 import com.datn.exam.service.ExamJoinService;
 import com.datn.exam.service.OtpService;
@@ -22,7 +22,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,9 +41,8 @@ public class ExamJoinServiceImpl implements ExamJoinService {
     private final ExamAttemptRepository examAttemptRepository;
     private final OtpService otpService;
     private final RedisTemplate<String, String> redisTemplate;
-    private final WhitelistRepository whitelistRepository;
     private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
+    private final SessionStudentRepository sessionStudentRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -56,10 +54,13 @@ public class ExamJoinServiceImpl implements ExamJoinService {
                 .sessionId(session.getId())
                 .sessionName(session.getName())
                 .accessMode(session.getAccessMode())
-                .requiresPassword(session.getAccessMode() == ExamSession.AccessMode.PASSWORD)
-                .requiresWhitelist(session.getAccessMode() == ExamSession.AccessMode.WHITELIST)
+                .isPrivate(session.getAccessMode() == ExamSession.AccessMode.PRIVATE)
                 .examName(session.getExam() != null ? session.getExam().getName() : null)
-                .settings(session.getSettings()) // Trả về settings để frontend apply anti-cheat
+                .settings(session.getSettings())
+                .startTime(session.getStartTime())
+                .endTime(session.getEndTime())
+                .duration(session.getDurationMinutes())
+                .code(session.getCode())
                 .build();
     }
 
@@ -78,17 +79,6 @@ public class ExamJoinServiceImpl implements ExamJoinService {
         ExamSession session = examSessionRepository.findByCode(request.getCode())
                 .orElseThrow(() -> new ResponseException(NotFoundError.EXAM_SESSION_NOT_FOUND));
 
-        // Validate password if required
-        if (session.getAccessMode() == ExamSession.AccessMode.PASSWORD) {
-            if (StringUtils.isBlank(request.getPassword())) {
-                throw new ResponseException(BadRequestError.PASSWORD_REQUIRED);
-            }
-            
-            if (!passwordEncoder.matches(request.getPassword(), session.getAccessPassword())) {
-                throw new ResponseException(BadRequestError.INVALID_PASSWORD);
-            }
-        }
-
         return this.buildJoinMeta(session, null);
     }
 
@@ -97,7 +87,6 @@ public class ExamJoinServiceImpl implements ExamJoinService {
         ExamSession examSession = examSessionRepository.findByCode(request.getSessionCode())
                 .orElseThrow(() -> new ResponseException(NotFoundError.EXAM_SESSION_NOT_FOUND));
 
-        // Validate session status and timing
         if (Boolean.TRUE.equals(examSession.getDeleted())) {
             throw new ResponseException(NotFoundError.EXAM_SESSION_NOT_FOUND);
         }
@@ -121,22 +110,30 @@ public class ExamJoinServiceImpl implements ExamJoinService {
 
         String email = request.getEmail().toLowerCase();
 
-        boolean existEmailTeacher = userRepository.existsTeacherByEmail(email);
+        // PRIVATE mode: Validate user phải là STUDENT và được assign vào session
+        if (examSession.getAccessMode() == ExamSession.AccessMode.PRIVATE) {
+            // Check user tồn tại với role STUDENT
+            boolean isStudent = userRepository.existsStudentByEmail(email);
+            if (!isStudent) {
+                throw new ResponseException(BadRequestError.USER_NOT_STUDENT);
+            }
 
-        if (existEmailTeacher) {
-            throw new ResponseException(BadRequestError.TEACHER_CANNOT_JOIN);
-        }
+            // Check student đã được assign vào session này chưa
+            boolean isAssigned = sessionStudentRepository
+                    .existsByExamSessionIdAndUserEmail(examSession.getId(), email);
 
-        if (examSession.getAccessMode() == ExamSession.AccessMode.WHITELIST) {
-            boolean isWhitelisted = whitelistRepository
-                    .existsByExamSessionIdAndEmail(examSession.getId(), email);
-
-            if (!isWhitelisted) {
-                throw new ResponseException(BadRequestError.EMAIL_NOT_IN_WHITELIST);
+            if (!isAssigned) {
+                throw new ResponseException(BadRequestError.STUDENT_NOT_ASSIGNED_TO_SESSION);
             }
         }
 
-        // Check attempt limit
+        else {
+            boolean existEmailTeacher = userRepository.existsTeacherByEmail(email);
+            if (existEmailTeacher) {
+                throw new ResponseException(BadRequestError.TEACHER_CANNOT_JOIN);
+            }
+        }
+
         int usedAttempts = examAttemptRepository.countByExamSessionIdAndStudentEmail(examSession.getId(), email);
         if (usedAttempts >= examSession.getAttemptLimit()) {
             throw new ResponseException(BadRequestError.ATTEMPT_LIMIT_REACHED);
@@ -176,7 +173,6 @@ public class ExamJoinServiceImpl implements ExamJoinService {
         ExamSession examSession = examSessionRepository.findByCode(request.getSessionCode())
                 .orElseThrow(() -> new ResponseException(NotFoundError.EXAM_SESSION_NOT_FOUND));
 
-        // Validate session status and timing
         if (Boolean.TRUE.equals(examSession.getDeleted())) {
             throw new ResponseException(NotFoundError.EXAM_SESSION_NOT_FOUND);
         }
@@ -200,16 +196,26 @@ public class ExamJoinServiceImpl implements ExamJoinService {
 
         String email = request.getEmail().toLowerCase();
 
-        if (examSession.getAccessMode() == ExamSession.AccessMode.WHITELIST) {
-            boolean isWhitelisted = whitelistRepository
-                    .existsByExamSessionIdAndEmail(examSession.getId(), email);
+        if (examSession.getAccessMode() == ExamSession.AccessMode.PRIVATE) {
+            boolean isStudent = userRepository.existsStudentByEmail(email);
+            if (!isStudent) {
+                throw new ResponseException(BadRequestError.USER_NOT_STUDENT);
+            }
 
-            if (!isWhitelisted) {
-                throw new ResponseException(BadRequestError.EMAIL_NOT_IN_WHITELIST);
+            boolean isAssigned = sessionStudentRepository
+                    .existsByExamSessionIdAndUserEmail(examSession.getId(), email);
+
+            if (!isAssigned) {
+                throw new ResponseException(BadRequestError.STUDENT_NOT_ASSIGNED_TO_SESSION);
+            }
+        }
+        else {
+            boolean existEmailTeacher = userRepository.existsTeacherByEmail(email);
+            if (existEmailTeacher) {
+                throw new ResponseException(BadRequestError.TEACHER_CANNOT_JOIN);
             }
         }
 
-        // Check attempt limit
         int usedAttempts = examAttemptRepository.countByExamSessionIdAndStudentEmail(examSession.getId(), email);
         if (usedAttempts >= examSession.getAttemptLimit()) {
             throw new ResponseException(BadRequestError.ATTEMPT_LIMIT_REACHED);
@@ -248,10 +254,7 @@ public class ExamJoinServiceImpl implements ExamJoinService {
                 .build();
     }
 
-    /**
-     *  Build join metadata
-     * @param email - null khi join lần đầu (chưa verify OTP), có giá trị khi re-join (đã có token)
-     */
+
     private JoinSessionMetaResponse buildJoinMeta(ExamSession session, String email) {
         if (Boolean.TRUE.equals(session.getDeleted())) {
             throw new ResponseException(NotFoundError.EXAM_SESSION_NOT_FOUND);
@@ -274,7 +277,6 @@ public class ExamJoinServiceImpl implements ExamJoinService {
             }
         }
 
-        // Not verify OTP → canStart = false
         if (email == null) {
             return JoinSessionMetaResponse.builder()
                     .sessionId(session.getId())
@@ -288,7 +290,6 @@ public class ExamJoinServiceImpl implements ExamJoinService {
                     .build();
         }
 
-        //  verified
         int usedAttempts = examAttemptRepository.countByExamSessionIdAndStudentEmail(session.getId(), email);
         int remaining = session.getAttemptLimit() - usedAttempts;
         boolean canStart = remaining > 0;

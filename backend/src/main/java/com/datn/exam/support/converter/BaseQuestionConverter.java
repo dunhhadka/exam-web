@@ -41,7 +41,8 @@ public class BaseQuestionConverter implements AttributeConverter<Question.BaseQu
             return objectMapper.readValue(dbData, Question.BaseQuestion.class);
         } catch (JsonProcessingException e) {
             log.error("Error converting JSON to BaseQuestion: {}", dbData, e);
-            throw new IllegalArgumentException("Error converting JSON to BaseQuestion", e);
+//            throw new IllegalArgumentException("Error converting JSON to BaseQuestion", e);
         }
+        return null;
     }
 }

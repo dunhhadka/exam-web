@@ -25,6 +25,7 @@ export interface ExamSession {
   accessMode: ExamSessionAccessMode
   hasAccessPassword: boolean
   whitelistEntries?: ExamSessionWhitelistEntry[]
+  assignedStudents?: any[]
 }
 
 export enum ExamSessionStatus {

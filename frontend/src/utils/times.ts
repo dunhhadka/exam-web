@@ -63,3 +63,36 @@ export function isNowBetween(startTime: string, endTime: string): boolean {
 
   return now.isBetween(start, end, null, '[]') // [] bao gồm cả biên
 }
+
+export const formatStartOfDay = (date: Date | Dayjs): string => {
+  return dayjs(date).startOf('day').format('DD-MM-YYYY HH:mm:ss')
+}
+
+/**
+ * Chuyển Date thành string với format DD-MM-YYYY 23:59:59
+ */
+export const formatEndOfDay = (date: Date | Dayjs): string => {
+  return dayjs(date).endOf('day').format('DD-MM-YYYY HH:mm:ss')
+}
+
+export const getRemainingTime = (targetTime: string): number => {
+  const target = new Date(targetTime).getTime()
+  const now = Date.now()
+  return target - now
+}
+
+export function parseCustomDateTime(dateStr: string): number {
+  const date = dayjs(dateStr, 'DD-MM-YYYY HH:mm')
+
+  if (!date.isValid()) {
+    console.error('Invalid date format:', dateStr)
+    return 0
+  }
+
+  return date.valueOf()
+}
+
+
+export const formatDay = (date: Date | Dayjs): string => {
+  return dayjs(date).format('DD-MM-YYYY')
+}
