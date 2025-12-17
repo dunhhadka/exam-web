@@ -6,6 +6,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -14,8 +16,14 @@ public class SessionInfoResponse {
     private Long sessionId;
     private String sessionName;
     private ExamSession.AccessMode accessMode;
-    private boolean requiresPassword;
-    private boolean requiresWhitelist;
+    private boolean isPrivate;
     private String examName;
     private java.util.Map<String, Object> settings; // Anti-cheat settings
+
+    private LocalDateTime startTime;
+    private LocalDateTime endTime;
+
+    private Integer duration;
+
+    private String code;
 }

@@ -25,6 +25,8 @@ import {
   setTakeExamCode,
   setCandicateInfo,
 } from '../../store/slices/takeExamSlice'
+import { useLazyGetExamSessionByIdQuery } from '../../services/api/examsession'
+import { getExamTimeStatus } from '../../hooks/useExamCountDown'
 
 const CheckinExam = () => {
   const [searchParams] = useSearchParams()
@@ -48,6 +50,9 @@ const CheckinExam = () => {
     useJoinExamByCodeMutation()
   const [requestOtp, { isLoading: isRequestOtpLoading }] =
     useRequestOtpMutation()
+
+  const [getExamSessionById, { isLoading: isExamSessionLoading }] =
+    useLazyGetExamSessionByIdQuery()
 
   // Validate email sau khi người dùng nhập xong
   useEffect(() => {
@@ -134,6 +139,43 @@ const CheckinExam = () => {
 
     // Dispatch email to Redux store so it's available for KYC
     dispatch(setCandicateInfo({ email: email }))
+
+    const examSessionInfo = await getSessionInfo(examCode).unwrap()
+    if (!examSessionInfo) {
+      toast.error('Không tìm thấy phiên thi')
+      return
+    }
+
+    console.log('examSessionInfo', examSessionInfo)
+
+    const status = getExamTimeStatus(
+      examSessionInfo.startTime,
+      examSessionInfo.endTime
+    )
+
+    if (status === 'NOT_STARTED') {
+      toast.warning(
+        'Phiên thi chưa bắt đầu. Vui lòng tham gia khi phiên thi bắt đầu.'
+      )
+      return
+    } else if (status === 'ENDED') {
+      toast.warning(
+        'Phiên thi đã kết thúc. Bạn không thể tham gia phiên thi này.'
+      )
+      return
+    }
+
+    if (status === 'COUNTDOWN') {
+      toast.info('Phiên thi sắp bắt đầu. Vui lòng chuẩn bị.')
+      // get value
+      navigate(`/exam-waiting/${examSessionInfo.sessionId}`, {
+        state: {
+          examSessionInfo,
+          email,
+        },
+      })
+      return
+    }
 
     navigate(`/candidate/${examCode}/${email}`)
 

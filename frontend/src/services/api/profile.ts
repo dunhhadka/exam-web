@@ -13,4 +13,4 @@ export const profileApi = authenticatedApi.injectEndpoints({
   }),
 })
 
-export const { useGetProfileQuery } = profileApi
+export const { useGetProfileQuery, useLazyGetProfileQuery } = profileApi

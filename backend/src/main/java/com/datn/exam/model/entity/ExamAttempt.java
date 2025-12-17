@@ -38,6 +38,10 @@ public class ExamAttempt extends AuditableEntity{
     @Column(name = "student_name")
     private String studentName;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = true)
+    private User user;
+
     @Column(name = "attempt_no", nullable = false)
     private Integer attemptNo;
 

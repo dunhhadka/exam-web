@@ -73,6 +73,10 @@ const UserInfo = () => {
     <Wrapper>
       <Container>
         <Header>
+          <HeaderContent>
+            <Title>Thông tin cá nhân</Title>
+            <Subtitle>Quản lý thông tin tài khoản của bạn</Subtitle>
+          </HeaderContent>
           {!isEditing ? (
             <EditButton
               type="primary"
@@ -97,85 +101,96 @@ const UserInfo = () => {
           )}
         </Header>
 
-        <Form
-          form={form}
-          layout="vertical"
-          initialValues={{
-            email: profile.email,
-            firstName: profile.firstName,
-            lastName: profile.lastName,
-            password: '***',
-          }}
-        >
-          <AvatarSection>
-            <AvatarWrapper>
-              <StyledAvatar
-                size={120}
-                src={avatarUrl}
-                icon={<UserOutlined />}
-              />
-              {isEditing && (
-                <Upload
-                  showUploadList={false}
-                  beforeUpload={beforeUpload}
-                  accept="image/png,image/jpeg"
+        <ContentCard>
+          <Form
+            form={form}
+            layout="vertical"
+            initialValues={{
+              email: profile.email,
+              firstName: profile.firstName,
+              lastName: profile.lastName,
+              password: '********',
+            }}
+          >
+            <AvatarSection>
+              <AvatarWrapper>
+                <StyledAvatar
+                  size={120}
+                  src={avatarUrl}
+                  icon={<UserOutlined />}
+                />
+                {isEditing && (
+                  <Upload
+                    showUploadList={false}
+                    beforeUpload={beforeUpload}
+                    accept="image/png,image/jpeg"
+                  >
+                    <UploadButton
+                      type="primary"
+                      shape="circle"
+                      icon={<CameraOutlined />}
+                      size="large"
+                    />
+                  </Upload>
+                )}
+              </AvatarWrapper>
+              <UserName>
+                {profile.lastName} {profile.firstName}
+              </UserName>
+              <UserEmail>{profile.email}</UserEmail>
+            </AvatarSection>
+
+            <Divider />
+
+            <FormSection>
+              <SectionTitle>Thông tin cơ bản</SectionTitle>
+              <FormGrid>
+                <FormItem
+                  label="Họ"
+                  name="lastName"
+                  rules={[{ required: true, message: 'Vui lòng nhập họ!' }]}
                 >
-                  <UploadButton
-                    type="primary"
-                    shape="circle"
-                    icon={<CameraOutlined />}
+                  <StyledInput
+                    placeholder="Nhập họ của bạn"
+                    disabled={!isEditing}
                     size="large"
                   />
-                </Upload>
-              )}
-            </AvatarWrapper>
-          </AvatarSection>
+                </FormItem>
 
-          <FormGrid>
-            <FormItem label="Email" name="email">
-              <StyledInput
-                prefix={<MailOutlined />}
-                placeholder="Email"
-                disabled
-                size="large"
-              />
-            </FormItem>
+                <FormItem
+                  label="Tên"
+                  name="firstName"
+                  rules={[{ required: true, message: 'Vui lòng nhập tên!' }]}
+                >
+                  <StyledInput
+                    placeholder="Nhập tên của bạn"
+                    disabled={!isEditing}
+                    size="large"
+                  />
+                </FormItem>
 
-            <FormItem
-              label="Họ"
-              name="lastName"
-              rules={[{ required: true, message: 'Vui lòng nhập họ!' }]}
-            >
-              <StyledInput
-                placeholder="Họ"
-                disabled={!isEditing}
-                size="large"
-              />
-            </FormItem>
+                <FormItem label="Email" name="email">
+                  <StyledInput
+                    prefix={<MailOutlined />}
+                    placeholder="Email"
+                    disabled
+                    size="large"
+                  />
+                </FormItem>
 
-            <FormItem
-              label="Tên"
-              name="firstName"
-              rules={[{ required: true, message: 'Vui lòng nhập tên!' }]}
-            >
-              <StyledInput
-                placeholder="Tên"
-                disabled={!isEditing}
-                size="large"
-              />
-            </FormItem>
-
-            <FormItem label="Mật khẩu" name="password">
-              <StyledInput
-                prefix={<LockOutlined />}
-                type="password"
-                placeholder="Mật khẩu"
-                disabled={!isEditing}
-                size="large"
-              />
-            </FormItem>
-          </FormGrid>
-        </Form>
+                <FormItem label="Mật khẩu" name="password">
+                  <StyledInput
+                    prefix={<LockOutlined />}
+                    type="password"
+                    placeholder="Mật khẩu"
+                    disabled={!isEditing}
+                    size="large"
+                  />
+                </FormItem>
+              </FormGrid>
+            </FormSection>
+          </Form>
+        </ContentCard>
       </Container>
     </Wrapper>
   )
@@ -186,12 +201,16 @@ export default UserInfo
 /* ==== Styled Components ==== */
 const Wrapper = styled.div`
   min-height: 100vh;
-  background: #f5f5f5;
-  padding: 40px 20px;
+  background: #f0f2f5;
+  padding: 24px;
+
+  @media (max-width: 768px) {
+    padding: 16px;
+  }
 `
 
 const Container = styled.div`
-  max-width: 700px;
+  max-width: 900px;
   margin: 0 auto;
 `
 
@@ -199,21 +218,34 @@ const Header = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 32px;
+  margin-bottom: 24px;
+  gap: 16px;
 
-  @media (max-width: 600px) {
+  @media (max-width: 768px) {
     flex-direction: column;
-    gap: 16px;
     align-items: flex-start;
   }
 `
 
-const Title = styled.h2`
-  margin: 0;
+const HeaderContent = styled.div`
+  flex: 1;
+`
+
+const Title = styled.h1`
+  margin: 0 0 4px 0;
   font-size: 28px;
   font-weight: 700;
-  color: #262626;
-  display: none;
+  color: #1f1f1f;
+
+  @media (max-width: 768px) {
+    font-size: 24px;
+  }
+`
+
+const Subtitle = styled.p`
+  margin: 0;
+  font-size: 14px;
+  color: #8c8c8c;
 `
 
 const EditButton = styled(Button)`
@@ -222,16 +254,25 @@ const EditButton = styled(Button)`
   border-radius: 8px;
   font-weight: 600;
   font-size: 14px;
-  border: none;
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.2);
 
   &:hover {
     transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(24, 144, 255, 0.3);
   }
 `
 
 const ButtonGroup = styled.div`
   display: flex;
   gap: 12px;
+
+  @media (max-width: 768px) {
+    width: 100%;
+
+    button {
+      flex: 1;
+    }
+  }
 `
 
 const CancelButton = styled(Button)`
@@ -245,6 +286,7 @@ const CancelButton = styled(Button)`
   &:hover {
     border-color: #ff4d4f;
     color: #ff4d4f;
+    transform: translateY(-2px);
   }
 `
 
@@ -254,42 +296,61 @@ const SaveButton = styled(Button)`
   border-radius: 8px;
   font-weight: 600;
   font-size: 14px;
-  border: none;
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.2);
 
   &:hover {
     transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(24, 144, 255, 0.3);
   }
+`
+
+const ContentCard = styled.div`
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
 `
 
 const AvatarSection = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 40px;
-  padding: 32px 0;
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 40px 32px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  position: relative;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    opacity: 0.3;
+    pointer-events: none;
+  }
 `
 
 const AvatarWrapper = styled.div`
   position: relative;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
+  z-index: 1;
 `
 
 const StyledAvatar = styled(Avatar)`
-  border: 4px solid #fff;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  background: #1890ff;
+  border: 5px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 `
 
 const UploadButton = styled(Button)`
   position: absolute;
-  bottom: 5px;
-  right: 5px;
-  width: 45px;
-  height: 45px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  bottom: 0;
+  right: 0;
+  width: 40px;
+  height: 40px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   border: 3px solid #fff;
 
   &:hover {
@@ -297,28 +358,61 @@ const UploadButton = styled(Button)`
   }
 
   .anticon {
-    font-size: 18px;
+    font-size: 16px;
   }
 `
 
-const AvatarHint = styled.div`
-  font-size: 13px;
-  color: #8c8c8c;
-  text-align: center;
-  max-width: 250px;
-  display: none;
+const UserName = styled.h2`
+  margin: 0 0 8px 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #ffffff;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  z-index: 1;
+`
+
+const UserEmail = styled.p`
+  margin: 0;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.9);
+  z-index: 1;
+`
+
+const Divider = styled.div`
+  height: 1px;
+  background: #f0f0f0;
+`
+
+const FormSection = styled.div`
+  padding: 32px;
+
+  @media (max-width: 768px) {
+    padding: 24px 16px;
+  }
+`
+
+const SectionTitle = styled.h3`
+  margin: 0 0 24px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f1f1f;
+  display: flex;
+  align-items: center;
+
+  &::before {
+    content: '';
+    width: 4px;
+    height: 18px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    margin-right: 12px;
+    border-radius: 2px;
+  }
 `
 
 const FormGrid = styled.div`
   display: grid;
   grid-template-columns: 1fr;
-  gap: 24px;
-  padding: 40px 32px;
-  background: linear-gradient(135deg, #ffffff 0%, #fafafa 100%);
-  border-radius: 16px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  border: 1px solid #f0f0f0;
-  margin-top: 24px;
+  gap: 20px;
 
   @media (min-width: 768px) {
     grid-template-columns: 1fr 1fr;
@@ -330,48 +424,38 @@ const FormItem = styled(Form.Item)`
 
   .ant-form-item-label > label {
     font-weight: 600;
-    font-size: 13px;
-    color: #1890ff;
+    font-size: 14px;
+    color: #595959;
     height: auto;
-    margin-bottom: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-
-  &:nth-child(1) {
-    grid-column: 1 / -1;
   }
 `
 
 const StyledInput = styled(Input)`
   border-radius: 8px;
-  border: 2px solid #e8e8e8;
+  border: 1px solid #d9d9d9;
   font-size: 14px;
   transition: all 0.3s ease;
 
   &:hover:not(:disabled) {
-    border-color: #1890ff;
+    border-color: #40a9ff;
   }
 
   &:focus {
-    border-color: #1890ff;
-    box-shadow: 0 0 0 3px rgba(24, 144, 255, 0.1);
+    border-color: #40a9ff;
+    box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.1);
   }
 
   &:disabled {
     background: #f5f5f5;
     color: #595959;
     cursor: not-allowed;
+    border-color: #d9d9d9;
   }
 
   .ant-input-prefix {
     margin-right: 12px;
     color: #8c8c8c;
     font-size: 16px;
-  }
-
-  &:focus .ant-input-prefix {
-    color: #1890ff;
   }
 `
 
