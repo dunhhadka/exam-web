@@ -78,12 +78,19 @@ public class SessionStudentServiceImpl implements SessionStudentService {
                 .map(s -> s.getEmail().toLowerCase())
                 .collect(Collectors.toSet());
 
-        List<User> studentsInDb = userRepository.findStudentsByEmails(new ArrayList<>(emails));
-        Map<String, User> userByEmail = studentsInDb.stream()
+        // Tìm tất cả users theo email (không chỉ STUDENT) để phân biệt các trường hợp
+        List<User> allUsersByEmail = userRepository.findByEmails(new ArrayList<>(emails));
+        Map<String, User> userByEmail = allUsersByEmail.stream()
                 .collect(Collectors.toMap(
                         u -> u.getEmail().toLowerCase(),
                         u -> u
                 ));
+
+        // Tìm chỉ STUDENT users để check role
+        List<User> studentsInDb = userRepository.findStudentsByEmails(new ArrayList<>(emails));
+        Set<String> studentEmails = studentsInDb.stream()
+                .map(u -> u.getEmail().toLowerCase())
+                .collect(Collectors.toSet());
 
         List<SessionStudentPreviewResponse.StudentItem> validStudents = new ArrayList<>();
         List<SessionStudentPreviewResponse.StudentItem> invalidStudents = new ArrayList<>();
@@ -106,24 +113,35 @@ public class SessionStudentServiceImpl implements SessionStudentService {
                 continue;
             }
 
+            User user = userByEmail.get(email);
+            
+            // Kiểm tra xem user có tồn tại không
+            if (user == null) {
+                item.setReason("Email chưa có tài khoản trong hệ thống");
+                missingStudents.add(item);
+                continue;
+            }
+
+            // Kiểm tra xem user có role STUDENT không
+            if (!studentEmails.contains(email)) {
+                item.setReason("Tài khoản này không phải là tài khoản học sinh (STUDENT)");
+                missingStudents.add(item);
+                continue;
+            }
+
+            // User hợp lệ (có role STUDENT)
+            item.setUserId(user.getId().toString());
+            String fullName = Optional.ofNullable(user.getInformation())
+                    .map(UserInformation::buildFullName)
+                    .orElse("");
+            item.setFullName(fullName);
+
             if (sessionId != null && existingEmails.contains(email)) {
                 item.setReason("Student đã được assign vào session này");
                 duplicates.add(item);
                 continue;
             }
 
-            User user = userByEmail.get(email);
-            if (user == null) {
-                item.setReason("User không tồn tại trong hệ thống hoặc không có role STUDENT");
-                missingStudents.add(item);
-                continue;
-            }
-
-            String fullName = Optional.ofNullable(user.getInformation())
-                    .map(UserInformation::buildFullName)
-                    .orElse("");
-
-            item.setFullName(fullName);
             validStudents.add(item);
         }
 

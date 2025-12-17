@@ -136,7 +136,7 @@ public class ExamSessionServiceImpl implements ExamSessionService {
 
         this.validateWindow(request.getStartTime(), request.getEndTime());
         this.validateSettings(request);
-        
+
         ExamSession.AccessMode accessMode = Optional.ofNullable(request.getAccessMode())
                 .orElse(examSession.getAccessMode());
         this.validateAccessRequirements(accessMode, request, examSession);
@@ -270,7 +270,7 @@ public class ExamSessionServiceImpl implements ExamSessionService {
             if (CollectionUtils.isNotEmpty(existingStudents)) {
                 deleteStudentAvatars(existingStudents);
                 sessionStudentRepository.deleteAll(existingStudents);
-                
+
                 entityManager.flush();
                 entityManager.clear();
             }
@@ -283,15 +283,88 @@ public class ExamSessionServiceImpl implements ExamSessionService {
         }
 
         List<SessionStudent> existingStudents = sessionStudentRepository.findByExamSessionId(session.getId());
-        Map<UUID, SessionStudent> existingByUserId = existingStudents.stream()
-                .collect(Collectors.toMap(
-                        ss -> ss.getUser().getId(),
-                        ss -> ss
-                ));
 
-        List<SessionStudent> newStudents = createStudentsFromIds(session, studentIds, existingByUserId);
+        Map<UUID, List<SessionStudent>> groupedByUserId = existingStudents.stream()
+                .collect(Collectors.groupingBy(ss -> ss.getUser().getId()));
 
-        Set<UUID> newUserIds = newStudents.stream()
+        List<SessionStudent> duplicatesToDelete = new ArrayList<>();
+        Map<UUID, SessionStudent> existingByUserId = new java.util.HashMap<>();
+
+        for (Map.Entry<UUID, List<SessionStudent>> entry : groupedByUserId.entrySet()) {
+            List<SessionStudent> students = entry.getValue();
+            if (students.size() > 1) {
+                students.sort((s1, s2) -> {
+                    if (s1.getCreatedAt() != null && s2.getCreatedAt() != null) {
+                        return s2.getCreatedAt().compareTo(s1.getCreatedAt());
+                    }
+                    return 0;
+                });
+                existingByUserId.put(entry.getKey(), students.get(0));
+                duplicatesToDelete.addAll(students.subList(1, students.size()));
+            } else {
+                existingByUserId.put(entry.getKey(), students.get(0));
+            }
+        }
+
+        if (!duplicatesToDelete.isEmpty()) {
+            
+            deleteStudentAvatars(duplicatesToDelete);
+            sessionStudentRepository.deleteAll(duplicatesToDelete);
+            Set<Long> duplicateIds = duplicatesToDelete.stream()
+                    .map(SessionStudent::getId)
+                    .collect(Collectors.toSet());
+            existingStudents = existingStudents.stream()
+                    .filter(ss -> !duplicateIds.contains(ss.getId()))
+                    .toList();
+        }
+
+        List<User> students = userRepository.findStudentsByIds(studentIds);
+        if (students.size() != studentIds.size()) {
+            throw new ResponseException(BadRequestError.USER_NOT_STUDENT);
+        }
+
+        Map<UUID, List<String>> studentAvatars = request.getStudentAvatars();
+        if (studentAvatars == null) {
+            studentAvatars = Collections.emptyMap();
+        }
+
+        List<SessionStudent> results = new ArrayList<>();
+        for (User student : students) {
+            SessionStudent existing = existingByUserId.get(student.getId());
+            List<String> newAvatarBase64List = studentAvatars.get(student.getId());
+            List<String> avatarUrls;
+
+            if (newAvatarBase64List != null && !newAvatarBase64List.isEmpty()) {
+                avatarUrls = uploadAvatarsToS3(session.getId(), student.getId(), newAvatarBase64List);
+                
+                if (existing != null && CollectionUtils.isNotEmpty(existing.getAvatarUrls())) {
+                    deleteAvatarUrls(existing.getAvatarUrls());
+                }
+            } else if (existing != null) {
+                avatarUrls = existing.getAvatarUrls() != null ? existing.getAvatarUrls() : Collections.emptyList();
+            } else {
+                avatarUrls = Collections.emptyList();
+            }
+            
+            if (existing != null) {
+                existing.setExamSession(session);
+                existing.setUser(student);
+                existing.setAvatarUrls(avatarUrls);
+                results.add(existing);
+                log.debug("Updating existing SessionStudent (ID: {}) for student: {}", 
+                    existing.getId(), student.getEmail());
+            } else {
+                results.add(SessionStudent.builder()
+                        .examSession(session)
+                        .user(student)
+                        .avatarUrls(avatarUrls)
+                        .build());
+                log.debug("Creating new SessionStudent for student: {}", student.getEmail());
+            }
+        }
+
+        // Remove students no longer in the list
+        Set<UUID> newUserIds = results.stream()
                 .map(ss -> ss.getUser().getId())
                 .collect(Collectors.toSet());
         
@@ -300,6 +373,7 @@ public class ExamSessionServiceImpl implements ExamSessionService {
                 .collect(Collectors.toList());
 
         if (CollectionUtils.isNotEmpty(removedStudents)) {
+            log.info("Removing {} students no longer in session {}", removedStudents.size(), session.getId());
             deleteStudentAvatars(removedStudents);
             sessionStudentRepository.deleteAll(removedStudents);
         }
@@ -307,45 +381,11 @@ public class ExamSessionServiceImpl implements ExamSessionService {
         entityManager.flush();
         entityManager.clear();
 
-        if (newStudents.isEmpty()) {
+        if (results.isEmpty()) {
             return Collections.emptyList();
         }
 
-        return sessionStudentRepository.saveAll(newStudents);
-    }
-
-    private List<SessionStudent> createStudentsFromIds(ExamSession session,
-                                                        List<UUID> studentIds,
-                                                        Map<UUID, SessionStudent> existingByUserId) {
-        if (CollectionUtils.isEmpty(studentIds)) {
-            throw new ResponseException(BadRequestError.STUDENT_IDS_REQUIRED);
-        }
-
-        List<User> students = userRepository.findStudentsByIds(studentIds);
-        if (students.size() != studentIds.size()) {
-            throw new ResponseException(BadRequestError.USER_NOT_STUDENT);
-        }
-
-        List<SessionStudent> results = new ArrayList<>();
-        for (User student : students) {
-            SessionStudent existing = existingByUserId.get(student.getId());
-            
-            List<String> avatarUrls = (existing != null && CollectionUtils.isNotEmpty(existing.getAvatarUrls()))
-                    ? new ArrayList<>(existing.getAvatarUrls())
-                    : Collections.emptyList();
-
-            if (existing != null) {
-                log.debug("Reusing {} avatar URLs for student: {}", avatarUrls.size(), student.getEmail());
-            }
-
-            results.add(SessionStudent.builder()
-                    .examSession(session)
-                    .user(student)
-                    .avatarUrls(avatarUrls)
-                    .build());
-        }
-
-        return results;
+        return sessionStudentRepository.saveAll(results);
     }
 
     private List<SessionStudent> createStudentsFromImport(ExamSession session,
@@ -416,6 +456,62 @@ public class ExamSessionServiceImpl implements ExamSessionService {
     }
 
 
+    private List<String> uploadStudentAvatarsIfChanged(Long sessionId,
+                                                        String normalizedEmail,
+                                                        List<String> newAvatarImages,
+                                                        List<String> existingUrls) {
+        if (CollectionUtils.isEmpty(newAvatarImages)) {
+            return Collections.emptyList();
+        }
+
+        List<String> resultUrls = new ArrayList<>();
+        int uploadIndex = 0;
+
+        Set<String> existingUrlSet = new HashSet<>(existingUrls != null ? existingUrls : Collections.emptyList());
+
+        for (String avatar : newAvatarImages) {
+            if (StringUtils.isBlank(avatar)) {
+                continue;
+            }
+
+            if ((avatar.startsWith("http://") || avatar.startsWith("https://")) && existingUrlSet.contains(avatar)) {
+                resultUrls.add(avatar);
+                log.debug("Keeping existing URL for student {}: {}", normalizedEmail, avatar);
+                continue;
+            }
+
+            if (avatar.startsWith("blob:")) {
+                log.warn("Found blob URL in avatar list for student {}, skipping", normalizedEmail);
+                continue;
+            }
+
+            if (resultUrls.size() >= 5) {
+                break;
+            }
+
+            String sanitizedEmail = normalizedEmail.replace("@", "_at_").replace(".", "_");
+            String key = String.format("session-students/%d/%s/%d", sessionId, sanitizedEmail, ++uploadIndex);
+
+            try {
+                String base64Data = avatar;
+                if (avatar.startsWith("data:")) {
+                    int commaIndex = avatar.indexOf(',');
+                    if (commaIndex > 0) {
+                        base64Data = avatar.substring(commaIndex + 1);
+                    }
+                }
+
+                String url = s3Service.uploadFromBase64(base64Data, key);
+                resultUrls.add(url);
+                log.debug("Uploaded new avatar for student {}: {}", normalizedEmail, url);
+            } catch (IOException e) {
+                log.error("Failed to upload student avatar for {}", normalizedEmail, e);
+                throw new ResponseException(BadRequestError.FILE_UPLOAD_FAILED);
+            }
+        }
+
+        return resultUrls;
+    }
 
     private List<String> uploadStudentAvatars(Long sessionId,
                                                String normalizedEmail,
@@ -432,7 +528,7 @@ public class ExamSessionServiceImpl implements ExamSessionService {
                 continue;
             }
 
-            if (avatar.startsWith("http")) {
+            if (avatar.startsWith("http://") || avatar.startsWith("https://") || avatar.startsWith("blob:")) {
                 uploadedUrls.add(avatar);
                 continue;
             }
@@ -445,7 +541,15 @@ public class ExamSessionServiceImpl implements ExamSessionService {
             String key = String.format("session-students/%d/%s/%d", sessionId, sanitizedEmail, ++index);
 
             try {
-                String url = s3Service.uploadFromBase64(avatar, key);
+                String base64Data = avatar;
+                if (avatar.startsWith("data:")) {
+                    int commaIndex = avatar.indexOf(',');
+                    if (commaIndex > 0) {
+                        base64Data = avatar.substring(commaIndex + 1);
+                    }
+                }
+
+                String url = s3Service.uploadFromBase64(base64Data, key);
                 uploadedUrls.add(url);
             } catch (IOException e) {
                 log.error("Failed to upload student avatar for {}", normalizedEmail, e);
@@ -454,6 +558,76 @@ public class ExamSessionServiceImpl implements ExamSessionService {
         }
 
         return uploadedUrls;
+    }
+
+    private List<String> uploadAvatarsToS3(Long sessionId, UUID userId, List<String> base64List) {
+        List<String> uploadedUrls = new ArrayList<>();
+        int index = 0;
+
+        for (String base64 : base64List) {
+            if (StringUtils.isBlank(base64)) {
+                continue;
+            }
+
+            if (uploadedUrls.size() >= 5) {
+                break;
+            }
+
+            // Skip if it's already an S3 URL (existing avatar)
+            if (base64.startsWith("http://") || base64.startsWith("https://")) {
+                uploadedUrls.add(base64);
+                continue;
+            }
+
+            String key = String.format("session-students/%d/%s/%d", sessionId, userId.toString(), ++index);
+
+            try {
+                String preview = base64.length() > 100 ? base64.substring(0, 100) + "..." : base64;
+                
+                String base64Data = base64;
+                
+                if (base64.startsWith("data:")) {
+                    int commaIndex = base64.indexOf(',');
+                    if (commaIndex > 0) {
+                        base64Data = base64.substring(commaIndex + 1);
+                    } else {
+                        continue;
+                    }
+                }
+
+                base64Data = base64Data.replaceAll("\\s+", "");
+                
+                if (!base64Data.matches("^[A-Za-z0-9+/]+=*$")) {
+                    log.error("Invalid base64 format after cleaning. First 50 chars: {}", 
+                        base64Data.substring(0, Math.min(50, base64Data.length())));
+                    continue;
+                }
+
+                String url = s3Service.uploadFromBase64(base64Data, key);
+                uploadedUrls.add(url);
+            } catch (IOException e) {
+                throw new ResponseException(BadRequestError.FILE_UPLOAD_FAILED);
+            }
+        }
+
+        return uploadedUrls;
+    }
+
+    private void deleteAvatarUrls(List<String> avatarUrls) {
+        if (CollectionUtils.isEmpty(avatarUrls)) {
+            return;
+        }
+
+        for (String url : avatarUrls) {
+            if (StringUtils.isNotBlank(url) && url.startsWith("http")) {
+                try {
+                    s3Service.deleteFile(url);
+                    log.debug("Deleted avatar: {}", url);
+                } catch (Exception ex) {
+                    log.warn("Failed to delete avatar {}", url, ex);
+                }
+            }
+        }
     }
 
     private void deleteStudentAvatars(List<SessionStudent> students) {

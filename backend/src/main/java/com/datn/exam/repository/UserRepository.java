@@ -2,6 +2,8 @@ package com.datn.exam.repository;
 
 import com.datn.exam.model.entity.User;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -65,10 +67,17 @@ public interface UserRepository extends JpaRepository<User, UUID> {
                 JOIN ur.role r
                 WHERE u.deleted = FALSE
                   AND r.deleted = FALSE
-                  AND u.email IN :emails
+                  AND LOWER(u.email) IN :emails
                   AND r.code = 'STUDENT'
             """)
     List<User> findStudentsByEmails(@Param("emails") List<String> emails);
+
+    @Query("""
+             SELECT u FROM User u
+                WHERE u.deleted = FALSE
+                  AND LOWER(u.email) IN :emails
+            """)
+    List<User> findByEmails(@Param("emails") List<String> emails);
 
     @Query("""
              SELECT u FROM User u
@@ -89,5 +98,18 @@ public interface UserRepository extends JpaRepository<User, UUID> {
                   AND r.deleted = FALSE
                   AND r.code = 'STUDENT'
             """)
-    List<User> findAllStudents();
+    Page<User> findAllStudents(Pageable pageable);
+
+    @Query("""
+             SELECT u FROM User u
+                JOIN u.userRoles ur
+                JOIN ur.role r
+                WHERE u.deleted = FALSE
+                  AND r.deleted = FALSE
+                  AND r.code = 'STUDENT'
+                  AND (LOWER(u.email) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                       OR LOWER(u.information.firstName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                       OR LOWER(u.information.lastName) LIKE LOWER(CONCAT('%', :keyword, '%')))
+            """)
+    Page<User> searchStudents(@Param("keyword") String keyword, Pageable pageable);
 }

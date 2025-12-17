@@ -45,11 +45,9 @@ const ExamSessionListPage = () => {
   const [attemptListOpen, setAttemptListOpen] = useState(false)
   const [userManagementOpen, setUserManagementOpen] = useState(false)
 
-  // Menu items cho dropdown "Hành động"
   const getActionMenuItems = (record: ExamSession): MenuProps['items'] => {
     const items: MenuProps['items'] = []
 
-    // Chỉ thêm "Giám sát làm bài" nếu đang trong khoảng thời gian
     if (isNowBetween(record.startTime, record.endTime)) {
       items.push({
         key: 'monitor',
@@ -87,34 +85,6 @@ const ExamSessionListPage = () => {
       label: 'Kết quả',
       icon: <FundOutlined />,
       onClick: () => console.log('Kết quả', record),
-    })
-
-    items.push({
-      key: 'exam-progress',
-      label: 'Tiến độ cuộc thi',
-      icon: <HistoryOutlined />,
-      onClick: () => console.log('Tiến độ cuộc thi', record),
-    })
-
-    items.push({
-      key: 'learning-progress',
-      label: 'Tiến độ học tập chung',
-      icon: <BookOutlined />,
-      onClick: () => console.log('Tiến độ học tập chung', record),
-    })
-
-    items.push({
-      key: 'report',
-      label: 'Báo cáo',
-      icon: <FileTextOutlined />,
-      onClick: () => console.log('Báo cáo', record),
-    })
-
-    items.push({
-      key: 'history',
-      label: 'Lịch sử',
-      icon: <HistoryOutlined />,
-      onClick: () => console.log('Lịch sử', record),
     })
 
     return items

@@ -96,10 +96,10 @@ const MainLayout = () => {
       path: '/store',
     },
     {
-      key: 'my-course',
+      key: 'notifications',
       icon: <TeamOutlined />,
       label: 'Quản lý thông báo',
-      path: '/my-course',
+      path: '/notifications',
     },
     {
       key: 'settings',

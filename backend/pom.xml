@@ -193,6 +193,8 @@
 							<version>${mapstruct.version}</version>
 						</path>
 					</annotationProcessorPaths>
+
+
 				</configuration>
 			</plugin>
 			<plugin>

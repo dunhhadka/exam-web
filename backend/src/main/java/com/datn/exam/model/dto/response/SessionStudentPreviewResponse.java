@@ -21,10 +21,8 @@ public class SessionStudentPreviewResponse {
     // Students không hợp lệ (email sai format, quá nhiều avatar, v.v.)
     private List<StudentItem> invalidStudents;
     
-    // Students bị trùng (đã được assign vào session này rồi)
     private List<StudentItem> duplicates;
     
-    // Students không tồn tại trong hệ thống hoặc không có role STUDENT
     private List<StudentItem> missingStudents;
     
     private int totalValid;
@@ -40,6 +38,7 @@ public class SessionStudentPreviewResponse {
         private int row;
         private String email;
         private String fullName;
+        private String userId;
         private List<String> avatarPreviews;
         private int avatarCount;
         private boolean hasAvatars;

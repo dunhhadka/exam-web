@@ -47,4 +47,9 @@ public interface ExamAttemptController {
     @PostMapping("/{attemptId}/fullscreen-exit")
     Response<Void> incrementFullscreenExitCount(@PathVariable Long attemptId);
 
+    @PostMapping("/session/{sessionId}/send-result-notifications")
+    Response<Void> sendResultNotifications(@PathVariable Long sessionId);
+    
+    @PostMapping("/{attemptId}/send-result-notification")
+    Response<Void> sendResultNotificationForAttempt(@PathVariable Long attemptId);
 }

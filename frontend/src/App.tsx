@@ -27,7 +27,7 @@ import PrepareCheckCandidateSystem from './pages/take-exams/PrepareCheckCandidat
 import ProctorTrackingSystem from './pages/take-exams/ProctorTrackingSystem'
 import TakeExamV2 from './pages/take-exams/TakeExamV2'
 import StorePage from './pages/Store/StorePage'
-import MyCoursePage from './pages/my-course/MyCoursePage'
+import MyCoursePage from './pages/notification/Notification'
 import LandingPage from './web-public/LandingPage'
 import UserInfo from './pages/auth/UserInfo'
 
@@ -78,7 +78,7 @@ function App() {
                     element={<ExamSessionListPage />}
                   />
                   <Route path="/store" element={<StorePage />} />
-                  <Route path="/my-course" element={<MyCoursePage />} />
+                  <Route path="/notifications" element={<MyCoursePage />} />
                   <Route
                     path="/questions/create"
                     element={<QuestionCreatePage />}

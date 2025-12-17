@@ -10,6 +10,8 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 @Data
 @Builder
@@ -37,15 +39,9 @@ public class ExamSessionRequest {
     private ExamSessionSetting settings;
 
     private ExamSession.AccessMode accessMode;
+
+    private List<UUID> studentIds;
     
-    // PRIVATE mode: List student IDs được assign vào session
-    // (Lấy từ preview API sau khi import Excel)
-    private List<java.util.UUID> studentIds;
-    
-    @Deprecated // Backward compatibility
-    private String password;
-    @Deprecated
-    private List<String> whitelistEmails;
-    @Deprecated
-    private List<ExamSessionWhitelistEntryRequest> whitelistEntries;
+    // Map userId -> List of base64 avatar images (only for new/changed avatars)
+    private Map<UUID, List<String>> studentAvatars;
 }

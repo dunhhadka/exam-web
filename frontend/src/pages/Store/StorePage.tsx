@@ -372,7 +372,7 @@ const ResultPage = () => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <FileFilled style={{ fontSize: '16px', color: '#faad14' }} />
               <span style={{ fontSize: '14px', color: '#262626' }}>
-                <strong>Ảnh whitelist:</strong> <span style={{ color: '#666' }}>Ảnh xác thực khuôn mặt</span>
+                <strong>Ảnh:</strong> <span style={{ color: '#666' }}>Ảnh xác thực khuôn mặt</span>
               </span>
             </div>
           </div>
