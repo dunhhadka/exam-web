@@ -20,6 +20,10 @@ export interface SessionInfoResponse {
     requireFullscreen?: boolean
     [key: string]: any
   }
+  startTime: string
+  endTime: string
+  duration: number
+  code: string
 }
 
 export interface JoinSessionMetaResponse {

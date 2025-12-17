@@ -12,8 +12,10 @@ interface Props {
   examsession: ExamSession
 }
 
+export const baseInviteLink = 'http://localhost:3000/exam-checkin?code='
+
 const ExamSessionViewLink = ({ examsession }: Props) => {
-  const baseInviteLink = 'http://localhost:3000/exam-checkin?code='
+
   const fullLink = useMemo(
     () => baseInviteLink + examsession.code,
     [examsession.code]

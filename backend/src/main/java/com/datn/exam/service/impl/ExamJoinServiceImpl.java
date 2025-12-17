@@ -57,6 +57,10 @@ public class ExamJoinServiceImpl implements ExamJoinService {
                 .isPrivate(session.getAccessMode() == ExamSession.AccessMode.PRIVATE)
                 .examName(session.getExam() != null ? session.getExam().getName() : null)
                 .settings(session.getSettings())
+                .startTime(session.getStartTime())
+                .endTime(session.getEndTime())
+                .duration(session.getDurationMinutes())
+                .code(session.getCode())
                 .build();
     }
 
@@ -97,7 +101,8 @@ public class ExamJoinServiceImpl implements ExamJoinService {
         }
 
         if (examSession.getEndTime() != null) {
-            long lateJoinSeconds = (examSession.getLateJoinMinutes() != null ? examSession.getLateJoinMinutes() : 0) * 60L;
+            long lateJoinSeconds = (examSession.getLateJoinMinutes() != null ? examSession.getLateJoinMinutes() : 0)
+                    * 60L;
             LocalDateTime finalDeadline = examSession.getEndTime().plusSeconds(lateJoinSeconds);
             if (now.isAfter(finalDeadline)) {
                 throw new ResponseException(BadRequestError.EXAM_SESSION_ENDED);
@@ -183,7 +188,8 @@ public class ExamJoinServiceImpl implements ExamJoinService {
         }
 
         if (examSession.getEndTime() != null) {
-            long lateJoinSeconds = (examSession.getLateJoinMinutes() != null ? examSession.getLateJoinMinutes() : 0) * 60L;
+            long lateJoinSeconds = (examSession.getLateJoinMinutes() != null ? examSession.getLateJoinMinutes() : 0)
+                    * 60L;
             LocalDateTime finalDeadline = examSession.getEndTime().plusSeconds(lateJoinSeconds);
             if (now.isAfter(finalDeadline)) {
                 throw new ResponseException(BadRequestError.EXAM_SESSION_ENDED);
@@ -204,8 +210,7 @@ public class ExamJoinServiceImpl implements ExamJoinService {
             if (!isAssigned) {
                 throw new ResponseException(BadRequestError.STUDENT_NOT_ASSIGNED_TO_SESSION);
             }
-        }
-        else {
+        } else {
             boolean existEmailTeacher = userRepository.existsTeacherByEmail(email);
             if (existEmailTeacher) {
                 throw new ResponseException(BadRequestError.TEACHER_CANNOT_JOIN);
@@ -249,7 +254,6 @@ public class ExamJoinServiceImpl implements ExamJoinService {
                 .expiresAt(expiresAt)
                 .build();
     }
-
 
     private JoinSessionMetaResponse buildJoinMeta(ExamSession session, String email) {
         if (Boolean.TRUE.equals(session.getDeleted())) {

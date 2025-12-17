@@ -108,7 +108,7 @@ export interface ExamSessionRequest {
   settings?: ExamSessionSetting
 
   studentIds?: string[]
-  studentAvatars?: Record<string, string[]>  // userId -> base64 avatar images
+  studentAvatars?: Record<string, string[]> // userId -> base64 avatar images
   whitelistEmails?: string[]
   whitelistEntries?: ExamSessionWhitelistEntry[]
 }

@@ -16,100 +16,102 @@ import java.util.UUID;
 
 @Repository
 public interface UserRepository extends JpaRepository<User, UUID> {
-    @Query("SELECT u FROM User u WHERE u.deleted = FALSE AND u.id = :id")
-    @NonNull
-    Optional<User> findActiveById(@NonNull UUID id);
+  @Query("SELECT u FROM User u WHERE u.deleted = FALSE AND u.id = :id")
+  @NonNull
+  Optional<User> findActiveById(@NonNull UUID id);
 
-    @Query("SELECT u FROM User u WHERE u.deleted = FALSE AND u.email = :credential")
-    Optional<User> findByCredential(String credential);
+  @Query("SELECT u FROM User u WHERE u.deleted = FALSE AND u.email = :credential")
+  Optional<User> findByCredential(String credential);
 
-    @Query("SELECT u FROM User u WHERE u.deleted = FALSE AND u.accountType = 'SYSTEM' AND u.email = :email")
-    Optional<User> findSystemByEmail(String email);
+  @Query("SELECT u FROM User u WHERE u.deleted = FALSE AND u.accountType = 'SYSTEM' AND u.email = :email")
+  Optional<User> findSystemByEmail(String email);
 
-    @Query("""
-             SELECT CASE WHEN COUNT(u) > 0 THEN TRUE ELSE FALSE END
-                FROM User u
-                JOIN u.userRoles ur
-                JOIN ur.role r
-                WHERE u.deleted = FALSE
-                  AND r.deleted = FALSE
-                  AND u.email = :email
-                  AND r.code = 'TEACHER'
-            """)
-    boolean existsTeacherByEmail(String email);
+  @Query("""
+       SELECT CASE WHEN COUNT(u) > 0 THEN TRUE ELSE FALSE END
+          FROM User u
+          JOIN u.userRoles ur
+          JOIN ur.role r
+          WHERE u.deleted = FALSE
+            AND r.deleted = FALSE
+            AND u.email = :email
+            AND r.code = 'TEACHER'
+      """)
+  boolean existsTeacherByEmail(String email);
 
-    @Query("""
-             SELECT CASE WHEN COUNT(u) > 0 THEN TRUE ELSE FALSE END
-                FROM User u
-                JOIN u.userRoles ur
-                JOIN ur.role r
-                WHERE u.deleted = FALSE
-                  AND r.deleted = FALSE
-                  AND u.email = :email
-                  AND r.code = 'STUDENT'
-            """)
-    boolean existsStudentByEmail(@Param("email") String email);
+  List<User> findByEmail(String email);
 
-    @Query("""
-             SELECT u FROM User u
-                JOIN u.userRoles ur
-                JOIN ur.role r
-                WHERE u.deleted = FALSE
-                  AND r.deleted = FALSE
-                  AND u.email = :email
-                  AND r.code = 'STUDENT'
-            """)
-    Optional<User> findStudentByEmail(@Param("email") String email);
+  @Query("""
+       SELECT CASE WHEN COUNT(u) > 0 THEN TRUE ELSE FALSE END
+          FROM User u
+          JOIN u.userRoles ur
+          JOIN ur.role r
+          WHERE u.deleted = FALSE
+            AND r.deleted = FALSE
+            AND u.email = :email
+            AND r.code = 'STUDENT'
+      """)
+  boolean existsStudentByEmail(@Param("email") String email);
 
-    @Query("""
-             SELECT u FROM User u
-                JOIN u.userRoles ur
-                JOIN ur.role r
-                WHERE u.deleted = FALSE
-                  AND r.deleted = FALSE
-                  AND LOWER(u.email) IN :emails
-                  AND r.code = 'STUDENT'
-            """)
-    List<User> findStudentsByEmails(@Param("emails") List<String> emails);
+  @Query("""
+       SELECT u FROM User u
+          JOIN u.userRoles ur
+          JOIN ur.role r
+          WHERE u.deleted = FALSE
+            AND r.deleted = FALSE
+            AND u.email = :email
+            AND r.code = 'STUDENT'
+      """)
+  Optional<User> findStudentByEmail(@Param("email") String email);
 
-    @Query("""
-             SELECT u FROM User u
-                WHERE u.deleted = FALSE
-                  AND LOWER(u.email) IN :emails
-            """)
-    List<User> findByEmails(@Param("emails") List<String> emails);
+  @Query("""
+       SELECT u FROM User u
+          JOIN u.userRoles ur
+          JOIN ur.role r
+          WHERE u.deleted = FALSE
+            AND r.deleted = FALSE
+            AND LOWER(u.email) IN :emails
+            AND r.code = 'STUDENT'
+      """)
+  List<User> findStudentsByEmails(@Param("emails") List<String> emails);
 
-    @Query("""
-             SELECT u FROM User u
-                JOIN u.userRoles ur
-                JOIN ur.role r
-                WHERE u.deleted = FALSE
-                  AND r.deleted = FALSE
-                  AND u.id IN :ids
-                  AND r.code = 'STUDENT'
-            """)
-    List<User> findStudentsByIds(@Param("ids") List<UUID> ids);
+  @Query("""
+       SELECT u FROM User u
+          WHERE u.deleted = FALSE
+            AND LOWER(u.email) IN :emails
+      """)
+  List<User> findByEmails(@Param("emails") List<String> emails);
 
-    @Query("""
-             SELECT u FROM User u
-                JOIN u.userRoles ur
-                JOIN ur.role r
-                WHERE u.deleted = FALSE
-                  AND r.deleted = FALSE
-                  AND r.code = 'STUDENT'
-            """)
-    Page<User> findAllStudents(Pageable pageable);
+  @Query("""
+       SELECT u FROM User u
+          JOIN u.userRoles ur
+          JOIN ur.role r
+          WHERE u.deleted = FALSE
+            AND r.deleted = FALSE
+            AND u.id IN :ids
+            AND r.code = 'STUDENT'
+      """)
+  List<User> findStudentsByIds(@Param("ids") List<UUID> ids);
 
-    @Query("""
-             SELECT u FROM User u
-                JOIN u.userRoles ur
-                JOIN ur.role r
-                WHERE u.deleted = FALSE
-                  AND r.deleted = FALSE
-                  AND r.code = 'STUDENT'
-                  AND (LOWER(u.email) LIKE LOWER(CONCAT('%', :keyword, '%'))
-                       OR LOWER(u.information.firstName) LIKE LOWER(CONCAT('%', :keyword, '%'))
-                       OR LOWER(u.information.lastName) LIKE LOWER(CONCAT('%', :keyword, '%')))
-            """)
-    Page<User> searchStudents(@Param("keyword") String keyword, Pageable pageable);
+  @Query("""
+       SELECT u FROM User u
+          JOIN u.userRoles ur
+          JOIN ur.role r
+          WHERE u.deleted = FALSE
+            AND r.deleted = FALSE
+            AND r.code = 'STUDENT'
+      """)
+  Page<User> findAllStudents(Pageable pageable);
+
+  @Query("""
+       SELECT u FROM User u
+          JOIN u.userRoles ur
+          JOIN ur.role r
+          WHERE u.deleted = FALSE
+            AND r.deleted = FALSE
+            AND r.code = 'STUDENT'
+            AND (LOWER(u.email) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                 OR LOWER(u.information.firstName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                 OR LOWER(u.information.lastName) LIKE LOWER(CONCAT('%', :keyword, '%')))
+      """)
+  Page<User> searchStudents(@Param("keyword") String keyword, Pageable pageable);
 }
