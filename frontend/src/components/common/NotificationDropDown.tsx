@@ -26,6 +26,7 @@ import {
   useMarkAllReadMutation,
   useMarkReadMutation,
 } from "../../services/api/notificationApi";
+import { getDetailedTimeAgo } from "../../utils/times";
 
 dayjs.extend(relativeTime);
 dayjs.locale("vi");
@@ -141,7 +142,7 @@ const NotificationDropdown = () => {
   // Render một item thông báo
   const renderNotificationItem = (item: Notification) => {
     const style = getNotificationStyle(item.type);
-    const timeAgo = dayjs(item.createdAt).fromNow();
+    const timeAgo = getDetailedTimeAgo(item.createdAt);
 
     return (
       <NotificationItem
@@ -311,7 +312,7 @@ const LoadingContainer = styled.div`
   align-items: center;
   justify-content: center;
   height: 100%;
-  
+
   .spinner {
     animation: spin 1s linear infinite;
     fill: none;

@@ -6,6 +6,7 @@ import com.datn.exam.repository.ExamSessionRepository;
 import com.datn.exam.repository.SessionStudentRepository;
 import com.datn.exam.repository.UserRepository;
 import com.datn.exam.repository.data.NotificationRepository;
+import com.datn.exam.repository.projection.SessionUserProjection;
 import com.datn.exam.support.util.JsonUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +23,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Slf4j
@@ -53,7 +55,7 @@ public class ScheduleNotificationService {
         var now = LocalDateTime.now();
         var reminderWindow = now.plusMinutes(REMINDER_WINDOW_SIZE);
 
-        var upComingExamSessions = examSessionRepository.findUpComingReminder(reminderWindow);
+        var upComingExamSessions = examSessionRepository.findUpComingReminder(now, reminderWindow);
         if (upComingExamSessions.isEmpty()) {
             log.info("UpComing ExamSessions is empty");
             return;
@@ -61,9 +63,21 @@ public class ScheduleNotificationService {
 
         log.info("Found {} upcoming sessions", upComingExamSessions.size());
 
+        var examSessionIds = upComingExamSessions.stream()
+                .map(ExamSession::getId)
+                .distinct()
+                .toList();
+
+        var userIdsExamSessions = sessionStudentRepository.findUserIdsBySessionIds(examSessionIds)
+                .stream()
+                .collect(Collectors.groupingBy(
+                        SessionUserProjection::getExamSessionId,
+                        Collectors.mapping(SessionUserProjection::getUserId, Collectors.toList())
+                ));
+
         for (var examSession : upComingExamSessions) {
             try {
-                sendReminderForExamSession(examSession);
+                sendReminderForExamSession(examSession, userIdsExamSessions);
             } catch (Exception e) {
                 log.error("Failed to send reminder for session {}: {}",
                         examSession.getId(),
@@ -73,10 +87,14 @@ public class ScheduleNotificationService {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void sendReminderForExamSession(ExamSession examSession) {
+    public void sendReminderForExamSession(
+            ExamSession examSession,
+            Map<Long, List<UUID>> userIdsExamSessions) {
+
         final var examSessionId = examSession.getId();
 
-        var userIds = findUserNeedSend(examSession);
+        // TODO: N + 1 query
+        var userIds = findUserNeedSend(examSession, userIdsExamSessions);
         if (userIds.isEmpty()) {
             log.info("Users in the examSession {} empty", examSessionId);
         }
@@ -95,19 +113,29 @@ public class ScheduleNotificationService {
 
             var notification = buildNotification(examSession, userId);
             notifications.add(notification);
-
-            this.markToCache(examSession, userId);
         }
 
         if (!notifications.isEmpty()) {
             notificationRepository.saveAll(notifications);
+
+            for (var userId : userIds) {
+                try {
+                    this.markToCache(examSession, userId);
+                } catch (Exception e) {
+                    log.warn("Failed to update cache for user {}: {}",
+                            userId,
+                            examSession.getId());
+                }
+            }
         }
     }
 
-    private List<String> findUserNeedSend(ExamSession examSession) {
-        var userIds = sessionStudentRepository.findUserIdsBySessionId(examSession.getId()).stream()
+    private List<String> findUserNeedSend(ExamSession examSession, Map<Long, List<UUID>> userIdsExamSessions) {
+        var userIds = userIdsExamSessions.getOrDefault(examSession.getId(), List.of())
+                .stream()
                 .map(UUID::toString)
                 .toList();
+
         var createdUsers = userRepository.findByEmail(examSession.getCreatedBy());
 
         return Stream.concat(
@@ -146,11 +174,18 @@ public class ScheduleNotificationService {
     }
 
     private Notification buildNotification(ExamSession examSession, String userId) {
-        Duration timeUntilStart = Duration.between(LocalDateTime.now(), examSession.getStartTime());
+        LocalDateTime now = LocalDateTime.now();
+        Duration timeUntilStart = Duration.between(now, examSession.getStartTime());
         long minutesUntilStart = timeUntilStart.toMinutes();
 
+        if (minutesUntilStart < 0) {
+            minutesUntilStart = 0;
+        }
+
         return Notification.builder()
-                .content("Bài thi: %s sẽ bắt đầu trong %s phút".formatted(examSession.getName(), minutesUntilStart))
+                .content("Bài thi: %s sẽ bắt đầu trong %s phút tới".formatted(
+                        examSession.getName(),
+                        minutesUntilStart))
                 .type(Notification.Type.EXAM_REMINDER)
                 .receiveId(userId)
                 .isRead(false)
@@ -188,7 +223,7 @@ public class ScheduleNotificationService {
             return Optional.of(true);
         } catch (JsonProcessingException e) {
             log.error("Error during get value from redis with cache key {}", redisKey);
-            return Optional.of(true);
+            return Optional.empty();
         }
     }
 

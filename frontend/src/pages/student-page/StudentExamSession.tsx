@@ -130,49 +130,6 @@ const StudentExamSession = () => {
             />
           </FilterItem>
 
-          {/* <FilterItem style={{ flex: 1 }}>
-            <FilterLabel>Trạng thái</FilterLabel>
-            <Select
-              placeholder="Chọn trạng thái"
-              value={statusFilter}
-              onChange={(value) => setStatusFilter(value)}
-              size="large"
-              style={{ width: "100%" }}
-              disabled={isLoading || isFetching}
-            >
-              <Option value="ALL">
-                <Space>
-                  <FilterOutlined />
-                  Tất cả
-                </Space>
-              </Option>
-              <Option value={SessionStudentStatus.IN_PROGRESS}>
-                <Space>
-                  <PlayCircleOutlined style={{ color: "#1890ff" }} />
-                  Đang diễn ra
-                </Space>
-              </Option>
-              <Option value={SessionStudentStatus.NOT_STARTED}>
-                <Space>
-                  <ClockCircleOutlined style={{ color: "#666" }} />
-                  Chưa bắt đầu
-                </Space>
-              </Option>
-              <Option value={SessionStudentStatus.COMPLETED}>
-                <Space>
-                  <CheckCircleOutlined style={{ color: "#52c41a" }} />
-                  Đã hoàn thành
-                </Space>
-              </Option>
-              <Option value={SessionStudentStatus.EXPIRED}>
-                <Space>
-                  <CloseCircleOutlined style={{ color: "#ff4d4f" }} />
-                  Đã hết hạn
-                </Space>
-              </Option>
-            </Select>
-          </FilterItem> */}
-
           <FilterItem style={{ flex: '0 0 auto', minWidth: 'auto' }}>
             <Space>
               <Button
@@ -195,41 +152,6 @@ const StudentExamSession = () => {
           </FilterItem>
         </FilterRow>
       </FilterSection>
-
-      {/* Results Info */}
-      {!isLoading && examSessions.length > 0 && (
-        <ResultsInfo>
-          <Text>
-            Hiển thị <Text strong>{examSessions.length}</Text> bài kiểm tra
-          </Text>
-          <Space>
-            <Tag color="processing">
-              Đang diễn ra:{' '}
-              {
-                examSessions.filter(
-                  (e) => e.status === SessionStudentStatus.IN_PROGRESS
-                ).length
-              }
-            </Tag>
-            <Tag color="default">
-              Chưa bắt đầu:{' '}
-              {
-                examSessions.filter(
-                  (e) => e.status === SessionStudentStatus.NOT_STARTED
-                ).length
-              }
-            </Tag>
-            <Tag color="success">
-              Đã hoàn thành:{' '}
-              {
-                examSessions.filter(
-                  (e) => e.status === SessionStudentStatus.COMPLETED
-                ).length
-              }
-            </Tag>
-          </Space>
-        </ResultsInfo>
-      )}
 
       {/* Loading State */}
       {isLoading ? (

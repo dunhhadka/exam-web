@@ -15,6 +15,7 @@ import java.util.Optional;
 @Repository
 public interface ExamSessionRepository extends JpaRepository<ExamSession, Long> {
     boolean existsByCode(String code);
+
     boolean existsByJoinToken(String token);
 
     @Query("SELECT es FROM ExamSession es WHERE es.deleted = FALSE AND es.id in :ids")
@@ -39,8 +40,9 @@ public interface ExamSessionRepository extends JpaRepository<ExamSession, Long> 
     @Query("""
                 SELECT es
                 FROM ExamSession es
-                WHERE es.deleted IS NULL OR es.deleted = FALSE
+                WHERE (es.deleted IS NULL OR es.deleted = FALSE)
+                AND es.startTime > :now
                 AND es.startTime <= :reminder
             """)
-    List<ExamSession> findUpComingReminder(LocalDateTime reminder);
+    List<ExamSession> findUpComingReminder(LocalDateTime now, LocalDateTime reminder);
 }

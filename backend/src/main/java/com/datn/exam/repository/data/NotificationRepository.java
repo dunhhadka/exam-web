@@ -16,7 +16,7 @@ public interface NotificationRepository extends JpaRepository<Notification, Inte
     @Query("SELECT n FROM Notification n WHERE n.receiveId = :userId AND n.isRead IS FALSE AND n.isDeleted IS FALSE")
     List<Notification> findByReceiveIdAndIsReadFalseAndNotDeleted(String userId);
 
-    @Query("SELECT n FROM Notification n WHERE n.receiveId = :userId AND n.isDeleted IS FALSE")
+    @Query("SELECT n FROM Notification n WHERE n.receiveId = :userId AND n.isDeleted IS FALSE ORDER BY n.id DESC")
     List<Notification> findAllAndNotDeleted(String userId);
 
     @Query("""

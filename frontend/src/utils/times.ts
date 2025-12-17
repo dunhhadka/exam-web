@@ -7,6 +7,9 @@ import isBetween from 'dayjs/plugin/isBetween'
 dayjs.extend(customParseFormat)
 dayjs.extend(isBetween)
 
+const FULL_FORMAT = 'DD-MM-YYYY HH:mm:ss'
+const DEFAULT_FORMAT = "DD-MM-YYYY HH:mm";
+
 export function formatInstant(instant: string): string {
   // Parse string "dd-MM-yyyy HH:mm" thành Dayjs (local time)
   const date = dayjs(instant, 'DD-MM-YYYY HH:mm')
@@ -95,4 +98,33 @@ export function parseCustomDateTime(dateStr: string): number {
 
 export const formatDay = (date: Date | Dayjs): string => {
   return dayjs(date).format('DD-MM-YYYY')
+}
+
+export const getDetailedTimeAgo = (date: string | Date | Dayjs): string => {
+  const now = dayjs()
+  const target = dayjs(date, DEFAULT_FORMAT)
+
+  if (!target.isValid()) {
+    return 'Thời gian không xác định'
+  }
+
+  const diffSeconds = now.diff(target, 'second')
+  const diffMinutes = now.diff(target, 'minute')
+  const diffHours = now.diff(target, 'hour')
+  const diffDays = now.diff(target, 'day')
+
+  if (diffSeconds < 60) {
+    return 'Vừa xong'
+  } else if (diffMinutes < 60) {
+    return `${diffMinutes} phút trước`
+  } else if (diffHours < 24) {
+    return `${diffHours} giờ trước`
+  } else if (diffDays < 7) {
+    return `${diffDays} ngày trước`
+  } else if (diffDays < 30) {
+    const weeks = Math.floor(diffDays / 7)
+    return `${weeks} tuần trước`
+  } else {
+    return target.format(FULL_FORMAT)
+  }
 }
