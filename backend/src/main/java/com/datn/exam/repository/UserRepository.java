@@ -90,4 +90,6 @@ public interface UserRepository extends JpaRepository<User, UUID> {
                   AND r.code = 'STUDENT'
             """)
     List<User> findAllStudents();
+
+    List<User> findByEmail(String email);
 }

@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -35,4 +36,11 @@ public interface ExamSessionRepository extends JpaRepository<ExamSession, Long> 
             """)
     List<ExamSession> findByExamIdsWithExam(@Param("examIds") Collection<Long> examIds);
 
+    @Query("""
+                SELECT es
+                FROM ExamSession es
+                WHERE es.deleted IS NULL OR es.deleted = FALSE
+                AND es.startTime <= :reminder
+            """)
+    List<ExamSession> findUpComingReminder(LocalDateTime reminder);
 }
