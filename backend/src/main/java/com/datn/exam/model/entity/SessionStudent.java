@@ -34,9 +34,4 @@ public class SessionStudent extends AuditableEntity {
     @Column(name = "avatar_urls", columnDefinition = "TEXT")
     @Builder.Default
     private @Size(max = 5) List<String> avatarUrls = new ArrayList<>();
-
-    @NotNull
-    @Enumerated(value = EnumType.STRING)
-    @Builder.Default
-    private SessionStudentStatus status = SessionStudentStatus.NOT_STARTED;
 }

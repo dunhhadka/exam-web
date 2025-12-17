@@ -1,6 +1,5 @@
 package com.datn.exam.repository.data.dto;
 
-import com.datn.exam.support.enums.SessionStudentStatus;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -22,6 +21,4 @@ public class ExamSessionStudentDto {
     private String examName;
 
     private Integer duration;
-
-    private SessionStudentStatus status;
 }

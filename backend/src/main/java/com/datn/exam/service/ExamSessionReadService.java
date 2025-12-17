@@ -82,7 +82,6 @@ public class ExamSessionReadService {
                 .endTime(result.getEndTime())
                 .examName(result.getExamName())
                 .duration(result.getDuration())
-                .status(result.getStatus())
                 .examSessionId(result.getExamSessionId())
                 .description("Mô tả bài kiểm tra")
                 .build();
