@@ -7,6 +7,9 @@ import isBetween from 'dayjs/plugin/isBetween'
 dayjs.extend(customParseFormat)
 dayjs.extend(isBetween)
 
+const FULL_FORMAT = 'DD-MM-YYYY HH:mm:ss'
+const DEFAULT_FORMAT = "DD-MM-YYYY HH:mm";
+
 export function formatInstant(instant: string): string {
   // Parse string "dd-MM-yyyy HH:mm" thành Dayjs (local time)
   const date = dayjs(instant, 'DD-MM-YYYY HH:mm')
@@ -62,4 +65,66 @@ export function isNowBetween(startTime: string, endTime: string): boolean {
   }
 
   return now.isBetween(start, end, null, '[]') // [] bao gồm cả biên
+}
+
+export const formatStartOfDay = (date: Date | Dayjs): string => {
+  return dayjs(date).startOf('day').format('DD-MM-YYYY HH:mm:ss')
+}
+
+/**
+ * Chuyển Date thành string với format DD-MM-YYYY 23:59:59
+ */
+export const formatEndOfDay = (date: Date | Dayjs): string => {
+  return dayjs(date).endOf('day').format('DD-MM-YYYY HH:mm:ss')
+}
+
+export const getRemainingTime = (targetTime: string): number => {
+  const target = new Date(targetTime).getTime()
+  const now = Date.now()
+  return target - now
+}
+
+export function parseCustomDateTime(dateStr: string): number {
+  const date = dayjs(dateStr, 'DD-MM-YYYY HH:mm')
+
+  if (!date.isValid()) {
+    console.error('Invalid date format:', dateStr)
+    return 0
+  }
+
+  return date.valueOf()
+}
+
+
+export const formatDay = (date: Date | Dayjs): string => {
+  return dayjs(date).format('DD-MM-YYYY')
+}
+
+export const getDetailedTimeAgo = (date: string | Date | Dayjs): string => {
+  const now = dayjs()
+  const target = dayjs(date, DEFAULT_FORMAT)
+
+  if (!target.isValid()) {
+    return 'Thời gian không xác định'
+  }
+
+  const diffSeconds = now.diff(target, 'second')
+  const diffMinutes = now.diff(target, 'minute')
+  const diffHours = now.diff(target, 'hour')
+  const diffDays = now.diff(target, 'day')
+
+  if (diffSeconds < 60) {
+    return 'Vừa xong'
+  } else if (diffMinutes < 60) {
+    return `${diffMinutes} phút trước`
+  } else if (diffHours < 24) {
+    return `${diffHours} giờ trước`
+  } else if (diffDays < 7) {
+    return `${diffDays} ngày trước`
+  } else if (diffDays < 30) {
+    const weeks = Math.floor(diffDays / 7)
+    return `${weeks} tuần trước`
+  } else {
+    return target.format(FULL_FORMAT)
+  }
 }

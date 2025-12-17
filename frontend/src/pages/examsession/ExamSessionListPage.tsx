@@ -322,7 +322,7 @@ const ExamSessionListPage = () => {
     <div style={{ padding: 20 }}>
       <CustomTable<ExamSession>
         columns={columns}
-        tableTitle="Bài kiểm tra"
+        tableTitle="Danh sách phiên thi"
         filterActive
         data={data ?? []}
         rowKey="id"

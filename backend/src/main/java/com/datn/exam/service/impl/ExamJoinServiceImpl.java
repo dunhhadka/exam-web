@@ -59,7 +59,11 @@ public class ExamJoinServiceImpl implements ExamJoinService {
                 .requiresPassword(session.getAccessMode() == ExamSession.AccessMode.PASSWORD)
                 .requiresWhitelist(session.getAccessMode() == ExamSession.AccessMode.WHITELIST)
                 .examName(session.getExam() != null ? session.getExam().getName() : null)
-                .settings(session.getSettings()) // Trả về settings để frontend apply anti-cheat
+                .settings(session.getSettings())
+                .startTime(session.getStartTime())
+                .endTime(session.getEndTime())
+                .duration(session.getDurationMinutes())
+                .code(session.getCode())
                 .build();
     }
 
@@ -83,7 +87,7 @@ public class ExamJoinServiceImpl implements ExamJoinService {
             if (StringUtils.isBlank(request.getPassword())) {
                 throw new ResponseException(BadRequestError.PASSWORD_REQUIRED);
             }
-            
+
             if (!passwordEncoder.matches(request.getPassword(), session.getAccessPassword())) {
                 throw new ResponseException(BadRequestError.INVALID_PASSWORD);
             }
