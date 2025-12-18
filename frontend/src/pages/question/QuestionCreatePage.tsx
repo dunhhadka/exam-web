@@ -187,7 +187,7 @@ export const QuestionCreatePage = () => {
     // Logic save draft
   }
 
-  const handlePublish = () => {
+  const handlePublish = async () => {
     // Validate before submit
     const isValid = validateAll()
 
@@ -199,8 +199,12 @@ export const QuestionCreatePage = () => {
       return
     }
 
-    console.log(requestInput)
-    submitQuestion(type, requestInput)
+    console.log(requestInput);
+    try {
+      await submitQuestion(type, requestInput);
+    } catch (error: any) {
+      toast.error(error?.message || "Đã có lỗi xảy ra khi xuất bản câu hỏi");
+    }
   }
 
   const handleEditQuestion = () => {

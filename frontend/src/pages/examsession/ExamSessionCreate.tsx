@@ -37,17 +37,17 @@ import {
   IdentityMode,
   ReleasePolicy,
 } from '../../types/examsession'
-import { usePreviewWhitelistMutation } from '../../services/api/whitelistApi'
-import { WhitelistPreviewResponse } from '../../types/whitelist'
+import { usePreviewSessionStudentsMutation } from '../../services/api/sessionStudentApi'
+import { SessionStudentPreviewResponse } from '../../types/sessionStudent'
 import { RequiredStar } from '../question/QuestionCreatePage'
+import { StudentListModal } from '../../components/examsession/StudentListModal'
 import { formatDateTimeToRequest } from '../../utils/times'
 
 const { Panel } = Collapse
 
 const AccessMode = {
   PUBLIC: 'PUBLIC',
-  WHITELIST: 'WHITELIST',
-  PASSWORD: 'PASSWORD',
+  PRIVATE: 'PRIVATE',
 } as const satisfies Record<string, ExamSessionAccessMode>
 
 interface AntiCheatSettings {
@@ -80,8 +80,8 @@ type ExamSessionFormData = Partial<Omit<ExamSessionRequest, 'startTime' | 'endTi
   startTime?: Dayjs | string | null
   endTime?: Dayjs | string | null
   accessMode?: ExamSessionAccessMode
-  password?: string
   antiCheatSettings?: AntiCheatSettings
+  studentIds?: string[]
   whitelistEmails?: string[]
 }
 
@@ -89,13 +89,15 @@ type WhitelistEntryStatus = 'VALID' | 'INVALID' | 'DUPLICATE'
 
 interface WhitelistEntry {
   id: string
+  userId?: string
   email: string
+  fullName?: string
   status: WhitelistEntryStatus
   reason?: string
   row?: number | null
   avatarCount?: number
   avatarPreviews?: string[]
-  source?: 'IMPORT_VALID' | 'IMPORT_INVALID' | 'IMPORT_DUPLICATE' | 'MANUAL'
+  source?: 'IMPORT_VALID' | 'IMPORT_INVALID' | 'IMPORT_DUPLICATE' | 'MANUAL' | 'SELECTED'
   manualFiles?: (File | null)[]
 }
 
@@ -105,11 +107,9 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 const createEntryId = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`
 
-// Helper function để parse date an toàn từ backend
 const parseDateSafely = (dateValue: string | Dayjs | null | undefined): Dayjs | null => {
   if (!dateValue) return null
   
-  // Nếu đã là Dayjs object và valid (kiểm tra bằng cách gọi isValid)
   if (typeof dateValue === 'object' && 'isValid' in dateValue && typeof dateValue.isValid === 'function') {
     const dayjsObj = dateValue as Dayjs
     if (dayjsObj.isValid()) {
@@ -117,21 +117,17 @@ const parseDateSafely = (dateValue: string | Dayjs | null | undefined): Dayjs | 
     }
   }
   
-  // Nếu là string, thử parse với nhiều format
   if (typeof dateValue === 'string') {
-    // Thử parse với ISO format trước (thường backend trả về)
     const isoDate = dayjs(dateValue)
     if (isoDate.isValid()) {
       return isoDate
     }
     
-    // Thử parse với format DD-MM-YYYY HH:mm
     const customDate = dayjs(dateValue, 'DD-MM-YYYY HH:mm', true)
     if (customDate.isValid()) {
       return customDate
     }
     
-    // Thử parse tự động
     const autoDate = dayjs(dateValue)
     if (autoDate.isValid()) {
       return autoDate
@@ -142,27 +138,35 @@ const parseDateSafely = (dateValue: string | Dayjs | null | undefined): Dayjs | 
 }
 
 const mapPreviewToEntries = (
-  preview: WhitelistPreviewResponse,
+  preview: SessionStudentPreviewResponse,
 ): WhitelistEntry[] => {
-  const fromValid = preview.validEmails?.map((item) => ({
+  const fromValid = preview.validStudents?.map((item) => ({
     id: createEntryId(),
+    userId: item.userId,
     email: item.email ?? '',
+    fullName: item.fullName,
     status: 'VALID' as WhitelistEntryStatus,
     reason: item.reason ?? '',
     row: item.row,
-    avatarPreviews: item.avatarPreviews ?? [],
+    avatarPreviews: item.avatarPreviews?.map(img => 
+      img.length > 100 ? `${img.substring(0, 100)}...` : img
+    ) ?? [],
     avatarCount: item.avatarPreviews?.length ?? item.avatarCount ?? 0,
     manualFiles: (item.avatarPreviews ?? []).map(() => null),
     source: 'IMPORT_VALID' as const,
   })) ?? []
 
-  const fromInvalid = preview.invalidEmails?.map((item) => ({
+  const fromInvalid = preview.invalidStudents?.map((item) => ({
     id: createEntryId(),
+    userId: item.userId,
     email: item.email ?? '',
+    fullName: item.fullName,
     status: 'INVALID' as WhitelistEntryStatus,
     reason: item.reason ?? 'Email không hợp lệ',
     row: item.row,
-    avatarPreviews: item.avatarPreviews ?? [],
+    avatarPreviews: item.avatarPreviews?.map(img => 
+      img.length > 100 ? `${img.substring(0, 100)}...` : img
+    ) ?? [],
     avatarCount: item.avatarPreviews?.length ?? item.avatarCount ?? 0,
     manualFiles: (item.avatarPreviews ?? []).map(() => null),
     source: 'IMPORT_INVALID' as const,
@@ -170,17 +174,37 @@ const mapPreviewToEntries = (
 
   const fromDuplicates = preview.duplicates?.map((item) => ({
     id: createEntryId(),
+    userId: item.userId,
     email: item.email ?? '',
+    fullName: item.fullName,
     status: 'DUPLICATE' as WhitelistEntryStatus,
-    reason: item.reason ?? 'Email bị trùng',
+    reason: item.reason ?? 'Sinh viên đã tồn tại trong phiên thi',
     row: item.row,
-    avatarPreviews: item.avatarPreviews ?? [],
+    avatarPreviews: item.avatarPreviews?.map(img => 
+      img.length > 100 ? `${img.substring(0, 100)}...` : img
+    ) ?? [],
     avatarCount: item.avatarPreviews?.length ?? item.avatarCount ?? 0,
     manualFiles: (item.avatarPreviews ?? []).map(() => null),
     source: 'IMPORT_DUPLICATE' as const,
   })) ?? []
 
-  return [...fromValid, ...fromInvalid, ...fromDuplicates]
+  const fromMissing = preview.missingStudents?.map((item) => ({
+    id: createEntryId(),
+    userId: item.userId,
+    email: item.email ?? '',
+    fullName: item.fullName,
+    status: 'INVALID' as WhitelistEntryStatus,
+    reason: item.reason ?? 'Không tìm thấy tài khoản trong hệ thống',
+    row: item.row,
+    avatarPreviews: item.avatarPreviews?.map(img => 
+      img.length > 100 ? `${img.substring(0, 100)}...` : img
+    ) ?? [],
+    avatarCount: item.avatarPreviews?.length ?? item.avatarCount ?? 0,
+    manualFiles: (item.avatarPreviews ?? []).map(() => null),
+    source: 'IMPORT_INVALID' as const,
+  })) ?? []
+
+  return [...fromValid, ...fromInvalid, ...fromDuplicates, ...fromMissing]
 }
 
 const recalcWhitelistStatuses = (entries: WhitelistEntry[]): WhitelistEntry[] => {
@@ -250,7 +274,6 @@ const ExamSessionCreate = ({
         attemptLimit: 1,
         isPublic: true,
         accessMode: AccessMode.PUBLIC,
-        password: '',
         antiCheatSettings: {
           enableAntiCheat: false,
           webcamCapture: false,
@@ -289,7 +312,6 @@ const ExamSessionCreate = ({
       attemptLimit: initData.attemptLimit ?? 1,
       isPublic: initData.publicFlag ?? true,
       accessMode: initData.accessMode ?? AccessMode.PUBLIC,
-      password: '',
       antiCheatSettings: {
         enableAntiCheat: !!antiCheat || !!proctoring,
         webcamCapture: proctoring?.identityMode === IdentityMode.WEBCAM,
@@ -314,22 +336,39 @@ const ExamSessionCreate = ({
   }, [initData])
 
   const initialWhitelistEntries = useMemo<WhitelistEntry[]>(() => {
-    if (!initData?.whitelistEntries?.length) {
-      return []
+    // Load from assignedStudents (new data structure with userId)
+    if (initData?.assignedStudents?.length) {
+      const mapped = initData.assignedStudents.map((entry) => ({
+        id: createEntryId(),
+        userId: entry.userId,
+        email: entry.email,
+        fullName: entry.fullName,
+        status: 'VALID' as WhitelistEntryStatus,
+        reason: '',
+        avatarPreviews: entry.avatarImages ?? [],
+        avatarCount: entry.avatarImages?.length ?? 0,
+        manualFiles: (entry.avatarImages ?? []).map(() => null),
+        source: 'SELECTED' as const,
+      }))
+      return recalcWhitelistStatuses(mapped)
     }
 
-    const mapped = initData.whitelistEntries.map((entry) => ({
-      id: createEntryId(),
-      email: entry.email,
-      status: 'VALID' as WhitelistEntryStatus,
-      reason: '',
-      avatarPreviews: entry.avatarImages ?? [],
-      avatarCount: entry.avatarImages?.length ?? 0,
-      manualFiles: (entry.avatarImages ?? []).map(() => null),
-      source: 'IMPORT_VALID' as const,
-    }))
+    // Fallback to whitelistEntries (old data structure without userId)
+    if (initData?.whitelistEntries?.length) {
+      const mapped = initData.whitelistEntries.map((entry) => ({
+        id: createEntryId(),
+        email: entry.email,
+        status: 'VALID' as WhitelistEntryStatus,
+        reason: '',
+        avatarPreviews: entry.avatarImages ?? [],
+        avatarCount: entry.avatarImages?.length ?? 0,
+        manualFiles: (entry.avatarImages ?? []).map(() => null),
+        source: 'IMPORT_VALID' as const,
+      }))
+      return recalcWhitelistStatuses(mapped)
+    }
 
-    return recalcWhitelistStatuses(mapped)
+    return []
   }, [initData])
 
   const {
@@ -346,14 +385,15 @@ const ExamSessionCreate = ({
   const toast = useToast()
   const [confirmModal, setConfirmModal] = useState(false)
   const [whitelistEntries, setWhitelistEntries] = useState<WhitelistEntry[]>(initialWhitelistEntries)
+  const [studentModalVisible, setStudentModalVisible] = useState(false)
   const [showManualForm, setShowManualForm] = useState(false)
   const [manualEmail, setManualEmail] = useState('')
   const [previewEntry, setPreviewEntry] = useState<WhitelistEntry | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const avatarInputsRef = useRef<Record<string, HTMLInputElement | null>>({})
   const [currentWhitelistPage, setCurrentWhitelistPage] = useState(1)
-  const [previewWhitelist, { isLoading: previewLoading }]
-    = usePreviewWhitelistMutation()
+  const [previewSessionStudents, { isLoading: previewLoading }]
+    = usePreviewSessionStudentsMutation()
 
   useEffect(() => {
     reset(defaultFormValues)
@@ -370,8 +410,6 @@ const ExamSessionCreate = ({
     const startTime = data.startTime ? dayjs(data.startTime) : null
     const endTime = data.endTime ? dayjs(data.endTime) : null
 
-    // Chỉ validate thời gian quá khứ khi CREATE (không có initData)
-    // Khi UPDATE, cho phép giữ nguyên thời gian cũ
     if (!initData) {
       if (startTime && startTime.isBefore(now)) {
         toast.error('Thời gian bắt đầu không được ở trong quá khứ')
@@ -399,15 +437,8 @@ const ExamSessionCreate = ({
       return
     }
 
-    const trimmedPassword = data.password?.trim() ?? ''
-    const hasExistingPassword = initData?.hasAccessPassword ?? false
 
-    if (data.accessMode === AccessMode.PASSWORD && !trimmedPassword && !hasExistingPassword) {
-      toast.error('Vui lòng nhập mật khẩu')
-      return
-    }
-
-    if (data.accessMode === AccessMode.WHITELIST && !validWhitelistEmails.length) {
+    if (data.accessMode === AccessMode.PRIVATE && !validWhitelistEmails.length) {
       toast.error('Danh sách truy nhập chưa có email hợp lệ')
       return
     }
@@ -418,10 +449,10 @@ const ExamSessionCreate = ({
           blockCopyPaste: !!antiCheatForm.preventCopyPaste,
           blockDevTools: !!antiCheatForm.blockDevTools,
           maxWindowBlurAllowed: antiCheatForm.preventRightClick
-            ? antiCheatForm.maxExitAttempts ?? 0
+            ? 0
             : null,
           maxExitFullscreenAllowed: antiCheatForm.preventMemoryExit
-            ? antiCheatForm.maxFullscreenExitAttempts ?? 0
+            ? 0
             : null,
         }
       : undefined
@@ -484,14 +515,10 @@ const ExamSessionCreate = ({
       isPublic:
         accessModeValue === AccessMode.PUBLIC ? data.isPublic ?? true : false,
       accessMode: accessModeValue,
-      password:
-        accessModeValue === AccessMode.PASSWORD
-          ? trimmedPassword || undefined
-          : undefined,
       settings: settingsPayload,
     }
 
-    if (accessModeValue === AccessMode.WHITELIST) {
+    if (accessModeValue === AccessMode.PRIVATE) {
       const whitelistPayload: ExamSessionWhitelistEntry[] = validWhitelistEntries
         .map((entry) => ({
           email: entry.email.trim(),
@@ -505,6 +532,34 @@ const ExamSessionCreate = ({
       if (whitelistPayload.length) {
         requestData.whitelistEntries = whitelistPayload
         requestData.whitelistEmails = whitelistPayload.map((item) => item.email)
+      }
+
+      // Extract student IDs and avatars
+      const studentIds = validWhitelistEntries
+        .map((entry) => entry.userId)
+        .filter((id): id is string => id !== undefined && id !== null && id.trim() !== '')
+
+      if (studentIds.length > 0) {
+        requestData.studentIds = studentIds
+      }
+
+      // Build studentAvatars map: only include entries with avatarPreviews
+      const studentAvatars: Record<string, string[]> = {}
+      validWhitelistEntries.forEach(entry => {
+        if (entry.userId && entry.avatarPreviews && entry.avatarPreviews.length > 0) {
+          studentAvatars[entry.userId] = entry.avatarPreviews
+          
+          // Debug: Log first 100 chars of each avatar
+          entry.avatarPreviews.forEach((avatar, idx) => {
+            const preview = avatar.length > 100 ? avatar.substring(0, 100) + '...' : avatar
+            console.log(`Avatar ${idx} for ${entry.email}: ${preview}`)
+          })
+        }
+      })
+
+      if (Object.keys(studentAvatars).length > 0) {
+        requestData.studentAvatars = studentAvatars
+        console.log('Sending studentAvatars for', Object.keys(studentAvatars).length, 'students')
       }
     }
 
@@ -566,7 +621,7 @@ const ExamSessionCreate = ({
   const pageStartIndex = (currentWhitelistPage - 1) * WHITELIST_PAGE_SIZE
 
   useEffect(() => {
-    if (accessMode === AccessMode.WHITELIST) {
+    if (accessMode === AccessMode.PRIVATE) {
       setValue('whitelistEmails', validWhitelistEmails)
     } else {
       setValue('whitelistEmails', [])
@@ -581,35 +636,81 @@ const ExamSessionCreate = ({
   }, [whitelistEntries.length, currentWhitelistPage])
 
   const handleImportClick = () => {
-    fileInputRef.current?.click()
+    setStudentModalVisible(true)
   }
 
-  const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) {
-      return
-    }
-
+  const handleFileImport = async (file: File) => {
     try {
-      const preview = await previewWhitelist({
+      console.log('Starting import for file:', file.name, 'sessionId:', initData?.id)
+      
+      const result = await previewSessionStudents({
         file,
         sessionId: initData?.id,
-      }).unwrap()
+      })
+      
+      console.log('Raw mutation result:', result)
+      
+      const preview = result.data
+      
+      console.log('Preview response:', preview)
+
+      // Validate response structure - must have at least one of the student arrays
+      if (!preview || typeof preview !== 'object') {
+        console.error('Invalid response structure:', preview)
+        toast.error('Dữ liệu phản hồi không hợp lệ')
+        return
+      }
 
       const mapped = mapPreviewToEntries(preview)
-      setWhitelistEntries(recalcWhitelistStatuses(mapped))
-  setCurrentWhitelistPage(1)
-      setShowManualForm(false)
-      toast.success('Đã tải trước danh sách truy nhập')
-    } catch (error) {
-      toast.error('Không thể xem trước danh sách truy nhập, thử lại sau')
-    } finally {
-      event.target.value = ''
+      
+      // Merge với students hiện tại: giữ lại student cũ nếu không bị trùng
+      const existingEmails = new Set(mapped.map(s => s.email.toLowerCase()))
+      const keptExisting = whitelistEntries.filter(
+        existing => !existingEmails.has(existing.email.toLowerCase())
+      )
+      
+      const mergedStudents = [...keptExisting, ...mapped]
+      setWhitelistEntries(recalcWhitelistStatuses(mergedStudents))
+      
+      const validCount = mapped.filter(s => s.status === 'VALID').length
+      const duplicateCount = preview.duplicates?.length || 0
+      const invalidCount = (preview.invalidStudents?.length || 0) + (preview.missingStudents?.length || 0)
+      
+      if (validCount > 0) {
+        toast.success(`Đã import ${validCount} sinh viên${duplicateCount > 0 ? ` (${duplicateCount} trùng)` : ''}${invalidCount > 0 ? ` (${invalidCount} không hợp lệ)` : ''}`)
+      } else if (duplicateCount > 0) {
+        toast.warning(`Tất cả ${duplicateCount} sinh viên đã tồn tại`)
+      } else {
+        toast.error('Không có sinh viên hợp lệ trong file Excel')
+      }
+    } catch (error: any) {
+      console.error('Import error details:', {
+        error,
+        status: error?.status,
+        data: error?.data,
+        message: error?.message
+      })
+      toast.error('Không thể xem trước danh sách sinh viên, thử lại sau')
+    }
+  }
+
+  const handleStudentModalConfirm = (students: WhitelistEntry[]) => {
+    setWhitelistEntries(students)
+    setCurrentWhitelistPage(1)
+    setShowManualForm(false)
+    
+    const validCount = students.filter(s => s.status === 'VALID').length
+    const duplicateCount = students.filter(s => s.status === 'DUPLICATE').length
+    
+    if (duplicateCount > 0) {
+      toast.success(`Đã cập nhật ${validCount} sinh viên (${duplicateCount} sinh viên đã tồn tại)`)
+    } else {
+      toast.success(`Đã cập nhật ${validCount} sinh viên`)
     }
   }
 
   const toggleManualForm = () => {
-    setShowManualForm((prev) => !prev)
+    setStudentModalVisible(true)
   }
 
   const handleManualAdd = () => {
@@ -1105,193 +1206,49 @@ const ExamSessionCreate = ({
                       <Radio.Group {...field} disabled={!!initData}>
                         <Space direction="vertical" size={8}>
                           <Radio value={AccessMode.PUBLIC}>Công khai</Radio>
-                          <Radio value={AccessMode.WHITELIST}>Danh sách truy nhập</Radio>
-                          <Radio value={AccessMode.PASSWORD}>Mật khẩu</Radio>
+                          <Radio value={AccessMode.PRIVATE}>Danh sách sinh viên</Radio>
                         </Space>
                       </Radio.Group>
                     )}
                   />
-                  {accessMode === AccessMode.PASSWORD && (
-                    <PasswordInput>
-                      <Controller
-                        name="password"
-                        control={control}
-                        rules={{
-                          required:
-                            accessMode === AccessMode.PASSWORD && !initData?.hasAccessPassword
-                              ? 'Vui lòng nhập mật khẩu'
-                              : false,
-                        }}
-                        render={({ field }) => (
-                          <>
-                            <StyledInput
-                              {...field}
-                              placeholder={
-                                initData?.hasAccessPassword
-                                  ? 'Để trống nếu muốn giữ mật khẩu cũ'
-                                  : 'Nhập mật khẩu'
-                              }
-                              type="password"
-                              status={errors.password ? 'error' : ''}
-                            />
-                            {errors.password && (
-                              <ErrorText>{errors.password.message}</ErrorText>
-                            )}
-                          </>
-                        )}
-                      />
-                    </PasswordInput>
-                  )}
-                  {accessMode === AccessMode.WHITELIST && (
+                  {accessMode === AccessMode.PRIVATE && (
                     <WhitelistContainer>
                       <WhitelistActions>
                         <Button
-                          icon={<UploadOutlined />}
+                          icon={<PlusOutlined />}
                           onClick={handleImportClick}
                           loading={previewLoading}
+                          type="primary"
                         >
-                          Import Excel
-                        </Button>
-                        <HiddenFileInput
-                          ref={fileInputRef}
-                          type="file"
-                          accept=".xlsx,.xls"
-                          onChange={handleFileChange}
-                        />
-                        <Button icon={<PlusOutlined />} onClick={toggleManualForm}>
-                          Thêm thủ công
+                          {whitelistEntries.length > 0 ? 'Quản lý danh sách sinh viên' : 'Chọn sinh viên'}
                         </Button>
                       </WhitelistActions>
 
-                      {showManualForm && (
-                        <ManualAddRow>
-                          <WhitelistEmailInput
-                            value={manualEmail}
-                            placeholder="Nhập email thủ công"
-                            onChange={(event) => setManualEmail(event.target.value)}
-                            onPressEnter={(event) => {
-                              event.preventDefault()
-                              handleManualAdd()
-                            }}
-                          />
-                          <Button
-                            type="primary"
-                            onClick={handleManualAdd}
-                            disabled={!manualEmail.trim()}
-                          >
-                            Thêm
-                          </Button>
-                        </ManualAddRow>
-                      )}
-
-                      {whitelistEntries.length ? (
-                        <WhitelistList>
-                          {paginatedEntries.map((entry, index) => {
-                            const reachedAvatarLimit =
-                              (entry.avatarPreviews?.length ?? 0) >= MAX_AVATARS_PER_EMAIL
-                            const displayIndex = pageStartIndex + index
-
-                            return (
-                              <WhitelistRow key={entry.id}>
-                                <WhitelistIndex>{displayIndex + 1}</WhitelistIndex>
-                                <WhitelistEmailWrapper>
-                                  <WhitelistEmailInput
-                                    value={entry.email}
-                                    onChange={(event) =>
-                                      handleEntryEmailChange(entry.id, event.target.value)
-                                    }
-                                    status={entry.status === 'INVALID' ? 'error' : ''}
-                                  />
-                                  {entry.reason && entry.reason.length > 0 && (
-                                    <WhitelistReason data-status={entry.status}>
-                                      {entry.reason}
-                                    </WhitelistReason>
-                                  )}
-                                </WhitelistEmailWrapper>
-                                <WhitelistTrailing>
-                                  <StatusBadge data-status={entry.status}>
-                                    {entry.status === 'VALID'
-                                      ? 'Hợp lệ'
-                                      : entry.status === 'DUPLICATE'
-                                      ? 'Trùng'
-                                      : 'Không hợp lệ'}
-                                  </StatusBadge>
-                                  <RowLinkButton
-                                    type="link"
-                                    onClick={() =>
-                                      avatarInputsRef.current[entry.id]?.click()
-                                    }
-                                    disabled={reachedAvatarLimit}
-                                  >
-                                    {reachedAvatarLimit ? 'Đủ ảnh' : 'Thêm ảnh'}
-                                  </RowLinkButton>
-                                  <HiddenFileInput
-                                    ref={(element) => {
-                                      if (element) {
-                                        avatarInputsRef.current[entry.id] = element
-                                      } else {
-                                        delete avatarInputsRef.current[entry.id]
-                                      }
-                                    }}
-                                    type="file"
-                                    accept="image/*"
-                                    multiple
-                                    onChange={(event) => handleAvatarUpload(entry.id, event)}
-                                  />
-                                  {entry.avatarPreviews && entry.avatarPreviews.length > 0 && (
-                                    <>
-                                      <RowLinkButton
-                                        type="link"
-                                        onClick={() => setPreviewEntry(entry)}
-                                      >
-                                        Xem ảnh ({entry.avatarPreviews.length})
-                                      </RowLinkButton>
-                                      <Tooltip title="Xóa tất cả ảnh">
-                                        <RowIconButton
-                                          type="text"
-                                          icon={<CloseCircleOutlined />}
-                                          onClick={() => handleClearAvatars(entry.id)}
-                                        />
-                                      </Tooltip>
-                                    </>
-                                  )}
-                                  <RemoveEntryButton
-                                    type="text"
-                                    icon={<DeleteOutlined />}
-                                    onClick={() => handleRemoveEntry(entry.id)}
-                                  />
-                              </WhitelistTrailing>
-                            </WhitelistRow>
-                            )
-                          })}
-                        </WhitelistList>
-                      ) : (
+                      {whitelistEntries.length === 0 ? (
                         <WhitelistEmpty>
-                          Chưa có email nào. Hãy import Excel hoặc thêm thủ công.
+                          Chưa có sinh viên nào. Hãy click nút "Chọn sinh viên" để thêm.
                         </WhitelistEmpty>
-                      )}
-
-                      <WhitelistSummary>
-                        <SummaryItem data-status="VALID">
-                          Hợp lệ: {whitelistSummary.VALID}
-                        </SummaryItem>
-                        <SummaryItem data-status="DUPLICATE">
-                          Trùng: {whitelistSummary.DUPLICATE}
-                        </SummaryItem>
-                        <SummaryItem data-status="INVALID">
-                          Không hợp lệ: {whitelistSummary.INVALID}
-                        </SummaryItem>
-                      </WhitelistSummary>
-                      {whitelistEntries.length > WHITELIST_PAGE_SIZE && (
-                        <PaginationWrapper>
-                          <Pagination
-                            current={currentWhitelistPage}
-                            onChange={(page) => setCurrentWhitelistPage(page)}
-                            total={whitelistEntries.length}
-                            pageSize={WHITELIST_PAGE_SIZE}
-                            showSizeChanger={false}
-                          />
-                        </PaginationWrapper>
+                      ) : (
+                        <>
+                          <WhitelistSummary>
+                            <SummaryItem data-status="VALID">
+                              Hợp lệ: {whitelistSummary.VALID}
+                            </SummaryItem>
+                            <SummaryItem data-status="DUPLICATE">
+                              Trùng: {whitelistSummary.DUPLICATE}
+                            </SummaryItem>
+                            <SummaryItem data-status="INVALID">
+                              Không hợp lệ: {whitelistSummary.INVALID}
+                            </SummaryItem>
+                          </WhitelistSummary>
+                          <Button
+                            type="link"
+                            onClick={handleImportClick}
+                            style={{ marginTop: 8 }}
+                          >
+                            Xem và chỉnh sửa danh sách ({whitelistEntries.length} sinh viên)
+                          </Button>
+                        </>
                       )}
                     </WhitelistContainer>
                   )}
@@ -1301,9 +1258,8 @@ const ExamSessionCreate = ({
                     <div>
                       <strong>Ghi chú:</strong>
                       <ul>
-                        <li>"Danh sách truy nhập": Khi giao bài với danh sách truy nhập, chỉ học sinh có trong danh sách thêm dự bài thi mới có thể truy cập.</li>
                         <li>"Công khai": Khi giao bài công khai, bất cứ học viên nào cũng có thể truy cập.</li>
-                        <li>"Mật khẩu": Khi giao bài với mật khẩu, học viên cần nhập đúng mật khẩu mới có thể truy cập.</li>
+                        <li>"Danh sách sinh viên": Khi giao bài với danh sách sinh viên, chỉ học sinh được phân công mới có thể truy cập.</li>
                       </ul>
                     </div>
                   </InfoBox>
@@ -1407,56 +1363,38 @@ const ExamSessionCreate = ({
                               render={({ field }) => (
                                 <StyledCheckbox
                                   checked={field.value}
-                                  onChange={(e) => field.onChange(e.target.checked)}
+                                  onChange={(e) => {
+                                    const checked = e.target.checked
+                                    field.onChange(checked)
+                                    // Khi bật, set số lần = 0 (không cho phép lần nào)
+                                    if (checked) {
+                                      setValue('antiCheatSettings.maxExitAttempts', 0)
+                                    }
+                                  }}
                                 >
-                                  Cảnh báo khi học viên ra khỏi màn hình làm bài
+                                  Không cho phép chuyển sang tab khác
                                 </StyledCheckbox>
                               )}
                             />
-                            {warnOnWindowBlur && (
-                              <InputRow>
-                                <span>Số lần được phép thoát khỏi màn hình làm bài</span>
-                                <Controller
-                                  name="antiCheatSettings.maxExitAttempts"
-                                  control={control}
-                                  render={({ field }) => (
-                                    <SmallInputNumber
-                                      {...field}
-                                      min={0}
-                                      max={999}
-                                    />
-                                  )}
-                                />
-                              </InputRow>
-                            )}
                             <Controller
                               name="antiCheatSettings.preventMemoryExit"
                               control={control}
                               render={({ field }) => (
                                 <StyledCheckbox
                                   checked={field.value}
-                                  onChange={(e) => field.onChange(e.target.checked)}
+                                  onChange={(e) => {
+                                    const checked = e.target.checked
+                                    field.onChange(checked)
+                                    // Khi bật, set số lần = 0 (không cho phép lần nào)
+                                    if (checked) {
+                                      setValue('antiCheatSettings.maxFullscreenExitAttempts', 0)
+                                    }
+                                  }}
                                 >
-                                  Không cho phép thi nhỏ màn hình
+                                  Không cho phép thu nhỏ màn hình
                                 </StyledCheckbox>
                               )}
                             />
-                            {enforceFullscreen && (
-                              <InputRow>
-                                <span>Số lần được phép thoát khỏi chế độ toàn màn hình</span>
-                                <Controller
-                                  name="antiCheatSettings.maxFullscreenExitAttempts"
-                                  control={control}
-                                  render={({ field }) => (
-                                    <SmallInputNumber
-                                      {...field}
-                                      min={0}
-                                      max={999}
-                                    />
-                                  )}
-                                />
-                              </InputRow>
-                            )}
                           </PanelContent>
                         </Panel>
 
@@ -1573,6 +1511,16 @@ const ExamSessionCreate = ({
             </FormContent>
           </FormColumn>
         </ContentWrapper>
+
+      <StudentListModal
+        visible={studentModalVisible}
+        onClose={() => setStudentModalVisible(false)}
+        onConfirm={handleStudentModalConfirm}
+        initialStudents={whitelistEntries}
+        title="Quản lý danh sách sinh viên"
+        previewLoading={previewLoading}
+        onImportExcel={handleFileImport}
+      />
 
       {confirmModal && (
         <ConfirmModal

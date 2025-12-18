@@ -11,6 +11,7 @@ interface AntiCheatSettings {
   examCode?: string
   attemptId?: number
   maxFullscreenExitAllowed?: number
+  maxWindowBlurAllowed?: number
 }
 
 export const useAntiCheat = (settings?: AntiCheatSettings) => {
@@ -267,7 +268,12 @@ export const useAntiCheat = (settings?: AntiCheatSettings) => {
   useEffect(() => {
     if (!settings?.preventTabSwitch) return
 
-    console.log('🛡️ useAntiCheat - ✅ Enabling tab switch protection')
+    const maxWindowBlurAllowed = settings?.maxWindowBlurAllowed ?? 0
+    console.log('🛡️ useAntiCheat - ✅ Enabling tab switch protection', {
+      maxWindowBlurAllowed,
+    })
+
+    let blurCount = 0
     let warningShown = false
     let isInitialized = false
     let blurTimeout: NodeJS.Timeout | null = null
@@ -283,13 +289,44 @@ export const useAntiCheat = (settings?: AntiCheatSettings) => {
       if (!isInitialized) return
 
       if (document.hidden) {
+        blurCount += 1
+        console.log('🛡️ useAntiCheat - Tab hidden detected', {
+          blurCount,
+          maxAllowed: maxWindowBlurAllowed,
+        })
+
+        // Nếu maxWindowBlurAllowed = 0, chặn ngay lần đầu tiên
+        if (maxWindowBlurAllowed === 0 && blurCount > 0) {
+          if (toast) {
+            toast.error(
+              '❌ Vi phạm',
+              'Bạn không được phép chuyển sang tab khác. Bài thi sẽ bị chặn.',
+              10
+            )
+          }
+          // Có thể redirect hoặc chặn ở đây
+          return
+        }
+
+        // Nếu vượt quá số lần cho phép
+        if (blurCount > maxWindowBlurAllowed) {
+          if (toast) {
+            toast.error(
+              '❌ Vi phạm',
+              `Bạn đã chuyển sang tab khác quá ${maxWindowBlurAllowed} lần. Bài thi sẽ bị chặn.`,
+              10
+            )
+          }
+          return
+        }
+
+        // Cảnh báo
         if (!warningShown) {
           warningShown = true
-          console.log('🛡️ useAntiCheat - Tab hidden detected')
           if (toast) {
             toast.warning(
               ' Cảnh báo',
-              'Bạn đã rời khỏi màn hình làm bài! Vui lòng quay lại ngay.',
+              `Bạn đã rời khỏi màn hình làm bài (${blurCount}/${maxWindowBlurAllowed} lần)! Vui lòng quay lại ngay.`,
               5
             )
           }
@@ -309,13 +346,44 @@ export const useAntiCheat = (settings?: AntiCheatSettings) => {
 
       blurTimeout = setTimeout(() => {
         if (document.hidden && !warningShown) {
+          blurCount += 1
+          console.log('🛡️ useAntiCheat - Window blur with tab hidden detected', {
+            blurCount,
+            maxAllowed: maxWindowBlurAllowed,
+          })
+
+          // Nếu maxWindowBlurAllowed = 0, chặn ngay lần đầu tiên
+          if (maxWindowBlurAllowed === 0 && blurCount > 0) {
+            const toast = getToastInstance()
+            if (toast) {
+              toast.error(
+                '❌ Vi phạm',
+                'Bạn không được phép chuyển sang tab khác. Bài thi sẽ bị chặn.',
+                10
+              )
+            }
+            return
+          }
+
+          // Nếu vượt quá số lần cho phép
+          if (blurCount > maxWindowBlurAllowed) {
+            const toast = getToastInstance()
+            if (toast) {
+              toast.error(
+                '❌ Vi phạm',
+                `Bạn đã chuyển sang tab khác quá ${maxWindowBlurAllowed} lần. Bài thi sẽ bị chặn.`,
+                10
+              )
+            }
+            return
+          }
+
           warningShown = true
-          console.log('🛡️ useAntiCheat - Window blur with tab hidden detected')
           const toast = getToastInstance()
           if (toast) {
             toast.warning(
               ' Cảnh báo',
-              'Cửa sổ làm bài đã mất focus! Vui lòng quay lại ngay.',
+              `Cửa sổ làm bài đã mất focus (${blurCount}/${maxWindowBlurAllowed} lần)! Vui lòng quay lại ngay.`,
               5
             )
           }
@@ -344,7 +412,7 @@ export const useAntiCheat = (settings?: AntiCheatSettings) => {
       window.removeEventListener('blur', handleBlur)
       window.removeEventListener('focus', handleFocus)
     }
-  }, [settings?.preventTabSwitch])
+  }, [settings?.preventTabSwitch, settings?.maxWindowBlurAllowed])
 
   useEffect(() => {
     if (!settings?.preventMinimize) {
@@ -426,7 +494,21 @@ export const useAntiCheat = (settings?: AntiCheatSettings) => {
           }
         }
 
-        const maxAllowed = settings.maxFullscreenExitAllowed ?? 3
+        const maxAllowed = settings.maxFullscreenExitAllowed ?? 0
+        // Nếu maxAllowed = 0, chặn ngay lần đầu tiên
+        if (maxAllowed === 0 && fullscreenExitCountRef.current > 0) {
+          const toast = getToastInstance()
+          if (toast) {
+            toast.error(
+              '❌ Vi phạm',
+              'Bạn không được phép thu nhỏ màn hình. Bài thi sẽ bị chặn.',
+              10
+            )
+          }
+          return
+        }
+
+        // Nếu vượt quá số lần cho phép
         if (fullscreenExitCountRef.current > maxAllowed) {
           const toast = getToastInstance()
           if (toast) {

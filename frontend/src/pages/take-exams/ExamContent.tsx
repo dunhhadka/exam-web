@@ -181,13 +181,18 @@ const TakeExamContent = ({
         disableDeveloperTools:
           data.settings.anti_cheat.block_dev_tools ?? false,
         preventTabSwitch:
-          (data.settings.anti_cheat.max_window_blur_allowed ?? 0) > 0,
+          data.settings.anti_cheat.max_window_blur_allowed !== null &&
+          data.settings.anti_cheat.max_window_blur_allowed !== undefined,
         preventMinimize:
-          (data.settings.anti_cheat.max_window_blur_allowed ?? 0) > 0,
+          data.settings.anti_cheat.max_exit_fullscreen_allowed !== null &&
+          data.settings.anti_cheat.max_exit_fullscreen_allowed !== undefined,
         requireFullscreen:
-          (data.settings.anti_cheat.max_exit_fullscreen_allowed ?? 0) > 0,
+          data.settings.anti_cheat.max_exit_fullscreen_allowed !== null &&
+          data.settings.anti_cheat.max_exit_fullscreen_allowed !== undefined,
         maxFullscreenExitAllowed:
           data.settings.anti_cheat.max_exit_fullscreen_allowed ?? 0,
+        maxWindowBlurAllowed:
+          data.settings.anti_cheat.max_window_blur_allowed ?? 0,
         attemptId: data.attemptId,
         examCode: data.examCode,
       }

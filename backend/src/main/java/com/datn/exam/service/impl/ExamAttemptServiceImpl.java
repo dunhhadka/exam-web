@@ -14,6 +14,7 @@ import com.datn.exam.repository.*;
 import com.datn.exam.service.AutoGradingService;
 import com.datn.exam.service.ExamAttemptService;
 import com.datn.exam.service.ExamJoinService;
+import com.datn.exam.service.MailPersistenceService;
 import com.datn.exam.service.validation.SubmitAttemptValidator;
 import com.datn.exam.support.enums.QuestionType;
 import com.datn.exam.support.enums.error.AuthorizationError;
@@ -30,7 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
@@ -48,6 +49,7 @@ public class ExamAttemptServiceImpl implements ExamAttemptService {
     private final AutoGradingService autoGradingService;
     private final SubmitAttemptValidator submitAttemptValidator;
     private final ExamJoinService examJoinService;
+    private final MailPersistenceService mailPersistenceService;
 
     @Override
     @Transactional
@@ -831,4 +833,174 @@ public class ExamAttemptServiceImpl implements ExamAttemptService {
         return details;
     }
 
+    @Override
+    @Transactional
+    public void sendResultNotifications(Long sessionId) {
+        if (sessionId == null) {
+            throw new ResponseException(BadRequestError.EXAM_SESSION_ID_REQUIRED);
+        }
+
+        // Kiểm tra session tồn tại
+        ExamSession session = examSessionRepository.findById(sessionId)
+                .orElseThrow(() -> new ResponseException(NotFoundError.EXAM_SESSION_NOT_FOUND));
+
+        // Query tất cả các attempt đã chấm (gradingStatus = DONE) của session này
+        List<ExamAttempt> attempts = examAttemptRepository.findByExamSessionIdAndGradingStatus(
+                sessionId,
+                ExamAttempt.GradingStatus.DONE
+        );
+
+        if (attempts.isEmpty()) {
+            log.info("No graded attempts found for session {}", sessionId);
+            return;
+        }
+
+        log.info("Found {} graded attempts for session {}, sending result notifications", attempts.size(), sessionId);
+
+        int successCount = 0;
+        int skipCount = 0;
+        int errorCount = 0;
+
+        for (ExamAttempt attempt : attempts) {
+            // Kiểm tra email có hợp lệ không
+            if (attempt.getStudentEmail() == null || attempt.getStudentEmail().isBlank()) {
+                log.warn("Attempt {} has no student email, skipping email notification", attempt.getId());
+                skipCount++;
+                continue;
+            }
+
+            try {
+                sendResultEmailForAttempt(attempt);
+                successCount++;
+            } catch (Exception e) {
+                log.error("Failed to send result email for attempt {}: {}", attempt.getId(), e.getMessage(), e);
+                errorCount++;
+                // Tiếp tục gửi cho các attempt khác
+            }
+        }
+
+        log.info("Result notification summary for session {}: {} sent, {} skipped, {} errors", 
+                sessionId, successCount, skipCount, errorCount);
+    }
+
+    @Override
+    @Transactional
+    public void sendResultNotificationForAttempt(Long attemptId) {
+        ExamAttempt attempt = examAttemptRepository.findById(attemptId)
+                .orElseThrow(() -> new ResponseException(NotFoundError.EXAM_ATTEMPT_NOT_FOUND));
+
+        if (attempt.getGradingStatus() != ExamAttempt.GradingStatus.DONE) {
+            throw new ResponseException(BadRequestError.EXAM_ATTEMPT_NOT_SUBMITTED);
+        }
+
+        if (attempt.getStudentEmail() == null || attempt.getStudentEmail().isBlank()) {
+            throw new ResponseException(BadRequestError.INVALID_EMAIL_FORMAT);
+        }
+
+        sendResultEmailForAttempt(attempt);
+        log.info("Result notification email queued for attempt {} to {}", attemptId, attempt.getStudentEmail());
+    }
+
+    private void sendResultEmailForAttempt(ExamAttempt attempt) {
+        ExamSession session = attempt.getExamSession();
+        Exam exam = session.getExam();
+        
+        List<ExamAttemptQuestion> questions = attempt.getAttemptQuestions();
+        int totalQuestions = questions.size();
+        int correctAnswers = (int) questions.stream()
+                .filter(q -> Boolean.TRUE.equals(q.getCorrect()))
+                .count();
+        int incorrectAnswers = (int) questions.stream()
+                .filter(q -> Boolean.FALSE.equals(q.getCorrect()))
+                .count();
+        
+        BigDecimal maxScore = questions.stream()
+                .map(ExamAttemptQuestion::getPoint)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        
+        BigDecimal finalScore = attempt.getScoreManual() != null && 
+                attempt.getScoreManual().compareTo(BigDecimal.ZERO) > 0
+                ? attempt.getScoreManual()
+                : attempt.getScoreAuto();
+        
+        int accuracy = totalQuestions > 0 
+                ? (int) Math.round((correctAnswers * 100.0) / totalQuestions)
+                : 0;
+        
+        // Format thời gian
+        String duration = session.getDurationMinutes() + " phút";
+        String submittedDate = attempt.getSubmittedAt() != null
+                ? attempt.getSubmittedAt().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
+                : "N/A";
+        
+        // Lấy cheating logs
+        List<String> cheatingLogs = new ArrayList<>();
+        boolean hasCheatingLogs = false;
+        
+        if (attempt.getLogs() != null && !attempt.getLogs().isEmpty()) {
+            for (Log log : attempt.getLogs()) {
+                if (log.getSeverity() == Log.Severity.WARNING || 
+                    log.getSeverity() == Log.Severity.SERIOUS || 
+                    log.getSeverity() == Log.Severity.CRITICAL) {
+                    hasCheatingLogs = true;
+                    String logMessage = buildLogMessage(log);
+                    if (logMessage != null) {
+                        cheatingLogs.add(logMessage);
+                    }
+                }
+            }
+        }
+        
+        // Thêm fullscreen exit count nếu có
+        if (attempt.getFullscreenExitCount() != null && attempt.getFullscreenExitCount() > 0) {
+            hasCheatingLogs = true;
+            cheatingLogs.add("Thoát chế độ toàn màn hình " + attempt.getFullscreenExitCount() + " lần");
+        }
+        
+        String subject = "Kết quả bài thi - " + exam.getName();
+        
+        mailPersistenceService.createResultMail(
+                attempt.getStudentEmail(),
+                subject,
+                "mail-notification-result-template",
+                attempt.getStudentName() != null ? attempt.getStudentName() : attempt.getStudentEmail(),
+                exam.getName(),
+                session.getCode(),
+                duration,
+                submittedDate,
+                finalScore,
+                maxScore,
+                totalQuestions,
+                correctAnswers,
+                incorrectAnswers,
+                accuracy,
+                hasCheatingLogs,
+                cheatingLogs,
+                attempt.getId()
+        );
+        
+        log.info("Result notification email queued for attempt {} to {}", attempt.getId(), attempt.getStudentEmail());
+    }
+
+    private String buildLogMessage(Log log) {
+        if (log.getMessage() != null && !log.getMessage().isBlank()) {
+            return log.getMessage();
+        }
+        
+        switch (log.getLogType()) {
+            case FULLSCREEN_EXIT:
+                return "Thoát chế độ toàn màn hình";
+            case TAB_SWITCH:
+                return "Chuyển tab trình duyệt";
+            case DEVTOOLS_OPEN:
+                return "Mở công cụ phát triển";
+            case COPY_PASTE_ATTEMPT:
+                return "Thực hiện copy/paste";
+            case SUSPICIOUS_ACTIVITY:
+                return "Hành vi nghi ngờ";
+            default:
+                return null;
+        }
+    }
 }

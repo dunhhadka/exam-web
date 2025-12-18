@@ -48,6 +48,24 @@ export const attemptApi = authenticatedApi.injectEndpoints({
         { type: 'Attempt' as const, id: attemptId },
       ],
     }),
+
+    sendResultNotifications: builder.mutation<void, number>({
+      query: (sessionId) => ({
+        url: `/exam-attempt/session/${sessionId}/send-result-notifications`,
+        method: 'POST',
+      }),
+    }),
+
+    sendResultNotificationForAttempt: builder.mutation<void, number>({
+      query: (attemptId) => ({
+        url: `/exam-attempt/${attemptId}/send-result-notification`,
+        method: 'POST',
+      }),
+      invalidatesTags: (result, error, attemptId) => [
+        { type: 'Attempt' as const, id: attemptId },
+        { type: 'EmailNotification' as const, id: 'LIST' },
+      ],
+    }),
   }),
 })
 
@@ -55,4 +73,6 @@ export const {
   useGetAttemptsBySessionQuery,
   useGetAttemptForGradingQuery,
   useManualGradingMutation,
+  useSendResultNotificationsMutation,
+  useSendResultNotificationForAttemptMutation,
 } = attemptApi
