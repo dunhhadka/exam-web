@@ -6,6 +6,9 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.Instant;
+import java.util.Objects;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Embeddable
 @Getter
@@ -36,4 +39,11 @@ public class UserInformation {
     @Column(length = ValidateConstraint.Length.ADDRESS_MAX_LENGTH)
     private String address;
 
+    public String buildFullName() {
+        return Stream.of(firstName, lastName)
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.joining(" "));
+    }
 }

@@ -54,4 +54,16 @@ public interface ExamAttemptRepository extends JpaRepository<ExamAttempt, Long> 
             """)
     List<ExamAttempt> findByStatus(@Param("status") ExamAttempt.AttemptStatus status);
 
+    @Query("""
+            SELECT a FROM ExamAttempt a
+            LEFT JOIN FETCH a.examSession es
+            LEFT JOIN FETCH es.exam e
+            WHERE a.examSession.id = :sessionId
+              AND a.gradingStatus = :gradingStatus
+            """)
+    List<ExamAttempt> findByExamSessionIdAndGradingStatus(
+            @Param("sessionId") Long sessionId,
+            @Param("gradingStatus") ExamAttempt.GradingStatus gradingStatus
+    );
+
 }

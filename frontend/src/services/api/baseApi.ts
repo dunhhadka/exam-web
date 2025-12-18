@@ -22,9 +22,12 @@ export const authenticatedApi = createApi({
     'Result',
     'Tag',
     'ExamSession',
+    'EmailNotification',
     'Attempt',
     'Profile',
     'Storage',
+    "ExamSessionStudent",
+    "Notification"
   ],
   endpoints: () => ({}),
 })

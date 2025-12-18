@@ -10,7 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 @Component
-@Converter(autoApply = true)
+@Converter
 @RequiredArgsConstructor
 @Slf4j
 public class BaseQuestionConverter implements AttributeConverter<Question.BaseQuestion, String> {

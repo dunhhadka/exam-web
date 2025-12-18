@@ -75,4 +75,16 @@ public class ExamAttemptControllerImpl implements ExamAttemptController {
         examAttemptService.incrementFullscreenExitCount(attemptId);
         return Response.ok();
     }
+
+    @Override
+    public Response<Void> sendResultNotifications(Long sessionId) {
+        examAttemptService.sendResultNotifications(sessionId);
+        return Response.ok();
+    }
+
+    @Override
+    public Response<Void> sendResultNotificationForAttempt(Long attemptId) {
+        examAttemptService.sendResultNotificationForAttempt(attemptId);
+        return Response.ok();
+    }
 }

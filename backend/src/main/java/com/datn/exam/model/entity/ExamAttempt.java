@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Entity
 @Table(name = "exam_attempts")
@@ -37,6 +38,10 @@ public class ExamAttempt extends AuditableEntity{
 
     @Column(name = "student_name")
     private String studentName;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = true)
+    private User user;
 
     @Column(name = "attempt_no", nullable = false)
     private Integer attemptNo;
@@ -66,7 +71,7 @@ public class ExamAttempt extends AuditableEntity{
 
     @Convert(converter = MapObjectConverter.class)
     @Column(name = "snapshot_exam")
-    private Map<String, Objects> snapshotExam;
+    private Map<String, Object> snapshotExam;
 
     @Column(name = "fullscreen_exit_count", nullable = false)
     @Builder.Default

@@ -3,10 +3,7 @@ package com.datn.exam.model.dto.response;
 import com.datn.exam.support.enums.Level;
 import com.datn.exam.support.enums.QuestionType;
 import com.datn.exam.support.enums.Status;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.Getter;
+import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -15,6 +12,8 @@ import java.util.List;
 
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class QuestionResponse {
     private long id;
 

@@ -4,6 +4,8 @@ import com.datn.exam.support.converter.MapObjectConverter;
 import com.datn.exam.support.util.InviteCodeUtils;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.Fetch;
+import org.hibernate.annotations.FetchMode;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -22,8 +24,8 @@ public class ExamSession extends AuditableEntity{
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
 
-    private String code; //NOTE: Mã vào cho thí sinh (ví dụ 6-8 kí tự)
-    private String name; // Tên phiên bài kiểm tra
+    private String code;
+    private String name;
 
     @Column(name = "student_email")
     private String studentEmail;
@@ -72,6 +74,14 @@ public class ExamSession extends AuditableEntity{
     @JoinColumn(name = "exam_id")
     private Exam exam;
 
+    @OneToMany(mappedBy = "examSession", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Fetch(FetchMode.SUBSELECT)
+    private List<ExamAttempt> examAttempts;
+
+    @OneToMany(mappedBy = "examSession", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Fetch(FetchMode.SUBSELECT)
+    private List<SessionStudent> sessionStudents;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "exam_status")
     private ExamStatus examStatus;
@@ -86,9 +96,8 @@ public class ExamSession extends AuditableEntity{
     }
 
     public enum AccessMode {
-        PUBLIC,
-        WHITELIST,
-        PASSWORD
+        PUBLIC,   // Anyone with code/link (no account needed)
+        PRIVATE   // Only assigned students (must have account)
     }
 
     @PrePersist
