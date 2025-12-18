@@ -233,6 +233,7 @@ export default function Candidate() {
   const [error, setError] = useState(null)
   const [aiStatus, setAiStatus] = useState(null)
   const [recentAlerts, setRecentAlerts] = useState([])
+  const [proctorForceSubmitRequest, setProctorForceSubmitRequest] = useState(null)
   const [chatModalVisible, setChatModalVisible] = useState(false)
 
   const recordingServiceRef = useRef(new RecordingService())
@@ -367,6 +368,24 @@ export default function Candidate() {
               alert('Phiên kết thúc bởi giám thị')
             }
           }
+        })
+
+        signaling.on('force_submit', (data) => {
+          console.log('[Candidate] force_submit received:', data)
+          const requestedAt = Number(data?.ts ?? Date.now())
+          const timeoutSecondsRaw = Number(data?.timeoutSeconds ?? data?.timeoutSec ?? 30)
+          const timeoutSeconds = Number.isFinite(timeoutSecondsRaw) && timeoutSecondsRaw > 0 ? timeoutSecondsRaw : 30
+
+          const requestId = String(
+            data?.requestId ?? `${String(data?.from ?? 'proctor')}-${requestedAt}`
+          )
+
+          setProctorForceSubmitRequest({
+            requestId,
+            requestedAt,
+            timeoutSeconds,
+            by: String(data?.from ?? ''),
+          })
         })
         signaling.on('chat', (data) => {
           setMsgs(m => [...m, { from: data.from, text: data.text }])
@@ -883,6 +902,7 @@ export default function Candidate() {
                           level: cheatLevel.level,
                           message: cheatLevel.message
                         }}
+                        proctorForceSubmitRequest={proctorForceSubmitRequest}
                         />
                       </Card>
                     </ExamSection>

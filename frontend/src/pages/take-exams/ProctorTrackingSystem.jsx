@@ -14,6 +14,7 @@ import {
   Space,
   Badge,
   Switch,
+  Select,
   List,
   Modal,
   FloatButton,
@@ -246,6 +247,8 @@ export default function Proctor() {
   const [selectedCandidate, setSelectedCandidate] = useState(null)
   const [aiAnalysis, setAiAnalysis] = useState({})
   const [chatModalVisible, setChatModalVisible] = useState(false)
+  const [participants, setParticipants] = useState([])
+  const [isSfuMode, setIsSfuMode] = useState(false)
 
   const localVideoRef = useRef(null)
   const pcsRef = useRef(new Map())
@@ -258,6 +261,27 @@ export default function Proctor() {
     const init = async () => {
       const signaling = new SignalingClient({ baseUrl: SIGNALING_BASE, roomId, userId, role: 'proctor' })
       sigRef.current = signaling
+
+      // Track roster so we can target specific candidates even in SFU mode.
+      signaling.on('roster', (data) => {
+        const list = Array.isArray(data?.participants) ? data.participants : []
+        setParticipants(list)
+      })
+      signaling.on('participant_joined', (data) => {
+        const pid = String(data?.userId ?? '')
+        const role = String(data?.role ?? '')
+        if (!pid) return
+        setParticipants((prev) => {
+          const exists = prev.some((p) => String(p?.userId) === pid)
+          if (exists) return prev
+          return [...prev, { userId: pid, role }]
+        })
+      })
+      signaling.on('participant_left', (data) => {
+        const pid = String(data?.userId ?? '')
+        if (!pid) return
+        setParticipants((prev) => prev.filter((p) => String(p?.userId) !== pid))
+      })
       
       let sfuMode = false
       try {
@@ -267,6 +291,8 @@ export default function Proctor() {
       } catch (e) {
         console.warn('Could not check SFU mode, defaulting to P2P')
       }
+
+      setIsSfuMode(sfuMode)
       
       if (sfuMode) {
         console.log('=== SFU MODE ===')
@@ -686,6 +712,54 @@ export default function Proctor() {
     sigRef.current?.send({ type: 'control', action, to: candidateId })
   }
 
+  const requestForceSubmit = (candidateId) => {
+    const candidateIds = participants
+      .filter((p) => String(p?.role) === 'candidate')
+      .map((p) => String(p?.userId))
+      .filter(Boolean)
+
+    const normalized = candidateId ? String(candidateId) : ''
+    let targetId = normalized
+
+    // In SFU mode, the UI stream key can be "sfu-all" which is not a real participant id.
+    if (isSfuMode && (!targetId || targetId === 'sfu-all')) {
+      if (selectedCandidate) targetId = String(selectedCandidate)
+      else if (candidateIds.length === 1) targetId = candidateIds[0]
+    }
+
+    console.log('[Proctor] force_submit request', {
+      isSfuMode,
+      focusedCandidateId: candidateId,
+      selectedCandidate,
+      resolvedTargetId: targetId,
+      candidateIds,
+    })
+
+    // Safety: if still not resolved (or invalid), ask proctor to select.
+    if (!targetId || (candidateIds.length > 0 && !candidateIds.includes(targetId))) {
+      alert('Vui lòng chọn đúng thí sinh để yêu cầu nộp bài.')
+      return
+    }
+
+    sigRef.current?.send({
+      type: 'force_submit',
+      to: targetId,
+      timeoutSeconds: 30,
+      ts: Date.now(),
+    })
+  }
+
+  useEffect(() => {
+    // Convenience: auto-select when exactly 1 candidate is connected.
+    const candidateIds = participants
+      .filter((p) => String(p?.role) === 'candidate')
+      .map((p) => String(p?.userId))
+      .filter(Boolean)
+    if (!selectedCandidate && candidateIds.length === 1) {
+      setSelectedCandidate(candidateIds[0])
+    }
+  }, [participants, selectedCandidate])
+
   const getSeverityColor = (level) => {
     if (level === 'S3') return '#ff4d4f'
     if (level === 'S2') return '#faad14'
@@ -771,6 +845,20 @@ export default function Proctor() {
               </div>
               
               <ControlBar>
+                {isSfuMode && (
+                  <Select
+                    value={selectedCandidate}
+                    placeholder="Chọn thí sinh"
+                    onChange={(v) => setSelectedCandidate(v)}
+                    style={{ minWidth: 180 }}
+                    options={participants
+                      .filter((p) => String(p?.role) === 'candidate')
+                      .map((p) => ({
+                        value: String(p.userId),
+                        label: String(p.userId),
+                      }))}
+                  />
+                )}
                 <Button 
                   type="primary" 
                   icon={<PauseCircleOutlined />}
@@ -784,6 +872,12 @@ export default function Proctor() {
                   onClick={() => controlCandidate(focusedId, 'end')}
                 >
                   Kết thúc
+                </Button>
+                <Button
+                  danger
+                  onClick={() => requestForceSubmit(focusedId)}
+                >
+                  Yêu cầu nộp bài
                 </Button>
                 <Button 
                   icon={<MessageOutlined />}

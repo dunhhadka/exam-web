@@ -87,6 +87,13 @@ interface AIStatus {
   analyses?: AIAnalysis[]
 }
 
+interface ProctorForceSubmitRequest {
+  requestId: string
+  requestedAt: number
+  timeoutSeconds: number
+  by?: string
+}
+
 interface UseScreenOCRParams {
   screenVideoRef: React.RefObject<HTMLVideoElement | null>
   canvasRef: React.RefObject<HTMLCanvasElement | null>
@@ -372,6 +379,9 @@ export default function Candidate() {
   const [error, setError] = useState<string | null>(null)
   const [aiStatus, setAiStatus] = useState<AIStatus | null>(null)
   const [recentAlerts, setRecentAlerts] = useState<Alert[]>([])
+  const [proctorForceSubmitRequest, setProctorForceSubmitRequest] = useState<
+    ProctorForceSubmitRequest | null
+  >(null)
   const [chatModalVisible, setChatModalVisible] = useState<boolean>(false)
 
   const recordingServiceRef = useRef<RecordingService>(new RecordingService())
@@ -533,6 +543,29 @@ export default function Candidate() {
         })
         signaling.on('chat', (data: any) => {
           setMsgs((m) => [...m, { from: data.from, text: data.text }])
+        })
+
+        signaling.on('force_submit', (data: any) => {
+          console.log('[Candidate] force_submit received:', data)
+          const requestedAt = Number(data?.ts ?? Date.now())
+          const timeoutSecondsRaw = Number(
+            data?.timeoutSeconds ?? data?.timeoutSec ?? 30
+          )
+          const timeoutSeconds =
+            Number.isFinite(timeoutSecondsRaw) && timeoutSecondsRaw > 0
+              ? timeoutSecondsRaw
+              : 30
+
+          const requestId = String(
+            data?.requestId ?? `${String(data?.from ?? 'proctor')}-${requestedAt}`
+          )
+
+          setProctorForceSubmitRequest({
+            requestId,
+            requestedAt,
+            timeoutSeconds,
+            by: String(data?.from ?? ''),
+          })
         })
 
         // Listen for AI analysis updates
@@ -1199,7 +1232,11 @@ export default function Candidate() {
               }
               style={{ flex: 1 }}
             >
-              <TakeExamContent />
+              <TakeExamContent
+                proctorForceSubmitRequest={
+                  proctorForceSubmitRequest ?? undefined
+                }
+              />
             </Card>
           </ExamSection>
 
