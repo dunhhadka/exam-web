@@ -6,6 +6,7 @@ export interface SessionUser {
   code: string
   gender: string
   status: string
+  attemptId?: number
 }
 
 export interface SessionUserFilterRequest {

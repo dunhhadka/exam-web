@@ -15,24 +15,31 @@ const ProtectedRoute = ({ allowedRoles }: Props) => {
   const dispatch = useDispatch();
   const [isInitialized, setIsInitialized] = useState(false);
 
-  const { profile } = useSelector((state: RootState) => state.auth);
+  const { profile, accessToken, authEpoch } = useSelector(
+    (state: RootState) => state.auth
+  );
 
-  const storedProfile = localStorage.getItem("profile");
+  const storedProfile = localStorage.getItem("userProfile");
   const localProfile = storedProfile
     ? (JSON.parse(storedProfile) as Profile)
     : null;
 
-  const shouldSkipQuery = !!profile || !!localProfile;
+  const shouldSkipQuery = !accessToken || !!profile || !!localProfile;
 
   const {
     data: fetchedProfile,
     isLoading,
     isError,
-  } = useGetProfileQuery(undefined, {
+  } = useGetProfileQuery(authEpoch, {
     skip: shouldSkipQuery,
   });
 
   useEffect(() => {
+    if (!accessToken) {
+      setIsInitialized(true);
+      return;
+    }
+
     if (profile) {
       setIsInitialized(true);
       return;
@@ -46,17 +53,17 @@ const ProtectedRoute = ({ allowedRoles }: Props) => {
 
     if (fetchedProfile && !isLoading) {
       dispatch(setProfile(fetchedProfile));
-      localStorage.setItem("profile", JSON.stringify(fetchedProfile));
+      localStorage.setItem("userProfile", JSON.stringify(fetchedProfile));
       setIsInitialized(true);
       return;
     }
 
     if (isError && !isLoading) {
-      localStorage.removeItem("profile");
+      localStorage.removeItem("userProfile");
       setIsInitialized(true);
       return;
     }
-  }, [fetchedProfile, isLoading, isError, profile, localProfile, dispatch]);
+  }, [accessToken, fetchedProfile, isLoading, isError, profile, localProfile, dispatch]);
 
   if (isLoading || !isInitialized) {
     return (

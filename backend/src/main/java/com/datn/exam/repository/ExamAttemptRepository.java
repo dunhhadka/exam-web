@@ -13,8 +13,14 @@ public interface ExamAttemptRepository extends JpaRepository<ExamAttempt, Long> 
     @Query("SELECT COUNT(ea) FROM ExamAttempt ea WHERE ea.examSession.id = :sessionId AND ea.studentEmail = :email")
     int countByExamSessionIdAndStudentEmail(Long sessionId, String email);
 
-    @Query("SELECT COALESCE(MAX(ea.attemptNo), 0) FROM ExamAttempt ea WHERE ea.examSession.id = :sessionId AND ea.studentEmail = :email")
-    int findMaxAttemptNoByEmail(Long sessionId, String email);
+    @Query("SELECT COUNT(ea) FROM ExamAttempt ea WHERE ea.examSession.id = :sessionId AND ea.studentEmail = :email AND ea.status IN ('SUBMITTED', 'ABANDONED')")
+    int countCompletedAttempts(Long sessionId, String email);
+
+    @Query(value = "SELECT COALESCE(MAX(ea.attempt_no), 0) FROM exam_attempt ea WHERE ea.exam_session_id = :sessionId AND ea.student_email = :email FOR UPDATE", nativeQuery = true)
+    int findMaxAttemptNoByEmail(@Param("sessionId") Long sessionId, @Param("email") String email);
+    
+    @Query("SELECT ea FROM ExamAttempt ea WHERE ea.examSession.id = :sessionId AND ea.studentEmail = :email ORDER BY ea.startedAt DESC")
+    List<ExamAttempt> findBySessionIdAndStudentEmailOrderByStartedAtDesc(@Param("sessionId") Long sessionId, @Param("email") String email);
 
     Optional<ExamAttempt> findByIdAndStudentEmail(Long id, String email);
 

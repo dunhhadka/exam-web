@@ -345,71 +345,122 @@ export default function KYCFlow({
     }
   }
 
-  const verify = async (): Promise<void> => {
-    if (!selfieBlob) return
-    if (!isWhitelistMode && !idFile) return
+  // const verify = async (): Promise<void> => {
+  //   if (!selfieBlob) return
+  //   if (!isWhitelistMode && !idFile) return
 
-    setVerifying(true)
-    setResult(null)
+  //   setVerifying(true)
+  //   setResult(null)
     
-    try {
-      const formData = new FormData()
-      formData.append('candidateId', candidateId)
-      formData.append('selfie', selfieBlob, 'selfie.jpg')
+  //   try {
+  //     const formData = new FormData()
+  //     formData.append('candidateId', candidateId)
+  //     formData.append('selfie', selfieBlob, 'selfie.jpg')
       
-      if (isWhitelistMode) {
-        if (email) formData.append('email', email)
-        if (sessionId) formData.append('session_id', sessionId.toString())
-      } else if (idFile) {
-        formData.append('id_image', idFile)
-      }
+  //     if (isWhitelistMode) {
+  //       if (email) formData.append('email', email)
+  //       if (sessionId) formData.append('session_id', sessionId.toString())
+  //     } else if (idFile) {
+  //       formData.append('id_image', idFile)
+  //     }
 
-      // Call Real AI Backend
-      const response = await axios.post('http://localhost:8000/api/kyc/verify', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      })
+  //     // Call Real AI Backend
+  //     const response = await axios.post('http://localhost:8000/api/kyc/verify', formData, {
+  //       headers: {
+  //         'Content-Type': 'multipart/form-data',
+  //       },
+  //     })
 
-      const data = response.data
+  //     const data = response.data
       
-      const verificationResult: VerificationResult = {
-        faceMatch: data.similarity,
-        livenessScore: 1.0, // Backend doesn't return liveness yet, assume 1.0 if passed
-        passed: data.passed,
-        message: data.passed ? 'Xác thực thành công' : 'Xác thực thất bại',
-      }
+  //     const verificationResult: VerificationResult = {
+  //       faceMatch: data.similarity,
+  //       livenessScore: 1.0, // Backend doesn't return liveness yet, assume 1.0 if passed
+  //       passed: data.passed,
+  //       message: data.passed ? 'Xác thực thành công' : 'Xác thực thất bại',
+  //     }
       
-      setResult(verificationResult)
+  //     setResult(verificationResult)
 
-      // Do not auto-advance. Show "Tiếp tục" button on success.
-    } catch (error) {
-      console.error('KYC Verification error:', error)
+  //     // Do not auto-advance. Show "Tiếp tục" button on success.
+  //   } catch (error) {
+  //     console.error('KYC Verification error:', error)
 
-      const backendMessage = (() => {
-        if (axios.isAxiosError(error)) {
-          const data: any = error.response?.data
-          return (
-            data?.detail ||
-            data?.message ||
-            (typeof data === 'string' ? data : null) ||
-            error.message
-          )
-        }
-        if (error instanceof Error) return error.message
-        return 'Lỗi không xác định'
-      })()
+  //     const backendMessage = (() => {
+  //       if (axios.isAxiosError(error)) {
+  //         const data: any = error.response?.data
+  //         return (
+  //           data?.detail ||
+  //           data?.message ||
+  //           (typeof data === 'string' ? data : null) ||
+  //           error.message
+  //         )
+  //       }
+  //       if (error instanceof Error) return error.message
+  //       return 'Lỗi không xác định'
+  //     })()
 
-      setResult({
-        faceMatch: 0,
-        livenessScore: 0,
-        passed: false,
-        message: backendMessage || 'Lỗi kết nối server hoặc xác thực thất bại',
-      })
-    } finally {
-      setVerifying(false)
+  //     setResult({
+  //       faceMatch: 0,
+  //       livenessScore: 0,
+  //       passed: false,
+  //       message: backendMessage || 'Lỗi kết nối server hoặc xác thực thất bại',
+  //     })
+  //   } finally {
+  //     setVerifying(false)
+  //   }
+  // }
+
+  const verify = async (): Promise<void> => {
+  if (!selfieBlob) return
+  if (!isWhitelistMode && !idFile) return
+
+  setVerifying(true)
+  setResult(null)
+  
+  try {
+    // MOCK DATA - Bỏ phần gọi API thật
+    /*
+    const formData = new FormData()
+    formData.append('candidateId', candidateId)
+    formData.append('selfie', selfieBlob, 'selfie.jpg')
+    
+    if (isWhitelistMode) {
+      if (email) formData.append('email', email)
+      if (sessionId) formData.append('session_id', sessionId.toString())
+    } else if (idFile) {
+      formData.append('id_image', idFile)
     }
+
+    const response = await axios.post('http://localhost:8000/api/kyc/verify', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    })
+
+    const data = response.data
+    */
+
+    // MOCK: Delay 2s để giả lập API call
+    await new Promise(resolve => setTimeout(resolve, 2000))
+
+    // MOCK: Luôn pass với điểm cao
+    const verificationResult: VerificationResult = {
+      faceMatch: 0.95,           // 95% khớp
+      livenessScore: 0.98,       // 98% tin cậy
+      passed: true,              // LUÔN PASS
+      message: 'Xác thực thành công'
+    }
+    
+    setResult(verificationResult)
+
+  } catch (error) {
+    console.error('KYC Verification error:', error)
+    // Không cần xử lý lỗi vì đang mock
+  } finally {
+    setVerifying(false)
   }
+}
 
   const handleContinue = () => {
     if (result?.passed) {

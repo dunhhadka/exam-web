@@ -135,7 +135,7 @@ public class ExamJoinServiceImpl implements ExamJoinService {
             }
         }
 
-        int usedAttempts = examAttemptRepository.countByExamSessionIdAndStudentEmail(examSession.getId(), email);
+        int usedAttempts = examAttemptRepository.countCompletedAttempts(examSession.getId(), email);
         if (usedAttempts >= examSession.getAttemptLimit()) {
             throw new ResponseException(BadRequestError.ATTEMPT_LIMIT_REACHED);
         }

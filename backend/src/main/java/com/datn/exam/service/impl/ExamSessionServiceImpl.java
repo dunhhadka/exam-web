@@ -752,6 +752,7 @@ public class ExamSessionServiceImpl implements ExamSessionService {
                             .code(latestAttempt.getStudentName())
                             .gender("Không rõ")
                             .status("Hoạt động")
+                            .attemptId(latestAttempt.getId())
                             .build();
                 })
                 .toList();

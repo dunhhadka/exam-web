@@ -135,7 +135,7 @@ export const AttemptListModal = ({
             </ResultValue>
           </ResultRow>
           <ResultRow>
-            <ResultLabel>Vi phạm</ResultLabel>
+            <ResultLabel>Chưa trả lời</ResultLabel>
             <ResultValue $violation={record.unansweredQuestions > 0}>
               {record.unansweredQuestions}
             </ResultValue>
