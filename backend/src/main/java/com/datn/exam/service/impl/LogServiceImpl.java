@@ -78,21 +78,18 @@ public class LogServiceImpl implements LogService {
     @Override
     @Transactional(readOnly = true)
     public List<Map<String, Object>> getLogsGroupedByAttempt(Long sessionId, String studentEmail) {
-        // Lấy tất cả attempts của student trong session, sắp xếp theo attemptId tăng dần (làm trước có attemptId nhỏ hơn)
         List<ExamAttempt> attempts = examAttemptRepository
                 .findBySessionIdAndStudentEmailOrderByStartedAtDesc(sessionId, studentEmail)
                 .stream()
                 .sorted(Comparator.comparing(ExamAttempt::getId))
-                .collect(Collectors.toList());
+                .toList();
         
-        // Lấy tất cả logs
         List<LogResponse> allLogs = logRepository
                 .findBySessionIdAndStudentEmailOrderByLoggedAtDesc(sessionId, studentEmail)
                 .stream()
                 .map(LogResponse::fromEntity)
-                .collect(Collectors.toList());
+                .toList();
         
-        // Group logs theo attemptId
         Map<Long, List<LogResponse>> logsMap = allLogs.stream()
                 .collect(Collectors.groupingBy(LogResponse::getAttemptId));
         
