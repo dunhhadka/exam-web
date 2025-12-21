@@ -15,8 +15,9 @@ import { formatRemaining } from '../examsession/ExamSessionCard'
 import { formatInstant } from '../../utils/times'
 import { SessionInfoResponse } from '../../types/take-exam'
 import { useEffect, useState } from 'react'
-import { useSelector } from 'react-redux'
+import { useDispatch, useSelector } from 'react-redux'
 import { RootState } from '../../store'
+import { setTakeExamCode } from '../../store/slices/takeExamSlice'
 
 const { Text } = Typography
 
@@ -39,6 +40,8 @@ const ExamWaitingPage = () => {
   const { state } = useLocation()
   const examSessionInfo = state?.examSessionInfo as SessionInfoResponse
   const email = state?.email as string
+  const dispatch = useDispatch()
+
 
   const profile = localStorage.getItem('userProfile')
     ? JSON.parse(localStorage.getItem('userProfile') || '{}')
@@ -81,6 +84,7 @@ const ExamWaitingPage = () => {
         endTime: examSessionInfo.endTime,
         examCode: examSessionInfo.code,
       })
+      dispatch(setTakeExamCode(examSessionInfo.code))
     } else if (examSession) {
       setDisplayInfo({
         id: examSession.id,
@@ -90,6 +94,7 @@ const ExamWaitingPage = () => {
         endTime: examSession.endTime,
         examCode: examSession.code,
       })
+      dispatch(setTakeExamCode(examSession.code))
     }
   }, [examSession, examSessionInfo])
 

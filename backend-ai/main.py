@@ -92,6 +92,16 @@ class Room:
                     await target.websocket.send_text(payload)
                 except RuntimeError:
                     pass
+                return
+
+            # Helpful debug for cases where UI tries to send to a non-existent participant id.
+            try:
+                print(
+                    f"[WS] target_not_found room={self.room_id} sender={sender_id} to={target_id} type={message.get('type')}",
+                    flush=True,
+                )
+            except Exception:
+                pass
             return
         # Fanout to all except sender
         for pid, participant in list(self.participants.items()):
@@ -772,8 +782,9 @@ async def ws_endpoint(websocket: WebSocket, room_id: str):
             msg = json.loads(text)
             mtype = msg.get("type")
 
-            # Relay SDP/ICE/chat/messages to others in room
-            if mtype in {"offer", "answer", "ice", "chat"}:
+            # Relay signaling/chat/control messages to others in room
+            # NOTE: routing to a specific participant is supported via message["to"].
+            if mtype in {"offer", "answer", "ice", "chat", "control", "force_submit"}:
                 # If SFU is enabled, handle WebRTC signaling via SFU
                 if SFU_ENABLED and mtype == "offer":
                     track_info = msg.get("trackInfo", [])

@@ -43,9 +43,20 @@ interface Props {
     message: string
   }
   onCheatAutoSubmit?: () => void
+
+  proctorForceSubmitRequest?: {
+    requestId: string
+    requestedAt: number
+    timeoutSeconds: number
+    by?: string
+  }
 }
 
-const TakeExamContent = ({ cheatDetected, onCheatAutoSubmit }: Props) => {
+const TakeExamContent = ({
+  cheatDetected,
+  onCheatAutoSubmit,
+  proctorForceSubmitRequest,
+}: Props) => {
   const location = useLocation()
   const navigate = useNavigate()
   const { state } = location
@@ -63,6 +74,13 @@ const TakeExamContent = ({ cheatDetected, onCheatAutoSubmit }: Props) => {
   const [errorMessage, setErrorMessage] = useState('')
   const [submitResult, setSubmitResult] = useState<any>(null)
   const [isAutoSubmitModalOpen, setIsAutoSubmitModalOpen] = useState(false)
+
+  const [isProctorSubmitModalOpen, setIsProctorSubmitModalOpen] =
+    useState(false)
+  const [proctorSubmitSecondsLeft, setProctorSubmitSecondsLeft] = useState(0)
+  const proctorSubmitDeadlineRef = useRef<number | null>(null)
+  const proctorSubmitIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const proctorSubmitTriggeredRef = useRef(false)
 
   const timerRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -250,6 +268,75 @@ const TakeExamContent = ({ cheatDetected, onCheatAutoSubmit }: Props) => {
     onCheatAutoSubmit,
     submitExamDirectly,
   ])
+
+  useEffect(() => {
+    if (!proctorForceSubmitRequest?.requestId) return
+
+    proctorSubmitTriggeredRef.current = false
+    const timeoutSecondsRaw = Number(proctorForceSubmitRequest.timeoutSeconds)
+    const timeoutSeconds =
+      Number.isFinite(timeoutSecondsRaw) && timeoutSecondsRaw > 0
+        ? timeoutSecondsRaw
+        : 30
+
+    const requestedAtRaw = Number(proctorForceSubmitRequest.requestedAt)
+    const requestedAt =
+      Number.isFinite(requestedAtRaw) && requestedAtRaw > 0
+        ? requestedAtRaw
+        : Date.now()
+
+    proctorSubmitDeadlineRef.current = requestedAt + timeoutSeconds * 1000
+    setIsProctorSubmitModalOpen(true)
+
+    const tick = () => {
+      const deadline = proctorSubmitDeadlineRef.current
+      if (!deadline) return
+
+      const msLeft = deadline - Date.now()
+      const secondsLeft = Math.max(0, Math.ceil(msLeft / 1000))
+      setProctorSubmitSecondsLeft(secondsLeft)
+
+      if (secondsLeft <= 0 && !proctorSubmitTriggeredRef.current) {
+        proctorSubmitTriggeredRef.current = true
+        setIsProctorSubmitModalOpen(false)
+
+        if (proctorSubmitIntervalRef.current) {
+          clearInterval(proctorSubmitIntervalRef.current)
+          proctorSubmitIntervalRef.current = null
+        }
+
+        submitExamDirectly()
+      }
+    }
+
+    // Initialize countdown immediately
+    tick()
+
+    if (proctorSubmitIntervalRef.current) {
+      clearInterval(proctorSubmitIntervalRef.current)
+    }
+    proctorSubmitIntervalRef.current = setInterval(tick, 250)
+
+    return () => {
+      if (proctorSubmitIntervalRef.current) {
+        clearInterval(proctorSubmitIntervalRef.current)
+        proctorSubmitIntervalRef.current = null
+      }
+    }
+  }, [proctorForceSubmitRequest?.requestId, submitExamDirectly])
+
+  const handleProctorSubmitNow = useCallback(async () => {
+    if (proctorSubmitTriggeredRef.current) return
+    proctorSubmitTriggeredRef.current = true
+
+    if (proctorSubmitIntervalRef.current) {
+      clearInterval(proctorSubmitIntervalRef.current)
+      proctorSubmitIntervalRef.current = null
+    }
+
+    setIsProctorSubmitModalOpen(false)
+    await submitExamDirectly()
+  }, [submitExamDirectly])
 
   useEffect(() => {
     if (isAutoSubmitModalOpen) {
@@ -840,6 +927,74 @@ const TakeExamContent = ({ cheatDetected, onCheatAutoSubmit }: Props) => {
             <WarningText style={{ marginTop: 16, fontSize: 13 }}>
               📋 Kết quả sẽ được ghi nhận với dấu hiệu vi phạm quy định.
             </WarningText>
+          </ModalContent>
+        </Modal>
+      )}
+
+      {isProctorSubmitModalOpen && (
+        <Modal
+          title={
+            <ModalTitle>
+              <ExclamationCircleOutlined
+                style={{ color: '#ff4d4f', marginRight: 8 }}
+              />
+              Yêu cầu nộp bài từ giám thị
+            </ModalTitle>
+          }
+          open={isProctorSubmitModalOpen}
+          onOk={handleProctorSubmitNow}
+          onCancel={() => {}}
+          okText="Nộp bài ngay"
+          cancelButtonProps={{ style: { display: 'none' } }}
+          closable={false}
+          maskClosable={false}
+          keyboard={false}
+          confirmLoading={isSubmitLoading}
+          centered
+          width={520}
+        >
+          <ModalContent>
+            <WarningText style={{ color: '#ff4d4f', marginBottom: 12 }}>
+              Giám thị yêu cầu bạn nộp bài thi ngay lập tức.
+            </WarningText>
+
+            <p style={{ marginBottom: 12 }}>
+              Hệ thống sẽ tự động nộp sau{' '}
+              <strong>{proctorSubmitSecondsLeft}</strong> giây nếu bạn không bấm
+              nộp.
+            </p>
+
+            <Progress
+              percent={Math.min(
+                100,
+                Math.max(
+                  0,
+                  Math.round(
+                    ((
+                      (proctorForceSubmitRequest?.timeoutSeconds || 30) -
+                      proctorSubmitSecondsLeft
+                    ) /
+                      (proctorForceSubmitRequest?.timeoutSeconds || 30)) *
+                      100
+                  )
+                )
+              )}
+              status="active"
+              showInfo={false}
+            />
+
+            <StatsInfo style={{ marginTop: 16 }}>
+              <StatsItem>
+                <span>Đã làm:</span>
+                <strong>
+                  {getAnsweredCount()}/{data?.questions?.length ?? 0} câu
+                </strong>
+              </StatsItem>
+              <StatsItem>
+                <span>Thời gian còn lại:</span>
+                <strong>{formatTime(timeRemaining)}</strong>
+              </StatsItem>
+            </StatsInfo>
           </ModalContent>
         </Modal>
       )}

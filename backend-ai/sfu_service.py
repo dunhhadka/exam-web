@@ -10,6 +10,10 @@ from dataclasses import dataclass
 try:
     from aiortc import RTCPeerConnection, RTCSessionDescription, MediaStreamTrack, RTCIceCandidate
     from aiortc.sdp import candidate_from_sdp
+    try:
+        from aiortc.sdp import candidate_to_sdp
+    except Exception:
+        candidate_to_sdp = None
     AIORTC_AVAILABLE = True
     print(f"[SFU_SERVICE] aiortc imported successfully, AIORTC_AVAILABLE = True")
 except ImportError as e:
@@ -19,6 +23,7 @@ except ImportError as e:
     MediaStreamTrack = None
     RTCIceCandidate = None
     candidate_from_sdp = None
+    candidate_to_sdp = None
     print(f"[SFU_SERVICE] aiortc import failed: {e}, AIORTC_AVAILABLE = False")
 
 logger = logging.getLogger(__name__)
@@ -88,6 +93,43 @@ class SFUManager:
     def set_renegotiate_callback(self, callback):
         """Set callback to be called when renegotiation offer is ready"""
         self._renegotiate_callback = callback
+
+    async def _send_ice_to_participant(self, room_id: str, user_id: str, candidate: 'RTCIceCandidate'):
+        """Send server ICE candidate to a participant via main.rooms websocket (best-effort)."""
+        try:
+            if candidate is None:
+                return
+
+            # Convert aiortc ICE candidate to browser RTCIceCandidateInit
+            if candidate_to_sdp is not None:
+                cand_sdp = candidate_to_sdp(candidate)
+            else:
+                # Fallback: some aiortc versions expose to_sdp
+                cand_sdp = candidate.to_sdp()  # type: ignore[attr-defined]
+
+            payload = {
+                "type": "ice",
+                "candidate": {
+                    "candidate": f"candidate:{cand_sdp}",
+                    "sdpMid": getattr(candidate, "sdpMid", None),
+                    "sdpMLineIndex": getattr(candidate, "sdpMLineIndex", None),
+                },
+                "from": "server",
+            }
+
+            # Import at runtime to avoid circular dependency
+            import sys
+            main_module = sys.modules.get('main')
+            if not main_module or not hasattr(main_module, 'rooms'):
+                return
+            rooms = getattr(main_module, 'rooms')
+            room = await rooms.get_or_create(room_id)
+            participant = room.participants.get(str(user_id))
+            if participant:
+                import json
+                await participant.websocket.send_text(json.dumps(payload))
+        except Exception as e:
+            print(f"[SFU] Failed to send ICE to {user_id} in room {room_id}: {e}", flush=True)
     
     async def handle_candidate_offer(
         self, 
@@ -155,6 +197,12 @@ class SFUManager:
             # Create peer connection for candidate
             pc = RTCPeerConnection()
             print(f"[DEBUG] Created RTCPeerConnection for {user_id}", flush=True)
+
+            # Trickle ICE from server -> candidate
+            @pc.on("icecandidate")
+            async def on_icecandidate(candidate):
+                # Send to candidate via websocket (best-effort)
+                await self._send_ice_to_participant(room_id=room_id, user_id=user_id, candidate=candidate)
             
             # Prepare track labels
             track_labels = {}
@@ -291,7 +339,11 @@ class SFUManager:
     ) -> dict:
         """
         Handle offer from proctor
-        Returns answer SDP with all candidate tracks (or recvonly if no candidates yet)
+        Returns answer SDP for the proctor's initial offer.
+
+        Important: the proctor's offer may not include audio/video m-lines (e.g. datachannel-only).
+        In that case, adding media tracks before answering can break aiortc direction negotiation.
+        We therefore answer first, then use server-initiated renegotiation to add existing tracks.
         """
         if not AIORTC_AVAILABLE:
             raise RuntimeError("aiortc not available")
@@ -299,6 +351,11 @@ class SFUManager:
         async with self._lock:
             # Create peer connection for proctor
             pc = RTCPeerConnection()
+
+            # Trickle ICE from server -> proctor
+            @pc.on("icecandidate")
+            async def on_icecandidate(candidate):
+                await self._send_ice_to_participant(room_id=room_id, user_id=user_id, candidate=candidate)
             
             proctor_conn = ProctorConnection(
                 pc=pc,
@@ -318,34 +375,6 @@ class SFUManager:
                 type=offer_sdp['type']
             ))
             
-            # Add all existing candidate tracks to proctor's PC
-            candidates = self._candidates.get(room_id, {})
-            track_count = 0
-            
-            for candidate_id, candidate_conn in candidates.items():
-                if candidate_conn.camera_track:
-                    pc.addTrack(candidate_conn.camera_track)
-                    track_count += 1
-                    print(f"Added camera track from {candidate_id} to proctor")
-                
-                if candidate_conn.screen_track:
-                    pc.addTrack(candidate_conn.screen_track)
-                    track_count += 1
-                    print(f"Added screen track from {candidate_id} to proctor")
-                
-                if candidate_conn.audio_track:
-                    pc.addTrack(candidate_conn.audio_track)
-                    track_count += 1
-                    print(f"Added audio track from {candidate_id} to proctor")
-            
-            print(f"Added {track_count} tracks to proctor {user_id}")
-            
-            # If no tracks yet, we need to add dummy transceivers to be able to receive tracks later
-            if track_count == 0:
-                logger.warning(f"No candidates yet, proctor will connect with no tracks initially")
-                # Don't add dummy transceivers - just create answer as-is
-                # Renegotiation will add tracks when candidates join
-            
             # Create answer
             answer = await pc.createAnswer()
             await pc.setLocalDescription(answer)
@@ -354,11 +383,101 @@ class SFUManager:
             self._proctors[room_id] = proctor_conn
             
             print(f"Created answer for proctor {user_id} in room {room_id}")
+
+            # If candidates already exist (proctor joined late), trigger a single renegotiation offer
+            # from the server side to add all current tracks.
+            asyncio.create_task(self._renegotiate_proctor_add_all_existing_tracks(room_id))
             
             return {
                 "sdp": pc.localDescription.sdp,
                 "type": pc.localDescription.type
             }
+
+    async def _renegotiate_proctor_add_all_existing_tracks(self, room_id: str):
+        """Server-initiated renegotiation to add all currently available candidate tracks."""
+        if not AIORTC_AVAILABLE:
+            return
+
+        try:
+            # Give the initial answer a moment to be applied on the client.
+            await asyncio.sleep(0.1)
+
+            async with self._lock:
+                proctor_conn = self._proctors.get(room_id)
+                if not proctor_conn:
+                    return
+
+                # Avoid overlapping renegotiations.
+                if self._renegotiate_in_progress.get(room_id, False):
+                    return
+
+                candidates = self._candidates.get(room_id, {})
+                if not candidates:
+                    return
+
+                existing_track_ids = set()
+                for sender in proctor_conn.pc.getSenders():
+                    if sender.track:
+                        existing_track_ids.add(sender.track.id)
+
+                added_count = 0
+                for candidate_id, candidate_conn in candidates.items():
+                    if candidate_conn.camera_track and candidate_conn.camera_track.id not in existing_track_ids:
+                        proctor_conn.pc.addTrack(candidate_conn.camera_track)
+                        existing_track_ids.add(candidate_conn.camera_track.id)
+                        added_count += 1
+                    if candidate_conn.screen_track and candidate_conn.screen_track.id not in existing_track_ids:
+                        proctor_conn.pc.addTrack(candidate_conn.screen_track)
+                        existing_track_ids.add(candidate_conn.screen_track.id)
+                        added_count += 1
+                    if candidate_conn.audio_track and candidate_conn.audio_track.id not in existing_track_ids:
+                        proctor_conn.pc.addTrack(candidate_conn.audio_track)
+                        existing_track_ids.add(candidate_conn.audio_track.id)
+                        added_count += 1
+
+                if added_count <= 0:
+                    return
+
+                offer = await proctor_conn.pc.createOffer()
+                await proctor_conn.pc.setLocalDescription(offer)
+
+                self._renegotiate_in_progress[room_id] = True
+                self._pending_renegotiate = {
+                    "sdp": proctor_conn.pc.localDescription.sdp,
+                    "type": proctor_conn.pc.localDescription.type,
+                    "room_id": room_id,
+                    "proctor_id": proctor_conn.user_id,
+                    "candidate_id": "bulk"
+                }
+
+                # Send offer directly to proctor via WebSocket (best-effort)
+                try:
+                    import json
+                    import sys
+                    main_module = sys.modules.get('main')
+                    if main_module and hasattr(main_module, 'rooms'):
+                        rooms = main_module.rooms
+                        room = await rooms.get_or_create(room_id)
+                        proctor_participant = room.participants.get(proctor_conn.user_id)
+                        if proctor_participant:
+                            await proctor_participant.websocket.send_text(json.dumps({
+                                "type": "offer",
+                                "sdp": {
+                                    "sdp": self._pending_renegotiate["sdp"],
+                                    "type": self._pending_renegotiate["type"],
+                                },
+                                "from": "server",
+                                "renegotiate": True,
+                                "candidate_id": "bulk",
+                            }))
+                            print(f"[SFU] Sent initial bulk renegotiation offer to proctor {proctor_conn.user_id} in room {room_id}", flush=True)
+                except Exception as e:
+                    print(f"[SFU] Failed to send bulk renegotiation offer: {e}", flush=True)
+
+        except Exception as e:
+            print(f"[SFU] Bulk renegotiation error in room {room_id}: {e}", flush=True)
+            import traceback
+            traceback.print_exc()
     
     async def _do_renegotiation(
         self,
