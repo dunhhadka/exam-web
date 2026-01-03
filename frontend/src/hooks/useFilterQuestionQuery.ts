@@ -48,16 +48,13 @@ export function useFilterQuestionQuery({ delay = 300 }: Props) {
   const changeFilter = (newFilter: QuestionFilterRequest) => {
     console.log(newFilter, filter)
 
-    setFilter({
-      ...newFilter,
-      key: filter.key,
-    })
+    setFilter(newFilter)
   }
 
   useEffect(() => {
     setFilter((prev) => ({
       ...prev,
-      key: findalQuery,
+      keyword: findalQuery,
       pageIndex: 1,
       pageSize: 10,
     }))
@@ -65,10 +62,10 @@ export function useFilterQuestionQuery({ delay = 300 }: Props) {
 
   const changeLabelItems = (filter: QuestionFilterRequest) => {
     const items: LabelItem[] = []
-    if (filter.key) {
+    if (filter.keyword) {
       items.push({
         label: `Từ khoá: `,
-        value: filter.key,
+        value: filter.keyword,
         onClose: () => setQuery(undefined),
       })
     }

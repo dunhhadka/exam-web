@@ -56,14 +56,14 @@ export const attemptApi = authenticatedApi.injectEndpoints({
       }),
     }),
 
-    sendResultNotificationForAttempt: builder.mutation<void, number>({
-      query: (attemptId) => ({
+    sendResultNotificationForAttempt: builder.mutation<void, { attemptId: number; sessionId: number }>({
+      query: ({ attemptId }) => ({
         url: `/exam-attempt/${attemptId}/send-result-notification`,
         method: 'POST',
       }),
-      invalidatesTags: (result, error, attemptId) => [
+      invalidatesTags: (result, error, { attemptId, sessionId }) => [
         { type: 'Attempt' as const, id: attemptId },
-        { type: 'EmailNotification' as const, id: 'LIST' },
+        { type: 'EmailNotification' as const, id: `SESSION-${sessionId}` },
       ],
     }),
   }),

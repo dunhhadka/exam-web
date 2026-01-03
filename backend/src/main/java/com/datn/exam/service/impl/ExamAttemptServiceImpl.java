@@ -899,8 +899,8 @@ public class ExamAttemptServiceImpl implements ExamAttemptService {
             throw new ResponseException(BadRequestError.INVALID_EMAIL_FORMAT);
         }
 
-        sendResultEmailForAttempt(attempt);
-        log.info("Result notification email queued for attempt {} to {}", attemptId, attempt.getStudentEmail());
+        sendResultEmailForAttemptWithUpdate(attempt);
+        log.info("Result notification email re-queued for attempt {} to {}", attemptId, attempt.getStudentEmail());
     }
 
     private void sendResultEmailForAttempt(ExamAttempt attempt) {
@@ -983,6 +983,85 @@ public class ExamAttemptServiceImpl implements ExamAttemptService {
         );
 
         log.info("Result notification email queued for attempt {} to {}", attempt.getId(), attempt.getStudentEmail());
+    }
+
+    private void sendResultEmailForAttemptWithUpdate(ExamAttempt attempt) {
+        ExamSession session = attempt.getExamSession();
+        Exam exam = session.getExam();
+        
+        List<ExamAttemptQuestion> questions = attempt.getAttemptQuestions();
+        int totalQuestions = questions.size();
+        int correctAnswers = (int) questions.stream()
+                .filter(q -> Boolean.TRUE.equals(q.getCorrect()))
+                .count();
+        int incorrectAnswers = (int) questions.stream()
+                .filter(q -> Boolean.FALSE.equals(q.getCorrect()))
+                .count();
+        
+        BigDecimal maxScore = questions.stream()
+                .map(ExamAttemptQuestion::getPoint)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        
+        BigDecimal finalScore = attempt.getScoreManual() != null && 
+                attempt.getScoreManual().compareTo(BigDecimal.ZERO) > 0
+                ? attempt.getScoreManual()
+                : attempt.getScoreAuto();
+        
+        int accuracy = totalQuestions > 0 
+                ? (int) Math.round((correctAnswers * 100.0) / totalQuestions)
+                : 0;
+        
+        String duration = session.getDurationMinutes() + " phút";
+        String submittedDate = attempt.getSubmittedAt() != null
+                ? attempt.getSubmittedAt().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
+                : "N/A";
+        
+        List<String> cheatingLogs = new ArrayList<>();
+        boolean hasCheatingLogs = false;
+        
+        if (attempt.getLogs() != null && !attempt.getLogs().isEmpty()) {
+            for (Log log : attempt.getLogs()) {
+                if (log.getSeverity() == Log.Severity.WARNING || 
+                    log.getSeverity() == Log.Severity.SERIOUS || 
+                    log.getSeverity() == Log.Severity.CRITICAL) {
+                    hasCheatingLogs = true;
+                    String logMessage = buildLogMessage(log);
+                    if (logMessage != null) {
+                        cheatingLogs.add(logMessage);
+                    }
+                }
+            }
+        }
+        
+        if (attempt.getFullscreenExitCount() != null && attempt.getFullscreenExitCount() > 0) {
+            hasCheatingLogs = true;
+            cheatingLogs.add("Thoát chế độ toàn màn hình " + attempt.getFullscreenExitCount() + " lần");
+        }
+        
+        String subject = "Kết quả bài thi - " + exam.getName();
+        
+        mailPersistenceService.createOrUpdateResultMail(
+                attempt.getStudentEmail(),
+                subject,
+                "mail-notification-result-template",
+                attempt.getStudentName() != null ? attempt.getStudentName() : attempt.getStudentEmail(),
+                exam.getName(),
+                session.getCode(),
+                duration,
+                submittedDate,
+                finalScore,
+                maxScore,
+                totalQuestions,
+                correctAnswers,
+                incorrectAnswers,
+                accuracy,
+                hasCheatingLogs,
+                cheatingLogs,
+                attempt.getId()
+        );
+        
+        log.info("Result notification email re-queued (update) for attempt {} to {}", attempt.getId(), attempt.getStudentEmail());
     }
 
     private String buildLogMessage(Log log) {

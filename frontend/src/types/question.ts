@@ -59,7 +59,7 @@ export interface MediaContent {
 }
 
 export interface PagingRequest {
-  key?: string;
+  keyword?: string;
   pageIndex: number;
   pageSize: number;
   total?: number;
@@ -68,7 +68,7 @@ export interface PagingRequest {
 }
 
 export interface QuestionFilterRequest extends PagingRequest {
-  key?: string;
+  keyword?: string;
   createdBy?: "me" | "all";
   type?: QuestionType;
   level?: Level;
