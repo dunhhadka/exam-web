@@ -249,6 +249,7 @@ export default function Proctor() {
   const [chatModalVisible, setChatModalVisible] = useState(false)
   const [participants, setParticipants] = useState([])
   const [isSfuMode, setIsSfuMode] = useState(false)
+  const isSfuModeRef = useRef(false)
 
   const getCandidateDisplayId = (streamKey) => {
     const key = String(streamKey ?? '')
@@ -264,6 +265,29 @@ export default function Proctor() {
   const [remoteStreams, setRemoteStreams] = useState({})
   const videoRefsRef = useRef(new Map())
   const sigRef = useRef(null)
+
+  const cleanupCandidate = (candidateId) => {
+    const cid = String(candidateId ?? '')
+    if (!cid) return
+
+    const pc = pcsRef.current.get(cid)
+    if (pc) {
+      try { pc.close() } catch {}
+      pcsRef.current.delete(cid)
+    }
+
+    try { streamMapsRef.current.delete(cid) } catch {}
+
+    setRemoteStreams((prev) => {
+      if (!prev || !Object.prototype.hasOwnProperty.call(prev, cid)) return prev
+      const next = { ...prev }
+      delete next[cid]
+      return next
+    })
+
+    setFocusedId((prev) => (String(prev ?? '') === cid ? null : prev))
+    setSelectedCandidate((prev) => (String(prev ?? '') === cid ? null : prev))
+  }
 
   useEffect(() => {
     const init = async () => {
@@ -289,6 +313,14 @@ export default function Proctor() {
         const pid = String(data?.userId ?? '')
         if (!pid) return
         setParticipants((prev) => prev.filter((p) => String(p?.userId) !== pid))
+
+        // In P2P mode, remove the disconnected candidate UI + close PC.
+        if (!isSfuModeRef.current) {
+          cleanupCandidate(pid)
+        } else {
+          // In SFU mode, at minimum clear selection/focus if it points to the leaving candidate.
+          setSelectedCandidate((prev) => (String(prev ?? '') === pid ? null : prev))
+        }
       })
       
       let sfuMode = false
@@ -301,6 +333,7 @@ export default function Proctor() {
       }
 
       setIsSfuMode(sfuMode)
+      isSfuModeRef.current = sfuMode
       
       if (sfuMode) {
         console.log('=== SFU MODE ===')
@@ -588,6 +621,8 @@ export default function Proctor() {
                     }
                   }
                 })
+              } else if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected' || pc.connectionState === 'closed') {
+                cleanupCandidate(candidateId)
               }
             }
             
@@ -656,6 +691,33 @@ export default function Proctor() {
       pcsRef.current.clear()
     }
   }, [roomId, userId])
+
+  useEffect(() => {
+    // Only exit focus when the candidate is actually removed (disconnect cleanup).
+    if (!focusedId) return
+    if (!remoteStreams[focusedId]) setFocusedId(null)
+  }, [focusedId, remoteStreams])
+
+  useEffect(() => {
+    // In SFU mode, if no candidates are in the roster, clear any remaining UI streams.
+    if (!isSfuMode) return
+    const candidateIds = participants
+      .filter((p) => String(p?.role) === 'candidate')
+      .map((p) => String(p?.userId))
+      .filter(Boolean)
+
+    if (candidateIds.length === 0) {
+      setRemoteStreams({})
+      setFocusedId(null)
+      setSelectedCandidate(null)
+      return
+    }
+
+    if (selectedCandidate && !candidateIds.includes(String(selectedCandidate))) {
+      setSelectedCandidate(null)
+      setFocusedId(null)
+    }
+  }, [participants, isSfuMode, selectedCandidate])
 
   useEffect(() => {
     const handleKeyPress = (e) => {
