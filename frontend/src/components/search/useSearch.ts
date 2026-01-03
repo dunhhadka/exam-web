@@ -49,7 +49,7 @@ export function useSearch<IFilter extends Record<string, any>, IResult>(
   }
 
   const shouldSkip =
-    skip || (minLength > 0 && debouncedSearchTerm.trim.length < minLength)
+    skip || (minLength > 0 && debouncedSearchTerm.trim().length < minLength)
 
   const {
     data: response,
