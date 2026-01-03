@@ -32,10 +32,11 @@ import type {
 import { QuestionType } from '../../types/question'
 import { useToast } from '../../hooks/useToast'
 import { useAntiCheat } from '../../hooks/useAntiCheat'
+import { AttemptStatus } from '../../types/attempt'
 
 const { TextArea } = Input
 
-export const CheatLevelAutoSubmit = 'S4'
+export const CheatLevelAutoSubmit = 'S2'
 
 interface Props {
   cheatDetected?: {
@@ -217,42 +218,48 @@ const TakeExamContent = ({
     fetchExamAttempt()
   }, [fetchExamAttempt])
 
-  const submitExam = useCallback(async () => {
-    if (!data) return
+  const submitExam = useCallback(
+    async (status?: AttemptStatus) => {
+      if (!data) return
 
-    const answersList = Object.values(answers)
-    console.log('Submitting answers:', answersList, tokenJoinStart)
+      const answersList = Object.values(answers)
+      console.log('Submitting answers:', answersList, tokenJoinStart)
 
-    try {
-      const result = await submitAttempt({
-        attemptId: data.attemptId,
-        request: { answers: answersList },
-        sessionToken: tokenJoinStart,
-      }).unwrap()
+      try {
+        const result = await submitAttempt({
+          attemptId: data.attemptId,
+          request: { answers: answersList, status },
+          sessionToken: tokenJoinStart,
+        }).unwrap()
 
-      console.log('Submit successful:', result)
-      setSubmitResult(result)
-      setIsSuccessModalOpen(true)
-    } catch (error: any) {
-      console.error('Failed to submit exam:', error)
-      setErrorMessage(
-        error?.data?.message || 'Không thể nộp bài. Vui lòng thử lại.'
-      )
-      setIsErrorModalOpen(true)
-    }
-  }, [data, answers, submitAttempt, tokenJoinStart])
+        console.log('Submit successful:', result)
+        setSubmitResult(result)
+        setIsSuccessModalOpen(true)
+      } catch (error: any) {
+        console.error('Failed to submit exam:', error)
+        setErrorMessage(
+          error?.data?.message || 'Không thể nộp bài. Vui lòng thử lại.'
+        )
+        setIsErrorModalOpen(true)
+      }
+    },
+    [data, answers, submitAttempt, tokenJoinStart]
+  )
 
-  const submitExamDirectly = useCallback(async () => {
-    if (!data) return
+  const submitExamDirectly = useCallback(
+    async (status?: AttemptStatus) => {
+      if (!data) return
 
-    console.log('Auto-submitting (time up)')
+      console.log('Auto-submitting (time up)')
 
-    try {
-      await submitExam()
-    } catch (error) {
-      console.error('Auto-submit failed:', error)
-    }
-  }, [data, submitExam])
+      try {
+        await submitExam(status)
+      } catch (error) {
+        console.error('Auto-submit failed:', error)
+      }
+    },
+    [data, submitExam]
+  )
 
   useEffect(() => {
     if (
@@ -344,7 +351,7 @@ const TakeExamContent = ({
 
       const submitTimer = setTimeout(() => {
         console.log('5s passed - auto submitting exam')
-        submitExamDirectly()
+        submitExamDirectly(AttemptStatus.ABANDONED)
         onCheatAutoSubmit?.()
       }, 5000)
 
@@ -483,7 +490,7 @@ const TakeExamContent = ({
 
   const handleSuccessModalOk = useCallback(() => {
     setIsSuccessModalOpen(false)
-    navigate('/finish-exam', { state: { result: submitResult } })
+    navigate('/', { state: { result: submitResult } })
   }, [navigate, submitResult])
 
   const handleErrorModalOk = useCallback(() => {
@@ -493,7 +500,7 @@ const TakeExamContent = ({
     if (examCode) {
       navigate(`/exam-checkin?code=${examCode}`)
     } else {
-      navigate('/finish-exam', { state: { result: submitResult } })
+      navigate('/', { state: { result: submitResult } })
     }
   }, [startRequest, state, navigate, submitResult])
 
@@ -886,7 +893,7 @@ const TakeExamContent = ({
           }
           open={isAutoSubmitModalOpen}
           onOk={() => {
-            navigate('/finish-exam', { state: { result: submitResult } })
+            navigate('/', { state: { result: submitResult } })
           }}
           onCancel={() => {}} // Không cho phép hủy
           okText="Đã hiểu"
@@ -970,10 +977,8 @@ const TakeExamContent = ({
                 Math.max(
                   0,
                   Math.round(
-                    ((
-                      (proctorForceSubmitRequest?.timeoutSeconds || 30) -
-                      proctorSubmitSecondsLeft
-                    ) /
+                    (((proctorForceSubmitRequest?.timeoutSeconds || 30) -
+                      proctorSubmitSecondsLeft) /
                       (proctorForceSubmitRequest?.timeoutSeconds || 30)) *
                       100
                   )
