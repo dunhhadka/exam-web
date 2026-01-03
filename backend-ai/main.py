@@ -15,7 +15,13 @@ from fastapi import UploadFile, File, Form
 import shutil
 import numpy as np
 import httpx
-from kyc_service import save_kyc_profile, get_kyc_embedding, delete_kyc_profile, get_whitelist_images
+from kyc_service import (
+    save_kyc_profile,
+    get_kyc_embedding,
+    delete_kyc_profile,
+    get_whitelist_images,
+    check_session_student_whitelist,
+)
 from ai_analysis.model_adapters.arcface_model import ArcFaceModel
 from ai_analysis.model_adapters.yolo_detector import YOLODetector
 import os
@@ -210,13 +216,11 @@ async def check_whitelist(
         - has_avatar: boolean
         - avatar_count: int
     """
-    whitelist_urls = get_whitelist_images(email, session_id)
+    exists_in_session, whitelist_urls = check_session_student_whitelist(email, session_id)
     return {
-        "exists": True, # If we query and get result (even empty list implies record exists if logic changes, but here strictly based on images)
-        # Actually get_whitelist_images returns list of URLs. 
-        # If list is not empty, it means we found valid URLs.
+        "exists": exists_in_session,
         "has_avatar": len(whitelist_urls) > 0,
-        "avatar_count": len(whitelist_urls)
+        "avatar_count": len(whitelist_urls),
     }
 
 @app.post("/api/kyc/verify")

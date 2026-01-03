@@ -250,6 +250,14 @@ export default function Proctor() {
   const [participants, setParticipants] = useState([])
   const [isSfuMode, setIsSfuMode] = useState(false)
 
+  const getCandidateDisplayId = (streamKey) => {
+    const key = String(streamKey ?? '')
+    if (isSfuMode && key === 'sfu-all') {
+      return selectedCandidate ? String(selectedCandidate) : 'sfu-all'
+    }
+    return key
+  }
+
   const localVideoRef = useRef(null)
   const pcsRef = useRef(new Map())
   const streamMapsRef = useRef(new Map())
@@ -807,7 +815,7 @@ export default function Proctor() {
             <FocusView>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                 <Typography.Title level={4} style={{ margin: 0 }}>
-                  👁️ Đang theo dõi: {focusedId}
+                  👁️ Đang theo dõi: {getCandidateDisplayId(focusedId)}
                 </Typography.Title>
                 <Button onClick={() => setFocusedId(null)}>Thoát chế độ theo dõi</Button>
               </div>
@@ -920,6 +928,7 @@ export default function Proctor() {
                 {Object.entries(remoteStreams)
                   .filter(([uid]) => !filterIncidents || incidents.some(it => it.from === uid || it.by === uid))
                   .map(([uid, streams]) => {
+                    const displayId = getCandidateDisplayId(uid)
                     const candIncidents = groupedIncidents[uid] || []
                     const s3Count = candIncidents.filter(i => i.level === 'S3').length
                     const s2Count = candIncidents.filter(i => i.level === 'S2').length
@@ -937,10 +946,10 @@ export default function Proctor() {
                             <Avatar size="small" icon={<UserOutlined />} />
                             <div>
                               <Typography.Text strong style={{ fontSize: 14 }}>
-                                {uid}
+                                {displayId}
                               </Typography.Text>
                               <div style={{ fontSize: 12, color: '#666' }}>
-                                {streams?.camera ? '📹 Đang kết nối' : '⏳ Chờ camera...'}
+                                {streams?.camera ? '📹 Đã kết nối' : '⏳ Chờ camera...'}
                               </div>
                             </div>
                           </div>
@@ -1029,7 +1038,10 @@ export default function Proctor() {
                           <Button 
                             size="small"
                             type={selectedCandidate === uid ? 'primary' : 'default'}
-                            onClick={() => setSelectedCandidate(uid === selectedCandidate ? null : uid)}
+                            onClick={() => {
+                              if (isSfuMode && uid === 'sfu-all') return
+                              setSelectedCandidate(uid === selectedCandidate ? null : uid)
+                            }}
                           >
                             Chọn
                           </Button>

@@ -35,7 +35,7 @@ import { useAntiCheat } from '../../hooks/useAntiCheat'
 
 const { TextArea } = Input
 
-export const CheatLevelAutoSubmit = 'S4'
+export const CheatLevelAutoSubmit = 'S6'
 
 interface Props {
   cheatDetected?: {
