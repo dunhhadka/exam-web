@@ -153,20 +153,6 @@ const Login = () => {
           {isSubmitting ? 'Đang đăng nhập...' : 'Đăng nhập'}
         </StyledButton>
       </Form>
-
-      <SocialLoginSection>
-        <SocialLoginText>Hoặc đăng nhập bằng tài khoản</SocialLoginText>
-        <SocialButtonsContainer>
-          <SocialButton onClick={handleGoogleLogin}>
-            <img src="/icon4/google.png" alt="Google" />
-            <span>Google</span>
-          </SocialButton>
-          <SocialButton onClick={handleFacebookLogin}>
-            <img src="/icon4/facebook.png" alt="Facebook" />
-            <span>Facebook</span>
-          </SocialButton>
-        </SocialButtonsContainer>
-      </SocialLoginSection>
     </Container>
   )
 }
