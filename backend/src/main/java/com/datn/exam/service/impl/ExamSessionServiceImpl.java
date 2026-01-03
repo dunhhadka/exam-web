@@ -345,16 +345,29 @@ public class ExamSessionServiceImpl implements ExamSessionService {
             List<String> newAvatarBase64List = studentAvatars.get(student.getId());
             List<String> avatarUrls;
 
-            if (newAvatarBase64List != null && !newAvatarBase64List.isEmpty()) {
+            // Xử lý 3 trường hợp:
+            // 1. newAvatarBase64List = null: không có data → giữ nguyên ảnh cũ
+            // 2. newAvatarBase64List = []: empty array → XÓA HẾT ảnh
+            // 3. newAvatarBase64List = [...]: có ảnh mới → upload và xóa ảnh cũ
+            
+            if (newAvatarBase64List == null) {
+                // Không update ảnh, giữ nguyên
+                avatarUrls = existing != null && existing.getAvatarUrls() != null 
+                    ? existing.getAvatarUrls() 
+                    : Collections.emptyList();
+            } else if (newAvatarBase64List.isEmpty()) {
+                // User XÓA HẾT ảnh → xóa ảnh cũ trên S3 và set empty
+                if (existing != null && CollectionUtils.isNotEmpty(existing.getAvatarUrls())) {
+                    deleteAvatarUrls(existing.getAvatarUrls());
+                }
+                avatarUrls = Collections.emptyList();
+            } else {
+                // Upload ảnh mới và xóa ảnh cũ
                 avatarUrls = uploadAvatarsToS3(session.getId(), student.getId(), newAvatarBase64List);
                 
                 if (existing != null && CollectionUtils.isNotEmpty(existing.getAvatarUrls())) {
                     deleteAvatarUrls(existing.getAvatarUrls());
                 }
-            } else if (existing != null) {
-                avatarUrls = existing.getAvatarUrls() != null ? existing.getAvatarUrls() : Collections.emptyList();
-            } else {
-                avatarUrls = Collections.emptyList();
             }
             
             if (existing != null) {
@@ -690,16 +703,19 @@ public class ExamSessionServiceImpl implements ExamSessionService {
             return null;
         }
 
-        List<String> avatarUrls = student.getAvatarUrls();
-        List<String> sanitized = CollectionUtils.isEmpty(avatarUrls)
+        List<String> avatarKeys = student.getAvatarUrls();
+        // Generate fresh pre-signed URLs from stored object keys
+        List<String> presignedUrls = CollectionUtils.isEmpty(avatarKeys)
                 ? Collections.emptyList()
-                : new ArrayList<>(avatarUrls);
+                : avatarKeys.stream()
+                    .map(key -> s3Service.generatePresignedGetUrl(key, 1440)) // 24 hours
+                    .collect(Collectors.toList());
 
         return SessionStudentEntryResponse.builder()
                 .userId(student.getUser().getId())
                 .email(student.getUser().getEmail())
                 .fullName(student.getUser().getInformation().buildFullName())
-                .avatarImages(sanitized)
+                .avatarImages(presignedUrls)
                 .build();
     }
 

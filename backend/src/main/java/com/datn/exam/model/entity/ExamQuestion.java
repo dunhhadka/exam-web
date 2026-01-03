@@ -29,4 +29,9 @@ public class ExamQuestion {
     private BigDecimal point; // point current if existing else point' question
 
     private Integer orderIndex;
+
+    public void setRoot(Exam exam) {
+        this.exam = exam;
+    }
+
 }

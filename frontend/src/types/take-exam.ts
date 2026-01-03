@@ -136,6 +136,7 @@ export interface TableRow {
 
 export interface SubmitAttemptRequest {
   answers: AnswerSubmission[]
+  status?: AttemptStatus
 }
 
 export interface AnswerSubmission {

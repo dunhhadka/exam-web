@@ -47,9 +47,9 @@ function NotificationContent() {
     })
   }
 
-  const handleResendEmail = async (attemptId: number, studentEmail: string) => {
+  const handleResendEmail = async (attemptId: number, studentEmail: string, sessionId: number) => {
     try {
-      await sendNotification(attemptId).unwrap()
+      await sendNotification({ attemptId, sessionId }).unwrap()
       toast.success('Đã gửi lại email', `Email đã được gửi lại cho ${studentEmail}`)
     } catch (error: any) {
       toast.error(
@@ -148,7 +148,7 @@ function NotificationContent() {
                 </SessionHeader>
 
                 {expandedSessions.has(session.id) && (
-                  <EmailList sessionId={session.id} onResend={handleResendEmail} />
+                  <EmailList sessionId={session.id} onResend={(attemptId, studentEmail) => handleResendEmail(attemptId, studentEmail, session.id)} />
                 )}
               </SessionCard>
             ))}
@@ -161,7 +161,7 @@ function NotificationContent() {
 
 interface EmailListProps {
   sessionId: number
-  onResend: (attemptId: number, studentEmail: string) => void
+  onResend: (attemptId: number, studentEmail: string) => void | Promise<void>
 }
 
 const EmailList = ({ sessionId, onResend }: EmailListProps) => {

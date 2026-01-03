@@ -288,8 +288,8 @@ const ExamSessionCreate = ({
           maxFullscreenExitAttempts: 3,
           enableGoogleMeet: false,
           meetActivation: false,
-          sendResultEmail: false,
-          releasePolicy: ReleasePolicy.AFTER_EXAM_END,
+          sendResultEmail: true,
+          releasePolicy: ReleasePolicy.AFTER_MARKING,
         },
         whitelistEmails: [] as string[],
       }
@@ -328,8 +328,8 @@ const ExamSessionCreate = ({
         maxFullscreenExitAttempts: antiCheat?.maxExitFullscreenAllowed ?? 3,
         enableGoogleMeet: false,
         meetActivation: false,
-        sendResultEmail: notifications?.sendResultEmail ?? false,
-        releasePolicy: notifications?.releasePolicy ?? ReleasePolicy.AFTER_EXAM_END,
+        sendResultEmail: notifications?.sendResultEmail ?? true,
+        releasePolicy: notifications?.releasePolicy ?? ReleasePolicy.AFTER_MARKING,
       },
       whitelistEmails: initData.whitelistEntries?.map((entry) => entry.email) ?? [],
     }
@@ -410,6 +410,7 @@ const ExamSessionCreate = ({
     const startTime = data.startTime ? dayjs(data.startTime) : null
     const endTime = data.endTime ? dayjs(data.endTime) : null
 
+    // Chỉ validate thời gian khi TẠO MỚI
     if (!initData) {
       if (startTime && startTime.isBefore(now)) {
         toast.error('Thời gian bắt đầu không được ở trong quá khứ')
@@ -420,17 +421,8 @@ const ExamSessionCreate = ({
         toast.error('Thời gian kết thúc không được ở trong quá khứ')
         return
       }
-    } else {
-      // UPDATE mode: Chỉ validate nếu thời gian kết thúc mới < hiện tại
-      // (cho phép giữ startTime cũ ở quá khứ, nhưng không cho đổi endTime về quá khứ)
-      const originalEndTime = initData.endTime ? dayjs(initData.endTime) : null
-      const endTimeChanged = endTime && originalEndTime && !endTime.isSame(originalEndTime)
-      
-      if (endTimeChanged && endTime.isBefore(now)) {
-        toast.error('Thời gian kết thúc không được đặt về quá khứ')
-        return
-      }
     }
+    // Khi UPDATE: KHÔNG validate thời gian
 
     if (startTime && endTime && !endTime.isAfter(startTime)) {
       toast.error('Thời gian kết thúc phải sau thời gian bắt đầu')
@@ -485,12 +477,10 @@ const ExamSessionCreate = ({
         }
       : undefined
 
-    const notificationsPayload = antiCheatForm.sendResultEmail
-      ? {
-          sendResultEmail: true,
-          releasePolicy: antiCheatForm.releasePolicy ?? ReleasePolicy.AFTER_EXAM_END,
-        }
-      : undefined
+    const notificationsPayload = {
+      sendResultEmail: true,
+      releasePolicy: ReleasePolicy.AFTER_MARKING,
+    }
 
     const settingsPayload = antiCheatPayload || notificationsPayload || proctoringPayload
       ? {
@@ -571,7 +561,6 @@ const ExamSessionCreate = ({
   const enableAntiCheat = watch('antiCheatSettings.enableAntiCheat')
   const warnOnWindowBlur = watch('antiCheatSettings.preventRightClick')
   const enforceFullscreen = watch('antiCheatSettings.preventMemoryExit')
-  const sendResultEmail = watch('antiCheatSettings.sendResultEmail')
   const webcamCapture = watch('antiCheatSettings.webcamCapture')
   const uploadImage = watch('antiCheatSettings.uploadImage')
   const uploadIdSelected = watch('antiCheatSettings.uploadId')
@@ -953,7 +942,7 @@ const ExamSessionCreate = ({
       const response = await searchExamLazy({
         pageIndex: page,
         pageSize: pageSize,
-        key: search,
+        keyword: search,
       }).unwrap()
 
       return {
@@ -1206,7 +1195,7 @@ const ExamSessionCreate = ({
                       <Radio.Group {...field} disabled={!!initData}>
                         <Space direction="vertical" size={8}>
                           <Radio value={AccessMode.PUBLIC}>Công khai</Radio>
-                          <Radio value={AccessMode.PRIVATE}>Danh sách sinh viên</Radio>
+                          <Radio value={AccessMode.PRIVATE}>Riêng tư</Radio>
                         </Space>
                       </Radio.Group>
                     )}
@@ -1398,11 +1387,7 @@ const ExamSessionCreate = ({
                           </PanelContent>
                         </Panel>
 
-                        <Panel header="Giám sát bài thi" key="4">
-                          <PanelContent>
-                            <DisabledText>Đang phát triển...</DisabledText>
-                          </PanelContent>
-                        </Panel>
+                        
                       </StyledCollapse>
 
                       <Divider />
@@ -1416,32 +1401,28 @@ const ExamSessionCreate = ({
                                 name="antiCheatSettings.sendResultEmail"
                                 control={control}
                                 render={({ field }) => (
-                                  <StyledCheckbox
-                                    checked={field.value}
-                                    onChange={(e) => field.onChange(e.target.checked)}
+                                  <CheckboxEnabled
+                                    checked={true}
+                                    disabled
                                   >
                                     Gửi mail thông báo kết quả
-                                  </StyledCheckbox>
+                                  </CheckboxEnabled>
                                 )}
                               />
-                              {sendResultEmail && (
+                              <div style={{ marginLeft: 24, marginTop: 12 }}>
                                 <Controller
                                   name="antiCheatSettings.releasePolicy"
                                   control={control}
                                   render={({ field }) => (
-                                    <Radio.Group {...field}>
-                                      <Space direction="vertical" size={8}>
-                                        <Radio value={ReleasePolicy.AFTER_EXAM_END}>
-                                          Gửi sau khi cuộc thi kết thúc
-                                        </Radio>
-                                        <Radio value={ReleasePolicy.AFTER_MARKING}>
-                                          Gửi sau khi giáo viên chấm xong
-                                        </Radio>
-                                      </Space>
-                                    </Radio.Group>
+                                    <CheckboxEnabled
+                                      checked={true}
+                                      disabled
+                                    >
+                                      Gửi sau khi giáo viên chấm xong
+                                    </CheckboxEnabled>
                                   )}
                                 />
-                              )}
+                              </div>
                             </PanelContent>
                           </Panel>
                         </StyledCollapse>
@@ -2062,6 +2043,30 @@ const StyledCheckbox = styled(Checkbox)`
   
   &:hover {
     color: #1890ff;
+  }
+`
+
+const CheckboxEnabled = styled(Checkbox)`
+  font-size: 14px;
+  color: #333;
+  
+  .ant-checkbox {
+    top: 2px;
+  }
+  
+  &.ant-checkbox-wrapper-disabled {
+    .ant-checkbox-checked .ant-checkbox-inner {
+      background-color: #1890ff !important;
+      border-color: #1890ff !important;
+    }
+    
+    .ant-checkbox-inner::after {
+      border-color: #fff !important;
+    }
+    
+    span:not(.ant-checkbox) {
+      color: #333 !important;
+    }
   }
 `
 

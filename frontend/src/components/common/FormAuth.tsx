@@ -1,6 +1,7 @@
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import CustomSegmented from '../ui/Segmented'
 import styled from '@emotion/styled'
+import { useMemo } from 'react'
 
 interface Props {
   children?: React.ReactNode
@@ -13,6 +14,12 @@ const authOptions = [
 
 const FormAuth = ({ children }: Props) => {
   const navigate = useNavigate()
+  const location = useLocation()
+
+  const currentValue = useMemo(() => {
+    const option = authOptions.find((opt) => opt.path === location.pathname)
+    return option?.value || 'register'
+  }, [location.pathname])
 
   const handleChange = (value: string) => {
     const target = authOptions.find((opt) => opt.value === value)
@@ -24,7 +31,7 @@ const FormAuth = ({ children }: Props) => {
       <FormContainer>
         <CustomSegmented
           options={authOptions.map(({ label, value }) => ({ label, value }))}
-          defaultValue="register"
+          defaultValue={currentValue}
           onChange={handleChange}
         />
         <FormContent>{children}</FormContent>

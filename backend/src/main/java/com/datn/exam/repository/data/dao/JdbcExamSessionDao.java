@@ -49,7 +49,7 @@ public class JdbcExamSessionDao implements ExamSessionDao {
                     es.duration_minutes AS durationMinutes
                 FROM exam_sessions es
                 LEFT JOIN exams e ON es.exam_id = e.id
-                WHERE 1= 1 %s
+                WHERE 1 = 1 %s
                 ORDER BY es.created_at DESC
                 LIMIT :limit OFFSET :offset
                 """;

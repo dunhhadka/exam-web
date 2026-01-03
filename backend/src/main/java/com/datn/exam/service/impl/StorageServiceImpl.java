@@ -24,7 +24,7 @@ public class StorageServiceImpl implements StorageService {
     private final ExamSessionRepository examSessionRepository;
     private final UserRepository userRepository;
     
-    private static final String WHITELIST_PREFIX = "whitelists/";
+    private static final String WHITELIST_PREFIX = "session-students/";
     private static final long MAX_STORAGE_BYTES = 200L * 1024 * 1024; // 200 MB
     
     @Override

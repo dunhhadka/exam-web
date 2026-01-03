@@ -157,6 +157,7 @@ public class ExamServiceImpl implements ExamService {
                     .build();
 
             examQuestions.add(examQuestion);
+            examQuestion.setRoot(exam);
         }
 
         exam.getExamQuestions().addAll(examQuestions);

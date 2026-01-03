@@ -101,6 +101,72 @@ public class MailPersistenceServiceImpl implements MailPersistenceService {
         eventPublisher.publishEvent(new ResultMailEvent(this, context));
     }
 
+    @Transactional
+    @Override
+    public void createOrUpdateResultMail(String email,
+                                         String subject,
+                                         String templateName,
+                                         String studentName,
+                                         String examName,
+                                         String sessionCode,
+                                         String duration,
+                                         String submittedDate,
+                                         BigDecimal score,
+                                         BigDecimal maxScore,
+                                         Integer totalQuestions,
+                                         Integer correctAnswers,
+                                         Integer incorrectAnswers,
+                                         Integer accuracy,
+                                         Boolean hasCheatingLogs,
+                                         List<String> cheatingLogs,
+                                         Long attemptId) {
+        
+        // Tìm email notification hiện có của attempt này
+        List<Email> existingEmails = emailRepository.findByAttemptId(attemptId);
+        Email mailEntity;
+        
+        if (!existingEmails.isEmpty()) {
+            // Update bản ghi cũ - lấy bản ghi mới nhất
+            mailEntity = existingEmails.get(0);
+            mailEntity.setStatus(Email.Status.PENDING);
+            mailEntity.setRetryCount(mailEntity.getRetryCount() + 1);
+            mailEntity.setSubject(subject);
+            mailEntity.setTo(email);
+            emailRepository.save(mailEntity);
+        } else {
+            // Tạo mới nếu chưa có
+            mailEntity = Email.builder()
+                    .from(DEFAULT_FROM)
+                    .to(email)
+                    .subject(subject)
+                    .templateName(templateName)
+                    .status(Email.Status.PENDING)
+                    .retryCount(0)
+                    .attemptId(attemptId)
+                    .build();
+            emailRepository.save(mailEntity);
+        }
+        
+        ResultMailContext context = ResultMailContext.builder()
+                .email(mailEntity)
+                .studentName(studentName)
+                .examName(examName)
+                .sessionCode(sessionCode)
+                .duration(duration)
+                .submittedDate(submittedDate)
+                .score(score)
+                .maxScore(maxScore)
+                .totalQuestions(totalQuestions)
+                .correctAnswers(correctAnswers)
+                .incorrectAnswers(incorrectAnswers)
+                .accuracy(accuracy)
+                .hasCheatingLogs(hasCheatingLogs)
+                .cheatingLogs(cheatingLogs)
+                .build();
+        
+        eventPublisher.publishEvent(new ResultMailEvent(this, context));
+    }
+
     private Email buildEmail(String to,
                              String subject,
                              String otp,
