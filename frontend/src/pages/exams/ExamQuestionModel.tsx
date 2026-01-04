@@ -90,16 +90,34 @@ export const ExamQuestionModel = ({
   )
 
   const handleSelectQuestions = () => {
-    const questions = (data ?? []).filter((item) =>
-      questionSelectedIds.includes(item.id)
-    )
-
-    onSelect(questions)
+    onSelect(selectedQuestionPages.flatMap((p) => p.questions))
 
     onCancel()
   }
 
-  console.log('question data', data)
+  const [selectedQuestionPages, setSelectedQuestionPages] = useState<
+    {
+      pageIndex: number
+      questions: Question[]
+    }[]
+  >([])
+
+  const mergeSelectedQuestions = (questionIds: number[]) => {
+    const questions = (data ?? []).filter(
+      (item) => item.id && questionIds.includes(item.id)
+    )
+
+    const currentPageIndex = filter.pageIndex || 1
+
+    setSelectedQuestionPages((prevPages) => {
+      return [
+        ...prevPages.filter((p) => p.pageIndex !== currentPageIndex),
+        { pageIndex: currentPageIndex, questions },
+      ]
+    })
+  }
+
+  console.log('selected question ids page', selectedQuestionPages)
 
   return (
     <Modal
@@ -121,9 +139,12 @@ export const ExamQuestionModel = ({
         data={data}
         rowSelection={{
           type: 'checkbox',
-          selectedRowKeys: questionSelectedIds,
+          selectedRowKeys:
+            selectedQuestionPages.flatMap((p) =>
+              p.questions.map((q) => q.id)
+            ) || [],
           onChange: (newSelectedRowKeys, _) => {
-            setQuestionSelectedIds(newSelectedRowKeys as number[])
+            mergeSelectedQuestions(newSelectedRowKeys as number[])
           },
         }}
         pagination={{
