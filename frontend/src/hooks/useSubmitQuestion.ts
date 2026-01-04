@@ -65,7 +65,7 @@ const parseToRequest = (
       console.log('correctAnswers', correctAnswers)
 
       if (correctAnswers.length !== 1) {
-        throw new Error('require one correct answer')
+        throw new Error('Cần yêu cầu 1 đáp án đúng cho loại câu hỏi chọn một')
       }
 
       var correctAnswer = correctAnswers[0]

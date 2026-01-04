@@ -36,6 +36,10 @@ export const TagSelection = ({
 
   const [selected, setSelected] = useState<Tag[]>(tags || [])
 
+  useEffect(() => {
+    setSelected(tags || [])
+  }, [tags])
+
   const { data, isLoading, isFetching } = useSearchTagsQuery(tagFilter, {
     skip: !open,
   })
