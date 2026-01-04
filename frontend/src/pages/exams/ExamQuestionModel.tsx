@@ -62,9 +62,6 @@ export const ExamQuestionModel = ({
     }),
   ]
 
-  const [questionSelectedIds, setQuestionSelectedIds] =
-    useState<number[]>(selectedQuestionIds)
-
   const {
     searchTerm,
     setSearchTerm,
