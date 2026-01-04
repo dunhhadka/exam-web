@@ -151,7 +151,7 @@ export const ExamQuestionList = ({ questions, onChange }: Props) => {
                 ({
                   id: value.id,
                   text: value.text,
-                  point: 0,
+                  point: value.point ?? 0,
                   level: value.level,
                   tags: value.tags,
                   type: value.type,
