@@ -14,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.Objects;
 
 @Slf4j
@@ -44,6 +45,8 @@ public class QuestionEditService {
         var questionContext = questionEditContextService.createContext(request);
 
         question.updateBaseInfo(questionContext);
+
+        question.setTags(new ArrayList<>(questionContext.getTags().values()));
 
         if (questionContext instanceof QuestionEditContextService.OneChoiceContext context) {
             question.updateOneChoiceQuestion(context);
