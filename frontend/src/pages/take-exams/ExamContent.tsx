@@ -36,7 +36,7 @@ import { AttemptStatus } from '../../types/attempt'
 
 const { TextArea } = Input
 
-export const CheatLevelAutoSubmit = 'S2'
+export const CheatLevelAutoSubmit = 'S6'
 
 interface Props {
   cheatDetected?: {
@@ -495,10 +495,10 @@ const TakeExamContent = ({
     setIsSubmitModalOpen(false)
   }, [])
 
-  const handleSuccessModalOk = useCallback(() => {
+  const handleSuccessModalOk = () => {
     setIsSuccessModalOpen(false)
-    navigate('/', { state: { result: submitResult } })
-  }, [navigate, submitResult])
+    navigate('/')
+  }
 
   const handleErrorModalOk = useCallback(() => {
     setIsErrorModalOpen(false)
