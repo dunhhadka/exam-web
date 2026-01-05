@@ -11,11 +11,11 @@ import {
   Spin,
   Tag,
   Typography,
-} from "antd";
+} from 'antd'
 import {
   ExamSessionStudentResponse,
   SessionStudentStatus,
-} from "../../types/examSessionStudent";
+} from '../../types/examSessionStudent'
 import {
   CalendarOutlined,
   CheckCircleOutlined,
@@ -23,8 +23,8 @@ import {
   CloseCircleOutlined,
   FileTextOutlined,
   PlayCircleOutlined,
-} from "@ant-design/icons";
-import { formatInstant } from "../../utils/times";
+} from '@ant-design/icons'
+import { formatInstant } from '../../utils/times'
 import {
   ActionButtons,
   CardTitle,
@@ -33,72 +33,72 @@ import {
   StyledCard,
   TokenBox,
   TokenText,
-} from "./StudentExamSession";
-import { ExamTimeStatus, useExamCountDown } from "../../hooks/useExamCountDown";
-import { formatRemaining } from "../examsession/ExamSessionCard";
-import { ExamSessionStatus } from "../../types/examsession";
-import { useState } from "react";
-import ConfirmModal from "../../components/common/ConfirmModal";
-import { set } from "react-hook-form";
-import { useToast } from "../../hooks/useToast";
+} from './StudentExamSession'
+import { ExamTimeStatus, useExamCountDown } from '../../hooks/useExamCountDown'
+import { formatRemaining } from '../examsession/ExamSessionCard'
+import { ExamSessionStatus } from '../../types/examsession'
+import { useState } from 'react'
+import ConfirmModal from '../../components/common/ConfirmModal'
+import { set } from 'react-hook-form'
+import { useToast } from '../../hooks/useToast'
 
-const { Title, Text, Paragraph } = Typography;
+const { Title, Text, Paragraph } = Typography
 
 interface Props {
-  session: ExamSessionStudentResponse;
-  joinExam?: (session: ExamSessionStudentResponse) => void;
-  viewResult?: (session: ExamSessionStudentResponse) => void;
+  session: ExamSessionStudentResponse
+  joinExam?: (session: ExamSessionStudentResponse) => void
+  viewResult?: (session: ExamSessionStudentResponse) => void
 }
 
 const ExamSessionStudent = ({ session, joinExam, viewResult }: Props) => {
-  const { startTime, endTime } = session;
+  const { startTime, endTime } = session
   const { status: examSessionStatus, remaining } = useExamCountDown(
     startTime,
     endTime
-  );
+  )
 
-  const [confirmJoinExam, setConfirmJoinExam] = useState(false);
+  const [confirmJoinExam, setConfirmJoinExam] = useState(false)
 
-  const toast = useToast();
+  const toast = useToast()
 
   const getStatusConfig = (status: ExamTimeStatus) => {
     switch (status) {
-      case "NOT_STARTED":
-      case "COUNTDOWN":
+      case 'NOT_STARTED':
+      case 'COUNTDOWN':
         return {
-          color: "default",
-          text: "Chưa bắt đầu",
+          color: 'default',
+          text: 'Chưa bắt đầu',
           icon: <ClockCircleOutlined />,
-        };
+        }
 
-      case "IN_PROGRESS":
+      case 'IN_PROGRESS':
         return {
-          color: "processing",
-          text: "Đang diễn ra",
+          color: 'processing',
+          text: 'Đang diễn ra',
           icon: <PlayCircleOutlined />,
-        };
+        }
 
-      case "ENDED":
+      case 'ENDED':
         return {
-          color: "success",
-          text: "Đã hoàn thành",
+          color: 'success',
+          text: 'Đã hoàn thành',
           icon: <CheckCircleOutlined />,
-        };
+        }
 
       default:
         return {
-          color: "default",
-          text: "Không xác định",
+          color: 'default',
+          text: 'Không xác định',
           icon: <ClockCircleOutlined />,
-        };
+        }
     }
-  };
+  }
 
-  const statusConfig = getStatusConfig(examSessionStatus);
+  const statusConfig = getStatusConfig(examSessionStatus)
 
   // Render action buttons
   const renderActionButtons = (session: ExamSessionStudentResponse) => {
-    if (examSessionStatus === "IN_PROGRESS") {
+    if (examSessionStatus === 'IN_PROGRESS') {
       return (
         <Button
           type="primary"
@@ -109,23 +109,24 @@ const ExamSessionStudent = ({ session, joinExam, viewResult }: Props) => {
         >
           Vào làm bài
         </Button>
-      );
+      )
     }
 
-    if (examSessionStatus === "ENDED") {
+    if (examSessionStatus === 'ENDED') {
       return (
-        <Button
-          type="default"
-          icon={<FileTextOutlined />}
-          block
-          onClick={() => viewResult?.(session)}
-        >
-          Xem kết quả
-        </Button>
-      );
+        // <Button
+        //   type="default"
+        //   icon={<FileTextOutlined />}
+        //   block
+        //   onClick={() => viewResult?.(session)}
+        // >
+        //   Xem kết quả
+        // </Button>
+        <></>
+      )
     }
 
-    if (examSessionStatus === "COUNTDOWN") {
+    if (examSessionStatus === 'COUNTDOWN') {
       return (
         <Button
           type="primary"
@@ -137,41 +138,41 @@ const ExamSessionStudent = ({ session, joinExam, viewResult }: Props) => {
         >
           Vào làm bài {formatRemaining(remaining)}
         </Button>
-      );
+      )
     }
 
-    if (examSessionStatus === "NOT_STARTED") {
+    if (examSessionStatus === 'NOT_STARTED') {
       return (
         <Button type="default" block disabled>
           Chưa đến giờ thi
         </Button>
-      );
+      )
     }
 
     return (
       <Button type="default" block disabled>
         Đã hết hạn
       </Button>
-    );
-  };
+    )
+  }
 
   const handleJoinExam = () => {
-    const examUrl = `/exam-waiting/${session.examSessionId}?independent=true`;
+    const examUrl = `/exam-waiting/${session.examSessionId}?independent=true`
 
-    setConfirmJoinExam(false);
+    setConfirmJoinExam(false)
 
     const features = [
-      "width=1280",
-      "height=800",
-      "menubar=no",
-      "toolbar=no",
-      "location=no",
-      "status=no",
-      "resizable=yes",
-    ].join(",");
+      'width=1280',
+      'height=800',
+      'menubar=no',
+      'toolbar=no',
+      'location=no',
+      'status=no',
+      'resizable=yes',
+    ].join(',')
 
-    window.open(examUrl, "_blank", features);
-  };
+    window.open(examUrl, '_blank', features)
+  }
 
   return (
     <Col xs={24} sm={24} md={12} lg={8} key={session.id}>
@@ -197,7 +198,7 @@ const ExamSessionStudent = ({ session, joinExam, viewResult }: Props) => {
         )}
 
         {/* Exam Info */}
-        <Space direction="vertical" style={{ width: "100%" }} size="small">
+        <Space direction="vertical" style={{ width: '100%' }} size="small">
           <InfoRow>
             <FileTextOutlined />
             <Text>{session.examName}</Text>
@@ -206,7 +207,7 @@ const ExamSessionStudent = ({ session, joinExam, viewResult }: Props) => {
           <InfoRow>
             <CalendarOutlined />
             <Text>
-              {formatInstant(session.startTime)} -{" "}
+              {formatInstant(session.startTime)} -{' '}
               {formatInstant(session.endTime)}
             </Text>
           </InfoRow>
@@ -232,8 +233,8 @@ const ExamSessionStudent = ({ session, joinExam, viewResult }: Props) => {
       </StyledCard>
 
       {confirmJoinExam &&
-        (examSessionStatus === "COUNTDOWN" ||
-          examSessionStatus === "IN_PROGRESS") && (
+        (examSessionStatus === 'COUNTDOWN' ||
+          examSessionStatus === 'IN_PROGRESS') && (
           <ConfirmModal
             content="Bạn có chắc chắn muốn tham gia làm bài thi này?"
             open={confirmJoinExam}
@@ -242,7 +243,7 @@ const ExamSessionStudent = ({ session, joinExam, viewResult }: Props) => {
           />
         )}
     </Col>
-  );
-};
+  )
+}
 
-export default ExamSessionStudent;
+export default ExamSessionStudent
