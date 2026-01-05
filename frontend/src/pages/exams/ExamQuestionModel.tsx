@@ -16,7 +16,10 @@ import { Truncate3Lines } from '../question/QuestionList'
 import { useEffect, useState } from 'react'
 import styled from '@emotion/styled'
 import { useSearch } from '../../components/search/useSearch'
-import { useLazyFindByIdQuery, useSearchQuestionQuery } from '../../services/api/questionApi'
+import {
+  useLazyFindByIdQuery,
+  useSearchQuestionQuery,
+} from '../../services/api/questionApi'
 
 interface Props {
   open: boolean
@@ -129,9 +132,7 @@ export const ExamQuestionModel = ({
       }
       for (const q of fetched) mergedById[q.id] = q
 
-      const questions = selectedIds
-        .map((id) => mergedById[id])
-        .filter(Boolean)
+      const questions = selectedIds.map((id) => mergedById[id]).filter(Boolean)
 
       onSelect(questions)
       onCancel()
@@ -181,7 +182,7 @@ export const ExamQuestionModel = ({
 
               // Add/update selected rows from current page
               for (const row of selectedRows ?? []) {
-                next[row.id] = row
+                next[row?.id] = row
               }
 
               return next
