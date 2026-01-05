@@ -251,6 +251,22 @@ export default function Candidate() {
   const dcRef = useRef(null)
   const detectionRef = useRef({ running: false })
 
+  const attemptIdRef = useRef(null)
+
+  const sendCandidateContext = () => {
+    const attemptId = attemptIdRef.current
+    if (!attemptId) return
+    try {
+      sigRef.current?.send({
+        type: 'candidate_context',
+        userId,
+        attemptId,
+      })
+    } catch (e) {
+      console.warn('[Candidate] Failed to send candidate_context:', e)
+    }
+  }
+
   // P2P late-join support: cache candidate offer and resend to proctor when they join later
   const pendingOfferRef = useRef(null) // { sdp, trackInfo }
   const proctorIdRef = useRef(null)
@@ -432,6 +448,9 @@ export default function Candidate() {
         try {
           await signaling.connect()
           console.log('WebSocket connected')
+
+          // If attemptId is already known, send it right after WS connect.
+          sendCandidateContext()
         } catch (error) {
           console.error('Failed to connect to signaling server:', error)
           alert('Không thể kết nối đến server. Vui lòng kiểm tra backend đang chạy.')
@@ -903,6 +922,11 @@ export default function Candidate() {
                           message: cheatLevel.message
                         }}
                         proctorForceSubmitRequest={proctorForceSubmitRequest}
+                        onAttemptStarted={(attemptId) => {
+                          attemptIdRef.current = attemptId
+                          // If WS already connected, send immediately.
+                          sendCandidateContext()
+                        }}
                         />
                       </Card>
                     </ExamSection>

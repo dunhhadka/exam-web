@@ -195,6 +195,14 @@ async def run_real_analysis_loop(
                             if save_cheating_log:
                                 try:
                                     ts_ms = int(now * 1000)
+                                    attempt_id = None
+                                    if rooms_manager:
+                                        try:
+                                            room = await rooms_manager.get_or_create(room_id)
+                                            participant = room.participants.get(str(candidate_id))
+                                            attempt_id = getattr(participant, "attempt_id", None)
+                                        except Exception:
+                                            attempt_id = None
                                     evidence_path = save_evidence_image(
                                         frame_data=frame_data,
                                         incident_type="A4",
@@ -206,9 +214,10 @@ async def run_real_analysis_loop(
                                     save_cheating_log(
                                         exam_session_id=room_id,
                                         candidate_id=candidate_id,
+                                        attempt_id=attempt_id,
                                         incident_type="A4",
                                         severity_level="S2",
-                                        description=f"Screen share missing for {int(missing_duration)}s",
+                                        description=f"Chưa chia sẽ màn hình trong {int(missing_duration)}s",
                                         timestamp=ts_ms,
                                         evidence=evidence_path
                                     )
@@ -255,6 +264,14 @@ async def run_real_analysis_loop(
                                 if save_cheating_log:
                                     try:
                                         ts_ms = int(now_s * 1000)
+                                        attempt_id = None
+                                        if rooms_manager:
+                                            try:
+                                                room = await rooms_manager.get_or_create(room_id)
+                                                participant = room.participants.get(str(candidate_id))
+                                                attempt_id = getattr(participant, "attempt_id", None)
+                                            except Exception:
+                                                attempt_id = None
                                         evidence_path = save_evidence_image(
                                             frame_data=frame_data,
                                             incident_type="A11",
@@ -266,6 +283,7 @@ async def run_real_analysis_loop(
                                         save_cheating_log(
                                             exam_session_id=room_id,
                                             candidate_id=candidate_id,
+                                            attempt_id=attempt_id,
                                             incident_type="A11",
                                             severity_level="S1",
                                             description=f"Idle for {int(idle_dur)}s",
@@ -338,6 +356,14 @@ async def run_real_analysis_loop(
                         if save_cheating_log:
                             try:
                                 ts_ms = int(time.time() * 1000)
+                                attempt_id = None
+                                if rooms_manager:
+                                    try:
+                                        room = await rooms_manager.get_or_create(room_id)
+                                        participant = room.participants.get(str(candidate_id))
+                                        attempt_id = getattr(participant, "attempt_id", None)
+                                    except Exception:
+                                        attempt_id = None
                                 evidence_path = save_evidence_image(
                                     frame_data=frame_data,
                                     incident_type=alert["type"],
@@ -348,6 +374,7 @@ async def run_real_analysis_loop(
                                 save_cheating_log(
                                     exam_session_id=room_id,
                                     candidate_id=candidate_id,
+                                    attempt_id=attempt_id,
                                     incident_type=alert['type'],
                                     severity_level=alert['level'],
                                     description=alert['message'],

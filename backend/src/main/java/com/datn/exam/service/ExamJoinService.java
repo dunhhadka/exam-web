@@ -7,7 +7,9 @@ import com.datn.exam.model.dto.request.VerifyOtpRequest;
 import com.datn.exam.model.dto.response.GuestAccess;
 import com.datn.exam.model.dto.response.SessionInfoResponse;
 import com.datn.exam.model.dto.response.SessionTokenResponse;
+import org.springframework.stereotype.Service;
 
+@Service
 public interface ExamJoinService {
     SessionInfoResponse getSessionInfo(String code);
     

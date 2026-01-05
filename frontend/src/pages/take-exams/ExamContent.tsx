@@ -45,6 +45,8 @@ interface Props {
   }
   onCheatAutoSubmit?: () => void
 
+  onAttemptStarted?: (attemptId: number) => void
+
   proctorForceSubmitRequest?: {
     requestId: string
     requestedAt: number
@@ -56,6 +58,7 @@ interface Props {
 const TakeExamContent = ({
   cheatDetected,
   onCheatAutoSubmit,
+  onAttemptStarted,
   proctorForceSubmitRequest,
 }: Props) => {
   const location = useLocation()
@@ -103,6 +106,10 @@ const TakeExamContent = ({
       try {
         const res = await startExamAttempt(startRequest).unwrap()
         setData(res)
+
+        if (typeof onAttemptStarted === 'function' && res?.attemptId) {
+          onAttemptStarted(Number(res.attemptId))
+        }
 
         // Log settings từ API response
         console.log('🔧 ExamContent - Attempt Settings:', {

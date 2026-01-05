@@ -15,6 +15,9 @@ from fastapi import UploadFile, File, Form
 import shutil
 import numpy as np
 import httpx
+import boto3
+from botocore.config import Config as BotoConfig
+from botocore.exceptions import BotoCoreError, ClientError
 from kyc_service import (
     save_kyc_profile,
     get_kyc_embedding,
@@ -28,6 +31,65 @@ import os
 KYC_THRESHOLD = float(os.getenv("KYC_THRESHOLD", "0.5"))
 arcface_singleton = None
 yolo_singleton = None
+
+_s3_client = None
+
+
+def _get_s3_client():
+    global _s3_client
+    if _s3_client is not None:
+        return _s3_client
+
+    endpoint_url = os.getenv("MINIO_ENDPOINT", "http://localhost:9000")
+    access_key = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
+    secret_key = os.getenv("MINIO_SECRET_KEY", "minioadmin")
+    region_name = os.getenv("MINIO_REGION", "us-east-1")
+
+    _s3_client = boto3.client(
+        "s3",
+        endpoint_url=endpoint_url,
+        aws_access_key_id=access_key,
+        aws_secret_access_key=secret_key,
+        region_name=region_name,
+        config=BotoConfig(signature_version="s3v4", s3={"addressing_style": "path"}),
+    )
+    return _s3_client
+
+
+async def _fetch_whitelist_image_bytes(url_or_key: str) -> Optional[bytes]:
+    """Fetch image bytes from either a http(s) URL or an S3 object key.
+
+    For private MinIO buckets, keys are fetched via S3 API using credentials.
+    """
+    if not url_or_key or not isinstance(url_or_key, str):
+        return None
+
+    # URL case
+    if url_or_key.startswith("http://") or url_or_key.startswith("https://"):
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(url_or_key, timeout=10.0)
+            if resp.status_code != 200:
+                try:
+                    ctype = resp.headers.get("content-type")
+                except Exception:
+                    ctype = None
+                print(
+                    f"[KYC] Whitelist fetch non-200: url={url_or_key} status={resp.status_code} content-type={ctype}",
+                    flush=True,
+                )
+                return None
+            return bytes(resp.content)
+
+    # Key case (MinIO/S3)
+    bucket = os.getenv("MINIO_BUCKET", "exam-bucket")
+    key = url_or_key.lstrip("/")
+    try:
+        s3 = _get_s3_client()
+        obj = s3.get_object(Bucket=bucket, Key=key)
+        return obj["Body"].read()
+    except (BotoCoreError, ClientError) as e:
+        print(f"[KYC] MinIO get_object failed: bucket={bucket} key={key} err={e}", flush=True)
+        return None
 
 # Suppress specific aioice/asyncio warnings that occur during cleanup
 warnings.filterwarnings("ignore", message=".*NoneType.*has no attribute.*")
@@ -79,6 +141,7 @@ class Participant:
     websocket: WebSocket
     role: str  # "proctor" | "candidate" | "observer"
     user_id: str
+    attempt_id: Optional[int] = None
 
 
 @dataclass
@@ -347,42 +410,55 @@ async def kyc_verify(
     # 2. Determine Reference Image (Whitelist vs Manual Upload)
     reference_emb = None
     used_whitelist = False
+    found_whitelist_images = False
     
     # Case A: Try Whitelist if email & session_id provided
     if email and session_id:
         print(f"[KYC] Checking whitelist for {email} in session {session_id}")
         whitelist_urls = get_whitelist_images(email, session_id)
         if whitelist_urls:
+            found_whitelist_images = True
             print(f"[KYC] Found {len(whitelist_urls)} whitelist images")
-            async with httpx.AsyncClient() as client:
-                for url in whitelist_urls:
+            for url_or_key in whitelist_urls:
+                try:
+                    content = await _fetch_whitelist_image_bytes(str(url_or_key))
+                    if not content:
+                        continue
+                    arr = np.asarray(bytearray(content), dtype=np.uint8)
+                    ref_img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+                    if ref_img is None:
+                        print(f"[KYC] Whitelist image decode failed: {url_or_key}", flush=True)
+                        continue
+
+                    ref_rgb = cv2.cvtColor(ref_img, cv2.COLOR_BGR2RGB)
                     try:
-                        # Handle MinIO URLs if needed (e.g., replace localhost with minio host)
-                        # For now assuming accessible URL
-                        resp = await client.get(url, timeout=10.0)
-                        if resp.status_code == 200:
-                            arr = np.asarray(bytearray(resp.content), dtype=np.uint8)
-                            ref_img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
-                            if ref_img is not None:
-                                ref_rgb = cv2.cvtColor(ref_img, cv2.COLOR_BGR2RGB)
-                                try:
-                                    ref_rgb = ensure_rgb3(ref_rgb)
-                                except Exception:
-                                    continue
-                                reference_emb = extract_embedding(ref_rgb)
-                                if reference_emb is not None:
-                                    used_whitelist = True
-                                    print(f"[KYC] Successfully used whitelist image: {url}")
-                                    break
-                    except Exception as e:
-                        print(f"[KYC] Error fetching whitelist image {url}: {e}")
+                        ref_rgb = ensure_rgb3(ref_rgb)
+                    except Exception:
+                        continue
+
+                    reference_emb = extract_embedding(ref_rgb)
+                    if reference_emb is None:
+                        print(f"[KYC] Whitelist image has no face/embedding: {url_or_key}", flush=True)
+                        continue
+
+                    used_whitelist = True
+                    print(f"[KYC] Successfully used whitelist image: {url_or_key}", flush=True)
+                    break
+                except Exception as e:
+                    print(f"[KYC] Error processing whitelist image {url_or_key}: {e}", flush=True)
         else:
             print(f"[KYC] No whitelist images found")
+
+    if found_whitelist_images and reference_emb is None:
+        print("[KYC] Whitelist entries exist but none usable; will require id_image fallback", flush=True)
 
     # Case B: Manual Upload (if no whitelist success)
     if reference_emb is None:
         if id_image is None:
-             raise HTTPException(status_code=400, detail="ID image required (no whitelist found)")
+             detail = "ID image required (no whitelist found)"
+             if found_whitelist_images:
+                 detail = "ID image required (whitelist not usable)"
+             raise HTTPException(status_code=400, detail=detail)
         
         id_path = os.path.join(kyc_dir, f"{candidateId}_id.jpg")
         with open(id_path, "wb") as f:
@@ -785,6 +861,35 @@ async def ws_endpoint(websocket: WebSocket, room_id: str):
             text = await websocket.receive_text()
             msg = json.loads(text)
             mtype = msg.get("type")
+
+            if mtype == "candidate_context":
+                # Expect: {type:"candidate_context", attemptId, userId?}
+                raw_attempt_id = msg.get("attemptId")
+                try:
+                    attempt_id = int(raw_attempt_id)
+                except Exception:
+                    attempt_id = None
+
+                if attempt_id is None or attempt_id <= 0:
+                    await websocket.send_text(
+                        json.dumps({"type": "candidate_context_ack", "ok": False, "reason": "invalid_attemptId"})
+                    )
+                    continue
+
+                try:
+                    participant.attempt_id = attempt_id  # type: ignore[union-attr]
+                    await websocket.send_text(
+                        json.dumps({"type": "candidate_context_ack", "ok": True, "attemptId": attempt_id})
+                    )
+                    try:
+                        print(f"[WS] candidate_context room={room_id} user={user_id} attemptId={attempt_id}", flush=True)
+                    except Exception:
+                        pass
+                except Exception as e:
+                    await websocket.send_text(
+                        json.dumps({"type": "candidate_context_ack", "ok": False, "reason": str(e)})
+                    )
+                continue
 
             # Relay signaling/chat/control messages to others in room
             # NOTE: routing to a specific participant is supported via message["to"].

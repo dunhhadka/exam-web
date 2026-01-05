@@ -2,7 +2,7 @@ import os
 import json
 import re
 import time
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from typing import Optional, List
 from sqlalchemy import create_engine, String, Integer, LargeBinary, DateTime, func, Text, text
 from sqlalchemy.orm import sessionmaker, DeclarativeBase, Mapped, mapped_column
@@ -341,6 +341,7 @@ def save_cheating_log(
     severity_level: str,
     description: str,
     timestamp: int,
+    attempt_id: Optional[int] = None,
     evidence: Optional[str] = None,
     proof_path: Optional[str] = None
 ) -> bool:
@@ -367,11 +368,32 @@ def save_cheating_log(
                 print(f"[KYC] Could not resolve session ID from: {exam_session_id}")
                 return False
 
-        # 2. Find Attempt using Session ID and Student Email
-        attempt = sess.query(ExamAttempt).filter(
-            ExamAttempt.exam_session_id == session_id_int,
-            ExamAttempt.student_email == candidate_id
-        ).order_by(ExamAttempt.attempt_no.desc()).first()
+        # 2. Find Attempt (prefer attempt_id if provided)
+        attempt = None
+        if attempt_id is not None:
+            try:
+                attempt_id_int = int(attempt_id)
+            except Exception:
+                attempt_id_int = None
+
+            if attempt_id_int is not None and attempt_id_int > 0:
+                attempt = sess.query(ExamAttempt).filter(
+                    ExamAttempt.id == attempt_id_int,
+                    ExamAttempt.exam_session_id == session_id_int,
+                    ExamAttempt.student_email == candidate_id,
+                ).first()
+
+                if not attempt:
+                    print(
+                        f"[KYC] attemptId not found/mismatch: attempt_id={attempt_id_int}, session_id={session_id_int}, email={candidate_id}",
+                        flush=True,
+                    )
+
+        if not attempt:
+            attempt = sess.query(ExamAttempt).filter(
+                ExamAttempt.exam_session_id == session_id_int,
+                ExamAttempt.student_email == candidate_id
+            ).order_by(ExamAttempt.attempt_no.desc()).first()
 
         if not attempt:
             print(f"[KYC] No attempt found for session_id={session_id_int} ({exam_session_id}) and email={candidate_id}")
@@ -406,7 +428,12 @@ def save_cheating_log(
         if evidence is None and proof_path:
             evidence = proof_path
 
-        logged_at = datetime.fromtimestamp(timestamp / 1000.0)
+        # Force log timestamps to UTC+7 (VN) regardless of server OS timezone.
+        # DB schema typically uses naive DATETIME, so store a naive datetime that
+        # already represents local time in the desired offset.
+        tz_offset_hours = _int_env("AI_LOG_TZ_OFFSET_HOURS", 7)
+        tz = timezone(timedelta(hours=tz_offset_hours))
+        logged_at = datetime.fromtimestamp(timestamp / 1000.0, tz=timezone.utc).astimezone(tz).replace(tzinfo=None)
 
         # Populate required audit fields present in the Spring/JPA schema.
         # These columns are NOT nullable in many DBs (e.g. created_at/created_by).
