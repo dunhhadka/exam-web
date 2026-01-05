@@ -280,6 +280,124 @@ export const QuestionCreatePage = () => {
     }
   }
 
+  const toPlainText = (htmlOrText: string): string => {
+    const temp = document.createElement('div')
+    temp.innerHTML = htmlOrText
+    return (temp.textContent ?? '')
+      .replace(/\u00a0/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+  }
+
+  // Hàm clean HTML để loại bỏ metadata/format rác khi paste
+  // Mục tiêu: giữ lại tag cơ bản + media, bỏ style/class và các tag không cần thiết.
+  const cleanHTML = (html: string): string => {
+    // Loại bỏ HTML comments (<!--StartFragment-->, <!--EndFragment-->, etc.)
+    const withoutComments = html.replace(/<!--[\s\S]*?-->/g, '')
+    const temp = document.createElement('div')
+    temp.innerHTML = withoutComments
+
+    // Duyệt từ trong ra ngoài để thao tác unwrap/replace ổn định
+    const nodes = Array.from(temp.querySelectorAll('*')).reverse()
+
+    const allowedTags = new Set([
+      'p',
+      'br',
+      'b',
+      'strong',
+      'i',
+      'em',
+      'u',
+      's',
+      'strike',
+      'ul',
+      'ol',
+      'li',
+      'img',
+      'video',
+      'audio',
+      'source',
+      'table',
+      'thead',
+      'tbody',
+      'tr',
+      'td',
+      'th',
+      'h1',
+      'h2',
+      'h3',
+      'pre',
+      'code',
+      'a',
+    ])
+
+    const unwrap = (el: Element) => {
+      const parent = el.parentNode
+      if (!parent) return
+      while (el.firstChild) parent.insertBefore(el.firstChild, el)
+      parent.removeChild(el)
+    }
+
+    nodes.forEach((el) => {
+      const tag = el.tagName.toLowerCase()
+
+      // Word/Docs hay bọc bằng div/span: đổi div -> p, span -> unwrap
+      if (tag === 'div') {
+        const p = document.createElement('p')
+        p.innerHTML = (el as HTMLElement).innerHTML
+        el.replaceWith(p)
+        return
+      }
+
+      if (tag === 'span') {
+        unwrap(el)
+        return
+      }
+
+      if (!allowedTags.has(tag)) {
+        unwrap(el)
+        return
+      }
+
+      // Bỏ toàn bộ style/class/... chỉ giữ attr tối thiểu theo từng tag
+      const attrs = Array.from(el.attributes)
+      attrs.forEach((attr) => {
+        const name = attr.name.toLowerCase()
+        const isAllowed =
+          (tag === 'img' && ['src', 'alt', 'title'].includes(name)) ||
+          (tag === 'a' && ['href', 'title'].includes(name)) ||
+          (tag === 'video' && name === 'controls') ||
+          (tag === 'audio' && name === 'controls') ||
+          (tag === 'source' && name === 'src')
+
+        if (!isAllowed) {
+          el.removeAttribute(attr.name)
+        }
+      })
+    })
+
+    // Chuẩn hoá NBSP; KHÔNG decode &lt; &gt; để tránh biến text thành HTML tag
+    return temp.innerHTML.replace(/&nbsp;/g, ' ')
+  }
+
+  const normalizeSavedText = (html: string): string => {
+    const cleaned = cleanHTML(html)
+    const temp = document.createElement('div')
+    temp.innerHTML = cleaned
+
+    // Nếu không có formatting/media đáng kể thì lưu plain text cho gọn DB
+    const hasRichContent =
+      !!temp.querySelector(
+        'img,video,audio,table,ul,ol,li,b,strong,i,em,u,s,strike,h1,h2,h3,br,pre,code,a'
+      )
+
+    if (!hasRichContent) {
+      return toPlainText(cleaned)
+    }
+
+    return cleaned
+  }
+
   const executeCommand = (command: string, value?: string) => {
     document.execCommand(command, false, value)
     if (editorRef.current) {
@@ -353,10 +471,10 @@ export const QuestionCreatePage = () => {
   ]
 
   useEffect(() => {
-    setRequestInput({
-      ...requestInput,
+    setRequestInput((prev) => ({
+      ...prev,
       tagIds: tags.map((tag) => tag.id),
-    })
+    }))
   }, [tags])
 
   const loadQuestion = async (questionId: number) => {
@@ -374,10 +492,8 @@ export const QuestionCreatePage = () => {
       }
 
       const tags = result.tags || []
-      if (tags.length > 0) {
-        console.log(tags)
-        setTags(tags)
-      }
+      console.log(tags)
+      setTags(tags)
 
       switch (result.type) {
         case QuestionType.ONE_CHOICE: {
@@ -663,15 +779,34 @@ export const QuestionCreatePage = () => {
               contentEditable
               onInput={(e) => {
                 const html = (e.target as HTMLDivElement).innerHTML
+                const cleanedHTML = normalizeSavedText(html)
                 setRequestInput({
                   ...requestInput,
-                  text: html,
+                  text: cleanedHTML,
                 })
 
                 if (touched.text) {
-                  const error = validateField('text', html)
+                  const error = validateField('text', cleanedHTML)
                   setErrors({ ...errors, text: error })
                 }
+              }}
+              onPaste={(e) => {
+                e.preventDefault()
+
+                const html = e.clipboardData.getData('text/html')
+                const text = e.clipboardData.getData('text/plain')
+
+                // Mặc định paste = plain text để không lưu metadata/format rác.
+                // Chỉ giữ HTML khi có media/bảng.
+                const hasMediaOrTable = /<(img|video|audio|table)\b/i.test(html)
+
+                if (hasMediaOrTable && html) {
+                  const cleaned = cleanHTML(html)
+                  document.execCommand('insertHTML', false, cleaned)
+                  return
+                }
+
+                document.execCommand('insertText', false, (text || '').trim())
               }}
               onBlur={() => handleBlur('text')}
               suppressContentEditableWarning={true}
