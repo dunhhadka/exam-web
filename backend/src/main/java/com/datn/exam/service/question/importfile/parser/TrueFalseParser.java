@@ -26,10 +26,12 @@ public class TrueFalseParser extends QuestionParser<TrueFalseQuestion> {
         Answer trueAnswer = Answer.builder()
                 .result(correctIndex == 0)
                 .orderIndex(0)
+                .value("True")
                 .build();
         Answer falseAnswer = Answer.builder()
                 .result(correctIndex == 1)
                 .orderIndex(1)
+                .value("False")
                 .build();
 
         return List.of(trueAnswer, falseAnswer);
