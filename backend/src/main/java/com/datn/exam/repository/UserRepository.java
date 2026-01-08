@@ -111,7 +111,9 @@ public interface UserRepository extends JpaRepository<User, UUID> {
             AND r.code = 'STUDENT'
             AND (LOWER(u.email) LIKE LOWER(CONCAT('%', :keyword, '%'))
                  OR LOWER(u.information.firstName) LIKE LOWER(CONCAT('%', :keyword, '%'))
-                 OR LOWER(u.information.lastName) LIKE LOWER(CONCAT('%', :keyword, '%')))
+                 OR LOWER(u.information.lastName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                 OR LOWER(u.studentCode) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                             )
       """)
   Page<User> searchStudents(@Param("keyword") String keyword, Pageable pageable);
 
