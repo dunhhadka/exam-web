@@ -165,7 +165,7 @@ public class QuestionImportService {
         if (!questionCodeMap.isEmpty()) {
             var codesExistedInSheet = String.join(", ", questionCodeMap.keySet());
 
-            throw ExceptionUtils.withMessage("Các mã câu hỏi: " + codesExistedInSheet + " đã tồn tại.");
+            throw ExceptionUtils.withMessage("Các mã câu hỏi: " + codesExistedInSheet + " trong sheet " + sheetType.getSheetName() + " đã tồn tại. ");
         }
 
         codesExisted.addAll(codes);
