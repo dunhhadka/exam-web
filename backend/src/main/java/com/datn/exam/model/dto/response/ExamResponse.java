@@ -31,6 +31,7 @@ public class ExamResponse {
     public static class ExamQuestionResponse {
         private long id;
         private String text;
+        private String code;
         private BigDecimal point;
         private Level level;
         private List<TagResponse> tags;

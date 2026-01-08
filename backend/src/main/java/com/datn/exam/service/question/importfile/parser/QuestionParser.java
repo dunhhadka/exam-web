@@ -33,6 +33,7 @@ public abstract class QuestionParser<T extends BaseQuestionRow> {
                 .activeStatus(ActiveStatus.ACTIVE)
                 .status(Status.PUBLISHED)
                 .level(source.getLevel())
+                .code(source.getCode())
                 .build();
 
         question.setAnswers(buildAnswers(source));

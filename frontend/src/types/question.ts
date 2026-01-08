@@ -1,203 +1,206 @@
 export interface Question {
-  id: number;
-  text?: string;
-  point?: number;
-  type: QuestionType;
-  level: Level;
-  isPublic?: boolean;
-  status: Status;
-  tags?: Tag[];
+  id: number
+  code: string
+  text?: string
+  point?: number
+  type: QuestionType
+  level: Level
+  isPublic?: boolean
+  status: Status
+  tags?: Tag[]
 
   // For ESSAY
-  maxWords?: number;
-  minWords?: number;
-  answerAnswer?: string;
-  gradingCriteria?: string;
+  maxWords?: number
+  minWords?: number
+  answerAnswer?: string
+  gradingCriteria?: string
 
   // For PLAIN_TEXT
-  expectedAnswer?: string;
-  caseSensitive?: boolean;
-  exactMatch?: boolean;
+  expectedAnswer?: string
+  caseSensitive?: boolean
+  exactMatch?: boolean
 
   // For TABLE_CHOICE
-  headers?: string[];
-  rows?: TableChoiceRow[];
+  headers?: string[]
+  rows?: TableChoiceRow[]
 
-  createdAt: string;
-  createdBy: string;
+  createdAt: string
+  createdBy: string
 
-  lastModifiedAt?: string;
-  lastModifiedBy?: string;
+  lastModifiedAt?: string
+  lastModifiedBy?: string
 
-  answers: Answer[];
+  answers: Answer[]
 }
 
 export interface Answer {
-  id: number;
-  orderIndex?: number | null;
-  value: string;
-  result?: boolean | null;
-  explanation?: string | null;
-  explanationHtml?: string | null;
-  mediaContents?: MediaContent[];
-  createdAt: string; // LocalDateTime -> ISO string
-  updatedAt: string;
+  id: number
+  orderIndex?: number | null
+  value: string
+  result?: boolean | null
+  explanation?: string | null
+  explanationHtml?: string | null
+  mediaContents?: MediaContent[]
+  createdAt: string // LocalDateTime -> ISO string
+  updatedAt: string
 }
 
 export interface MediaContent {
-  id: number;
+  id: number
   //type: MediaType;          // Enum tương ứng với backend
-  url: string;
-  fileName: string;
-  contentType: string;
-  fileSize?: number | null; // Long -> number, có thể null
-  displayOrder?: number | null;
-  thumbnailUrl?: string | null;
-  duration?: number | null;
-  width?: number | null;
-  height?: number | null;
+  url: string
+  fileName: string
+  contentType: string
+  fileSize?: number | null // Long -> number, có thể null
+  displayOrder?: number | null
+  thumbnailUrl?: string | null
+  duration?: number | null
+  width?: number | null
+  height?: number | null
 }
 
 export interface PagingRequest {
-  keyword?: string;
-  pageIndex: number;
-  pageSize: number;
-  total?: number;
-  sortBy?: string;
-  sortOrder?: "ASC" | "DESC";
+  keyword?: string
+  pageIndex: number
+  pageSize: number
+  total?: number
+  sortBy?: string
+  sortOrder?: 'ASC' | 'DESC'
 }
 
 export interface QuestionFilterRequest extends PagingRequest {
-  keyword?: string;
-  createdBy?: "me" | "all";
-  type?: QuestionType;
-  level?: Level;
-  isPublic?: boolean;
-  status?: Status;
-  tagIds?: number[];
+  keyword?: string
+  code?: string
+  createdBy?: 'me' | 'all'
+  type?: QuestionType
+  level?: Level
+  isPublic?: boolean
+  status?: Status
+  tagIds?: number[]
 }
 
 export interface BaseQuestionRequest {
-  text: string;
-  point?: number | null;
-  level?: Level;
-  isPublic?: boolean;
-  tagIds?: number[];
-  type?: QuestionType;
+  text: string
+  point?: number | null
+  level?: Level
+  isPublic?: boolean
+  tagIds?: number[]
+  type?: QuestionType
+  code?: string
 }
 
 export interface QuestionRequestInput extends BaseQuestionRequest {
-  data: any;
+  data: any
 }
 
 export interface TableChoiceRow {
-  label: string;
-  correctIndex: number;
+  label: string
+  correctIndex: number
 }
 
 export interface QuestionRequestSubmit extends BaseQuestionRequest {
-  answers?: AnswerCreateRequest[];
+  answers?: AnswerCreateRequest[]
   // For TABLE_CHOICE
-  headers?: string[];
-  rows?: TableChoiceRow[];
+  headers?: string[]
+  rows?: TableChoiceRow[]
   // For PLAIN_TEXT
-  expectedAnswer?: string;
-  caseSensitive?: boolean;
-  exactMatch?: boolean;
+  expectedAnswer?: string
+  caseSensitive?: boolean
+  exactMatch?: boolean
   // For ESSAY
-  minWords?: number;
-  maxWords?: number;
-  answerAnswer?: string;
-  gradingCriteria?: string;
+  minWords?: number
+  maxWords?: number
+  answerAnswer?: string
+  gradingCriteria?: string
 }
 
 export interface AnswerCreateRequest {
-  orderIndex: number;
-  value: string;
-  result?: boolean;
-  explanation?: string;
-  explanationHtml?: string;
+  orderIndex: number
+  value: string
+  result?: boolean
+  explanation?: string
+  explanationHtml?: string
 }
 
 export enum QuestionType {
-  ONE_CHOICE = "ONE_CHOICE",
-  MULTI_CHOICE = "MULTI_CHOICE",
-  PLAIN_TEXT = "PLAIN_TEXT",
-  ESSAY = "ESSAY",
-  TRUE_FALSE = "TRUE_FALSE",
-  TABLE_CHOICE = "TABLE_CHOICE",
+  ONE_CHOICE = 'ONE_CHOICE',
+  MULTI_CHOICE = 'MULTI_CHOICE',
+  PLAIN_TEXT = 'PLAIN_TEXT',
+  ESSAY = 'ESSAY',
+  TRUE_FALSE = 'TRUE_FALSE',
+  TABLE_CHOICE = 'TABLE_CHOICE',
 }
 
 export const QuestionTypeLabel: Record<QuestionType, string> = {
-  [QuestionType.ONE_CHOICE]: "Chọn một đáp án",
-  [QuestionType.MULTI_CHOICE]: "Chọn nhiều đáp án",
-  [QuestionType.PLAIN_TEXT]: "Điền đoạn văn",
-  [QuestionType.ESSAY]: "Viết",
-  [QuestionType.TRUE_FALSE]: "Câu hỏi đúng/sai",
-  [QuestionType.TABLE_CHOICE]: "Bảng lựa chọn",
-};
+  [QuestionType.ONE_CHOICE]: 'Chọn một đáp án',
+  [QuestionType.MULTI_CHOICE]: 'Chọn nhiều đáp án',
+  [QuestionType.PLAIN_TEXT]: 'Điền đoạn văn',
+  [QuestionType.ESSAY]: 'Viết',
+  [QuestionType.TRUE_FALSE]: 'Câu hỏi đúng/sai',
+  [QuestionType.TABLE_CHOICE]: 'Bảng lựa chọn',
+}
 
 export enum Level {
-  EASY = "EASY",
-  NORMAL = "NORMAL",
-  MEDIUM = "MEDIUM",
-  DIFFICULT = "DIFFICULT",
+  EASY = 'EASY',
+  NORMAL = 'NORMAL',
+  MEDIUM = 'MEDIUM',
+  DIFFICULT = 'DIFFICULT',
 }
 
 export const LevelLabel: Record<Level, string> = {
-  [Level.EASY]: "Dễ",
-  [Level.NORMAL]: "Bình thường",
-  [Level.MEDIUM]: "Trung bình",
-  [Level.DIFFICULT]: "Khó",
-};
+  [Level.EASY]: 'Dễ',
+  [Level.NORMAL]: 'Bình thường',
+  [Level.MEDIUM]: 'Trung bình',
+  [Level.DIFFICULT]: 'Khó',
+}
 
 export enum Status {
-  DRAFT = "DRAFT",
-  PUBLISHED = "PUBLISHED",
-  ARCHIVED = "ARCHIVED",
+  DRAFT = 'DRAFT',
+  PUBLISHED = 'PUBLISHED',
+  ARCHIVED = 'ARCHIVED',
 }
 
 export const StatusLabel: Record<Status, string> = {
-  [Status.DRAFT]: "Bản nháp",
-  [Status.PUBLISHED]: "Đã xuất bản",
-  [Status.ARCHIVED]: "Lưu trữ",
-};
+  [Status.DRAFT]: 'Bản nháp',
+  [Status.PUBLISHED]: 'Đã xuất bản',
+  [Status.ARCHIVED]: 'Lưu trữ',
+}
 
 export interface Tag {
-  id: number;
-  name: string;
-  slug?: string;
-  colorCode?: string;
+  id: number
+  name: string
+  slug?: string
+  colorCode?: string
 }
 
 export const QuestionTypeColor: Record<QuestionType, string> = {
-  [QuestionType.ONE_CHOICE]: "blue",
-  [QuestionType.MULTI_CHOICE]: "cyan",
-  [QuestionType.PLAIN_TEXT]: "purple",
-  [QuestionType.ESSAY]: "volcano",
-  [QuestionType.TRUE_FALSE]: "green",
-  [QuestionType.TABLE_CHOICE]: "magenta",
-};
+  [QuestionType.ONE_CHOICE]: 'blue',
+  [QuestionType.MULTI_CHOICE]: 'cyan',
+  [QuestionType.PLAIN_TEXT]: 'purple',
+  [QuestionType.ESSAY]: 'volcano',
+  [QuestionType.TRUE_FALSE]: 'green',
+  [QuestionType.TABLE_CHOICE]: 'magenta',
+}
 
 export const LevelColor: Record<Level, string> = {
-  [Level.EASY]: "green",
-  [Level.NORMAL]: "blue",
-  [Level.MEDIUM]: "orange",
-  [Level.DIFFICULT]: "red",
-};
+  [Level.EASY]: 'green',
+  [Level.NORMAL]: 'blue',
+  [Level.MEDIUM]: 'orange',
+  [Level.DIFFICULT]: 'red',
+}
 
 export const StatusColor: Record<Status, string> = {
-  [Status.DRAFT]: "gold",
-  [Status.PUBLISHED]: "green",
-  [Status.ARCHIVED]: "default",
-};
+  [Status.DRAFT]: 'gold',
+  [Status.PUBLISHED]: 'green',
+  [Status.ARCHIVED]: 'default',
+}
 
 export interface TagSearchRequest extends PagingRequest {
-  name?: string;
-  colorCode?: string;
+  name?: string
+  colorCode?: string
 }
 
 export interface TagRequest {
-  name: string;
-  colorCode: string;
+  name: string
+  colorCode: string
 }

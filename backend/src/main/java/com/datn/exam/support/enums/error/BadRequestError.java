@@ -18,6 +18,8 @@ public enum BadRequestError implements ResponseError {
     QUESTION_TYPE_REQUIRED(400010, "Loại câu hỏi là bắt buộc"),
     QUESTION_LEVEL_REQUIRED(400011, "Mức độ là bắt buộc"),
     QUESTION_IS_POSITIVE(400012, "Điểm phải là số dương"),
+    QUESTION_CODE_REQUIRED(4000121, "Yêu cầu mã câu hỏi"),
+    QUESTION_CODE_EXISTED(4000122, "Mã câu hỏi đã tồn tại"),
     QUESTION_MAX_SCORE(400013, "Điểm không được vượt quá 999.99"),
     QUESTION_MAX_WORD(400014, "Số từ tối đa phải lớn hơn hoặc bằng 1"),
     QUESTION_MIN_WORD(400015, "Số từ tối thiểu phải lớn hơn hoặc bằng 1"),

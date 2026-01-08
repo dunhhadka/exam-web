@@ -7,6 +7,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Set;
 
 @Repository
 public interface QuestionRepository extends JpaRepository<Question, Long> {
@@ -16,4 +17,10 @@ public interface QuestionRepository extends JpaRepository<Question, Long> {
 
     @Query("SELECT q FROM Question q WHERE q.id IN (:ids)")
     List<Question> findByIds(List<Long> ids);
+
+    boolean existsByCode(String code);
+
+    List<Question> findByCode(String code);
+
+    List<Question> findByCodeIn(Set<String> codes);
 }

@@ -22,7 +22,16 @@ import {
   UnorderedListOutlined,
 } from '@ant-design/icons'
 import styled from '@emotion/styled'
-import { Button, InputNumber, Modal, Radio, Select, Space, Tabs } from 'antd'
+import {
+  Button,
+  Input,
+  InputNumber,
+  Modal,
+  Radio,
+  Select,
+  Space,
+  Tabs,
+} from 'antd'
 import { ReactNode, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
@@ -199,11 +208,11 @@ export const QuestionCreatePage = () => {
       return
     }
 
-    console.log(requestInput);
+    console.log(requestInput)
     try {
-      await submitQuestion(type, requestInput);
+      await submitQuestion(type, requestInput)
     } catch (error: any) {
-      toast.error(error?.message || "Đã có lỗi xảy ra khi xuất bản câu hỏi");
+      toast.error(error?.message || 'Đã có lỗi xảy ra khi xuất bản câu hỏi')
     }
   }
 
@@ -386,10 +395,9 @@ export const QuestionCreatePage = () => {
     temp.innerHTML = cleaned
 
     // Nếu không có formatting/media đáng kể thì lưu plain text cho gọn DB
-    const hasRichContent =
-      !!temp.querySelector(
-        'img,video,audio,table,ul,ol,li,b,strong,i,em,u,s,strike,h1,h2,h3,br,pre,code,a'
-      )
+    const hasRichContent = !!temp.querySelector(
+      'img,video,audio,table,ul,ol,li,b,strong,i,em,u,s,strike,h1,h2,h3,br,pre,code,a'
+    )
 
     if (!hasRichContent) {
       return toPlainText(cleaned)
@@ -488,6 +496,7 @@ export const QuestionCreatePage = () => {
         isPublic: result.isPublic,
         tagIds: result.tags ? result.tags.map((tag) => tag.id) : [],
         type: result.type,
+        code: result.code || '',
         data: null,
       }
 
@@ -632,6 +641,18 @@ export const QuestionCreatePage = () => {
           </div>
           <TagSelection tags={tags} onSelect={setTags} />
         </FormSection>
+
+        <QuestionSection>
+          <QuestionLabel>
+            Mã câu hỏi <RequiredStar>*</RequiredStar>
+          </QuestionLabel>
+          <Input
+            value={requestInput.code}
+            onChange={(value) =>
+              setRequestInput({ ...requestInput, code: value.target.value })
+            }
+          />
+        </QuestionSection>
 
         <QuestionSection>
           <QuestionLabel>

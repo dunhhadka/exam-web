@@ -42,6 +42,7 @@ import { BASE_URL } from '../../store/slices/baseQueries'
 
 export const QuestionList = () => {
   const columns = [
+    createColumn<Question>('Mã câu hỏi', 'code'),
     createColumn<Question>('Cấp độ', 'level', {
       render: (value: Level) =>
         value ? <Tag color={LevelColor[value]}>{LevelLabel[value]}</Tag> : null,
@@ -267,15 +268,12 @@ export const QuestionList = () => {
     try {
       setIsDownloadingTemplate(true)
 
-      const response = await fetch(
-        BASE_URL + '/question/template/download',
-        {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      )
+      const response = await fetch(BASE_URL + '/question/template/download', {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      })
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`)
@@ -287,9 +285,9 @@ export const QuestionList = () => {
       const url = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.download = `import_question_template_${new Date()
-        .toISOString()
-        .split('T')[0]}.xlsx`
+      link.download = `import_question_template_${
+        new Date().toISOString().split('T')[0]
+      }.xlsx`
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)

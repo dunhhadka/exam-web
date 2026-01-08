@@ -9,11 +9,13 @@ import lombok.EqualsAndHashCode;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
-public class QuestionSearchRequest extends PagingRequest{
+public class QuestionSearchRequest extends PagingRequest {
     private QuestionType type;
     private Level level;
 
     private Boolean publicFlag;
     private String tagName;
     private Status status;
+
+    private String code;
 }

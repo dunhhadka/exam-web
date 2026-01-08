@@ -29,4 +29,6 @@ public interface QuestionCreateBase {
 
     List<String> getHeaders();
     List<QuestionCreateRequest.RowCompactRequest> getRows();
+
+    String getCode();
 }

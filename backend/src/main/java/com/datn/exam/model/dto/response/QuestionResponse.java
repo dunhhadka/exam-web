@@ -17,6 +17,8 @@ import java.util.List;
 public class QuestionResponse {
     private long id;
 
+    private String code;
+
     private String text;
     private BigDecimal point;
     private QuestionType type;

@@ -21,6 +21,7 @@ import {
 } from '../../types/question'
 import { Truncate3Lines } from '../question/QuestionList'
 import { ExamQuestionModel } from './ExamQuestionModel'
+import AddExamQuestionModalByCode from './ExamQuestionModalByCode'
 
 interface Props {
   questions: ExamQuestion[]
@@ -29,6 +30,7 @@ interface Props {
 
 export const ExamQuestionList = ({ questions, onChange }: Props) => {
   const columns = [
+    createColumn<ExamQuestion>('Mã câu hỏi', 'code'),
     createColumn<ExamQuestion>('Cấp độ', 'level', {
       width: '100px',
       render: (value: Level) =>
@@ -121,9 +123,16 @@ export const ExamQuestionList = ({ questions, onChange }: Props) => {
 
   const [showModalAddQuestion, setShowModalAddQuestion] = useState(false)
 
+  const [showModalAddQuestionByCode, setShowModalAddQuestionByCode] =
+    useState(false)
+
   const handleAddQuestion = useCallback(() => {
     setShowModalAddQuestion(true)
   }, [])
+
+  const handleAddQuestionByCode = () => {
+    setShowModalAddQuestionByCode(true)
+  }
 
   return (
     <Wrapper>
@@ -137,6 +146,12 @@ export const ExamQuestionList = ({ questions, onChange }: Props) => {
             title: 'Thêm câu hỏi',
             icon: <PlusCircleOutlined />,
             onClick: handleAddQuestion,
+            color: 'primary',
+          },
+          {
+            title: 'Thêm bằng mã câu hỏi',
+            icon: <PlusCircleOutlined />,
+            onClick: handleAddQuestionByCode,
             color: 'primary',
           },
         ]}
@@ -156,12 +171,36 @@ export const ExamQuestionList = ({ questions, onChange }: Props) => {
                   tags: value.tags,
                   type: value.type,
                   orderIndex: index,
+                  code: value.code,
                 } as ExamQuestion)
             )
             onChange(newQuestions)
           }}
           open={showModalAddQuestion}
           onCancel={() => setShowModalAddQuestion(false)}
+        />
+      )}
+      {showModalAddQuestionByCode && (
+        <AddExamQuestionModalByCode
+          open={showModalAddQuestionByCode}
+          onCancel={() => setShowModalAddQuestionByCode(false)}
+          currentSelectedCodes={(questions ?? []).map((item) => item.code)}
+          onConfirm={(values) => {
+            const newQuestions: ExamQuestion[] = (values ?? []).map(
+              (value, index) =>
+                ({
+                  id: value.id,
+                  text: value.text,
+                  point: value.point ?? 0,
+                  level: value.level,
+                  tags: value.tags,
+                  type: value.type,
+                  orderIndex: index,
+                  code: value.code,
+                } as ExamQuestion)
+            )
+            onChange(newQuestions)
+          }}
         />
       )}
     </Wrapper>

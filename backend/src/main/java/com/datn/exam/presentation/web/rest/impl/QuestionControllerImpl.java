@@ -20,6 +20,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
+import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
@@ -58,6 +59,11 @@ public class QuestionControllerImpl implements QuestionController {
     @Override
     public PagingResponse<QuestionResponse> search(QuestionSearchRequest request) {
         return PagingResponse.of(questionService.search(request));
+    }
+
+    @Override
+    public Response<List<QuestionResponse>> searchByCodes(String codes) {
+        return Response.of(questionService.searchByCodes(codes));
     }
 
     @Override

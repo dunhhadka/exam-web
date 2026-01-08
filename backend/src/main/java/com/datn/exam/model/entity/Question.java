@@ -42,6 +42,10 @@ public class Question extends AuditableEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
 
+    @NotNull
+    @Column(unique = true)
+    private String code;
+
     @Column(precision = 5, scale = 2)
     private BigDecimal point;
 
@@ -254,7 +258,7 @@ public class Question extends AuditableEntity {
     @NoArgsConstructor
     @AllArgsConstructor
     public static abstract class BaseQuestion {
-        @JsonIgnore 
+        @JsonIgnore
         private QuestionType type;
 
         @JsonProperty("public_flag")

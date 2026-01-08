@@ -22,6 +22,8 @@ public abstract class BaseQuestionRow implements QuestionCreateBase {
     private Boolean isPublic;
     private BigDecimal point;
 
+    private String code;
+
     @Override
     public boolean isPublic() {
         return isPublic != null && isPublic;

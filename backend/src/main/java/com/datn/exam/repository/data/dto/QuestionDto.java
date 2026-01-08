@@ -14,6 +14,7 @@ import java.util.List;
 @Setter
 public class QuestionDto {
     private long id;
+    private String code;
     private String text;
     private BigDecimal point;
     private QuestionType type;

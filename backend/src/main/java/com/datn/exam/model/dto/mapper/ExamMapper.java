@@ -20,6 +20,7 @@ public abstract class ExamMapper {
     @Mapping(target = "level", source = "question.level")
     @Mapping(target = "type", source = "question.type")
     @Mapping(target = "id", source = "question.id")
+    @Mapping(target = "code", source = "question.code")
     public abstract ExamResponse.ExamQuestionResponse map(ExamQuestion source);
 
     @Mapping(target = "isPublic", source = "publicFlag")

@@ -14,6 +14,7 @@ import com.datn.exam.support.util.ExceptionUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
@@ -23,6 +24,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -48,8 +51,10 @@ public class QuestionImportService {
                 return result;
             }
 
+            Set<String> codes = new HashSet<>();
+
             for (var sheetInfo : sheetTypes.entrySet()) {
-                SheetProcessingResult processingSheetResult = processSheet(sheetInfo.getKey(), sheetInfo.getValue());
+                SheetProcessingResult processingSheetResult = processSheet(sheetInfo.getKey(), sheetInfo.getValue(), codes);
 
                 result.addSheetResult(sheetInfo.getKey(), processingSheetResult);
 
@@ -72,7 +77,8 @@ public class QuestionImportService {
     @SuppressWarnings("unchecked")
     private <T extends BaseQuestionRow> SheetProcessingResult processSheet(
             QuestionSheetType sheetType,
-            Sheet sheet) {
+            Sheet sheet,
+            Set<String> codesExisted) {
 
         SheetReader<T> reader = sheetReaderFactory.getReader(sheetType);
 
@@ -118,10 +124,51 @@ public class QuestionImportService {
             }
         }
 
+        this.validateQuestionCodes(validQuestions, sheetType, codesExisted);
+
         builder.addErrors(allErrors);
         builder.addValidQuestion(validQuestions);
 
         return builder.build();
+    }
+
+    private void validateQuestionCodes(
+            List<Question> questions,
+            QuestionSheetType sheetType,
+            Set<String> codesExisted) {
+
+        if (CollectionUtils.isEmpty(questions)) {
+            return;
+        }
+
+        Set<String> codes = new HashSet<>();
+
+        for (int index = 0; index < questions.size(); index++) {
+            var question = questions.get(index);
+            if (question == null) {
+                throw ExceptionUtils.withMessage("Câu hỏi thứ " + index + " trong sheet " + sheetType.getSheetName() + " không được để trống.");
+            }
+
+            if (StringUtils.isEmpty(question.getCode())) {
+                throw ExceptionUtils.withMessage("Mã câu hỏi thứ " + index + " trong sheet " + sheetType.getSheetName() + " không được để trống.");
+            }
+
+            if (codes.contains(question.getCode()) || codesExisted.contains(question.getCode())) {
+                throw ExceptionUtils.withMessage("Mã câu hỏi thứ " + index + " trong sheet " + sheetType.getSheetName() + " đã có .");
+            }
+
+            codes.add(question.getCode());
+        }
+
+        var questionCodeMap = questionRepository.findByCodeIn(codes).stream()
+                .collect(Collectors.toMap(Question::getCode, Function.identity(), (first, second) -> first));
+        if (!questionCodeMap.isEmpty()) {
+            var codesExistedInSheet = String.join(", ", questionCodeMap.keySet());
+
+            throw ExceptionUtils.withMessage("Các mã câu hỏi: " + codesExistedInSheet + " đã tồn tại.");
+        }
+
+        codesExisted.addAll(codes);
     }
 
     private Map<QuestionSheetType, Sheet> validateFileStructure(

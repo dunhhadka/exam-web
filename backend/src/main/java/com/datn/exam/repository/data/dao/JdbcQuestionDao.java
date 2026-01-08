@@ -19,7 +19,7 @@ import java.util.List;
 @Repository
 @RequiredArgsConstructor
 @Slf4j
-public class JdbcQuestionDao implements QuestionDao{
+public class JdbcQuestionDao implements QuestionDao {
     private final NamedParameterJdbcTemplate jdbcTemplate;
     private final ObjectMapper mapper;
 
@@ -49,6 +49,7 @@ public class JdbcQuestionDao implements QuestionDao{
                     q.id,
                     q.point,
                     q.text,
+                    q.code,
                     JSON_UNQUOTE(JSON_EXTRACT(q.question_value, '$.type'))  AS type,
                     JSON_UNQUOTE(JSON_EXTRACT(q.question_value, '$.level')) AS level,
                     JSON_UNQUOTE(JSON_EXTRACT(q.question_value, '$.status')) AS status,
@@ -112,13 +113,14 @@ public class JdbcQuestionDao implements QuestionDao{
         params.addValue("userName", userName);
 
         if (StringUtils.isNotBlank(request.getKeyword())) {
-            whereFilter.append(" AND LOWER(q.text) LIKE LOWER(CONCAT('%', :keyword, '%')) ");
+            whereFilter.append(" AND (LOWER(q.text) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(q.code) LIKE LOWER(CONCAT('%', :code, '%'))) ");
             params.addValue("keyword", request.getKeyword());
+            params.addValue("code", request.getCode());
         }
 
         if (request.getType() != null) {
             whereFilter.append(" AND JSON_UNQUOTE(JSON_EXTRACT(q.question_value, '$.type')) = :type ");
-            params.addValue("type", request.getType().name()); 
+            params.addValue("type", request.getType().name());
         }
 
         if (request.getLevel() != null) {
@@ -142,6 +144,11 @@ public class JdbcQuestionDao implements QuestionDao{
         if (StringUtils.isNotBlank(request.getTagName())) {
             whereFilter.append(" AND t.name = :tagName ");
             params.addValue("tagName", request.getTagName());
+        }
+
+        if (StringUtils.isNotBlank(request.getCode())) {
+            whereFilter.append(" AND LOWER(q.code) LIKE LOWER(CONCAT('%', :code, '%')) ");
+            params.addValue("code", request.getCode());
         }
 
         return params;

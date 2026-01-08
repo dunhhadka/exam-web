@@ -16,6 +16,8 @@ import java.util.List;
 public class DraftCreateRequest extends Request implements QuestionCreateBase{
     private String text;
 
+    private String code;
+
     private BigDecimal point;
 
     @NotNull(message = "QUESTION_LEVEL_REQUIRED")

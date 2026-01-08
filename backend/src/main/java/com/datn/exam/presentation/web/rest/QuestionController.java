@@ -16,6 +16,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
+import java.util.List;
 
 @RequestMapping("/api/question")
 public interface QuestionController {
@@ -38,6 +39,9 @@ public interface QuestionController {
     @GetMapping("/filter")
     @ResponseStatus(HttpStatus.OK)
     PagingResponse<QuestionResponse> search(@Valid QuestionSearchRequest request);
+
+    @GetMapping("/search-by-codes/{codes}")
+    Response<List<QuestionResponse>> searchByCodes(@PathVariable String codes);
 
     @GetMapping("/filter/count")
     Response<Integer> count(QuestionSearchRequest request);

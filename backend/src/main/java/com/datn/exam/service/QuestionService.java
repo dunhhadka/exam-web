@@ -8,6 +8,8 @@ import com.datn.exam.model.dto.request.QuestionUpdateRequest;
 import com.datn.exam.model.dto.response.QuestionResponse;
 import com.datn.exam.model.dto.response.Response;
 
+import java.util.List;
+
 public interface QuestionService {
     QuestionResponse createPublish(QuestionCreateRequest request);
     QuestionResponse createDraft(DraftCreateRequest request);
@@ -18,4 +20,6 @@ public interface QuestionService {
     Integer count(QuestionSearchRequest request);
 
     QuestionResponse findById(long questionId);
+
+    List<QuestionResponse> searchByCodes(String codes);
 }

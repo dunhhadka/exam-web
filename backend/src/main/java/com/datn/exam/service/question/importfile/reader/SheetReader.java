@@ -60,6 +60,7 @@ public abstract class SheetReader<T extends BaseQuestionRow> {
         questionRow.setTags(readCellTags(row, COL_TAGS));
         questionRow.setIsPublic(readCellBoolean(row, COL_IS_PUBLIC));
         questionRow.setPoint(readCellBigDecimal(row, COL_POINT));
+        questionRow.setCode(readCellString(row, COL_ROW_NUMBER));
 
         readSpecificData(questionRow, row, rowIndex);
 

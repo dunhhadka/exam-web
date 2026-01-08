@@ -35,6 +35,7 @@ export const ExamQuestionModel = ({
   onCancel,
 }: Props) => {
   const columns = [
+    createColumn<Question>('Mã câu hỏi', 'code'),
     createColumn<Question>('Cấp đô', 'level', {
       render: (value: Level) =>
         value ? <Tag color={LevelColor[value]}>{LevelLabel[value]}</Tag> : null,
@@ -207,9 +208,10 @@ export const ExamQuestionModel = ({
   )
 }
 
-const SearchInput = styled(Input)`
+export const SearchInput = styled(Input)`
   border-radius: 8px;
   padding: 8px 12px;
   font-size: 14px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  margin: 16px 0;
 `

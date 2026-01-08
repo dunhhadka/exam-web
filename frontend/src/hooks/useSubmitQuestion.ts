@@ -110,8 +110,11 @@ const parseToRequest = (
         headers: data.data.headers,
         rows: data.data.rows,
       })
-      
-      console.log('TABLE_CHOICE rows detail:', JSON.stringify(data.data.rows, null, 2))
+
+      console.log(
+        'TABLE_CHOICE rows detail:',
+        JSON.stringify(data.data.rows, null, 2)
+      )
 
       return {
         ...formData,

@@ -8,7 +8,9 @@ import com.datn.exam.repository.QuestionRepository;
 import com.datn.exam.service.QuestionService;
 import com.datn.exam.support.enums.QuestionType;
 import com.datn.exam.support.exception.DomainValidationException;
+import com.datn.exam.support.util.ExceptionUtils;
 import com.datn.exam.support.util.SecurityUtils;
+import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -34,6 +36,8 @@ public class QuestionEditService {
     @Transactional
     public QuestionResponse edit(long questionId, QuestionEditRequest request) {
         var question = this.findQuestionById(questionId);
+
+        this.validateCode(request.getCode(), questionId);
 
         this.checkCanEditPublicFlag(question, request);
         if (!Objects.equals(question.getType(), request.getType())) {
@@ -67,6 +71,22 @@ public class QuestionEditService {
         this.questionRepository.save(question);
 
         return this.questionService.findById(questionId);
+    }
+
+    private void validateCode(String code, long questionId) {
+        var questionsByCode = questionRepository.findByCode(code);
+        if (questionsByCode.isEmpty()) {
+            return;
+        }
+
+        if (questionsByCode.size() > 2) {
+            throw ExceptionUtils.withMessage("Mã câu hỏi đã tồn tại");
+        }
+
+        var question = questionsByCode.get(0);
+        if (!Objects.equals(question.getId(), questionId)) {
+            throw ExceptionUtils.withMessage("Mã câu hỏi đã tồn tại");
+        }
     }
 
     private void checkCanEditPublicFlag(Question question, QuestionEditRequest request) {

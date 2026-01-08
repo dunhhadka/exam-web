@@ -20,6 +20,9 @@ public class QuestionCreateRequest extends Request implements QuestionCreateBase
     @NotBlank(message = "QUESTION_TEXT_REQUIRED")
     private String text;
 
+    @NotBlank(message = "QUESTION_CODE_REQUIRED")
+    private String code;
+
     @DecimalMin(value = "0.0", message = "QUESTION_IS_POSITIVE")
     @DecimalMax(value = "999.99", message = "QUESTION_MAX_SCORE")
     @NotNull(message = "QUESTION_SCORE_REQUIRED")

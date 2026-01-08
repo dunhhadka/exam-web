@@ -26,6 +26,7 @@ import com.datn.exam.support.enums.error.BadRequestError;
 import com.datn.exam.support.enums.error.NotFoundError;
 import com.datn.exam.support.exception.DomainValidationException;
 import com.datn.exam.support.exception.ResponseException;
+import com.datn.exam.support.util.ExceptionUtils;
 import com.datn.exam.support.util.SecurityUtils;
 import jakarta.validation.ConstraintViolationException;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +39,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -63,6 +65,8 @@ public class QuestionServiceImpl implements QuestionService {
         errors.addAll(choiceValidator.validate(request, objectName));
         errors.addAll(tableValidator.validate(request, objectName));
 
+        this.validateCode(request.getCode());
+
         if (!errors.isEmpty()) {
             throw new DomainValidationException(errors);
         }
@@ -72,6 +76,12 @@ public class QuestionServiceImpl implements QuestionService {
         questionRepository.save(question);
 
         return questionMapper.toQuestionResponse(question);
+    }
+
+    private void validateCode(String code) {
+        if (questionRepository.existsByCode(code)) {
+            throw ExceptionUtils.withMessage("Mã câu hỏi " + code + " đã tồn tại");
+        }
     }
 
     @Override
@@ -164,6 +174,32 @@ public class QuestionServiceImpl implements QuestionService {
         return this.questionMapper.toQuestionResponse(question);
     }
 
+    @Override
+    public List<QuestionResponse> searchByCodes(String codes) {
+        if (StringUtils.isBlank(codes)) {
+            throw ExceptionUtils.withMessage("Yêu cầu nhập mã câu hỏi");
+        }
+
+        Set<String> validCodes = Arrays.stream(codes.split(","))
+                .map(String::trim)
+                .filter(StringUtils::isNotBlank)
+                .collect(Collectors.toSet());
+
+        var questionsCodeMap = questionRepository.findByCodeIn(validCodes)
+                .stream().collect(Collectors.toMap(Question::getCode, Function.identity(), (first, second) -> first));
+
+        var invalidCodes = validCodes.stream()
+                .filter(code -> !questionsCodeMap.containsKey(code))
+                .collect(Collectors.joining(", "));
+        if (!invalidCodes.isEmpty()) {
+            throw ExceptionUtils.withMessage("Mã code: " + invalidCodes + " không tìm thấy.");
+        }
+
+        return questionsCodeMap.values().stream()
+                .map(questionMapper::toQuestionResponse)
+                .toList();
+    }
+
     private void validateDraft(DraftCreateRequest request) {
         if (this.needsAnswers(request.getType()) && CollectionUtils.isEmpty(request.getAnswers())) {
             throw new ResponseException(BadRequestError.ANSWER_MIN_ONE_REQUIRE);
@@ -190,6 +226,7 @@ public class QuestionServiceImpl implements QuestionService {
                 .isPublic(request.isPublic())
                 .level(request.getLevel())
                 .status(Status.PUBLISHED)
+                .code(request.getCode())
                 .build();
 
         this.buildTags(question, request.getTagIds());
@@ -227,7 +264,7 @@ public class QuestionServiceImpl implements QuestionService {
     private Question.TableChoiceQuestion buildTableChoiceQuestionValue(QuestionCreateBase request, Status status, boolean isPublic) {
         log.info("Building TABLE_CHOICE with headers: {}", request.getHeaders());
         log.info("Building TABLE_CHOICE with rows: {}", request.getRows());
-        
+
         List<Question.RowCompact> rows = request.getRows().stream()
                 .filter(Objects::nonNull)
                 .map(r -> {
@@ -247,7 +284,7 @@ public class QuestionServiceImpl implements QuestionService {
         );
     }
 
-    private Question.EssayQuestion buildEssayQuestionValue(QuestionCreateBase request,Status status, boolean isPublic) {
+    private Question.EssayQuestion buildEssayQuestionValue(QuestionCreateBase request, Status status, boolean isPublic) {
 
         return new Question.EssayQuestion(
                 request.getLevel(),

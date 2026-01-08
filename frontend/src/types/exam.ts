@@ -46,6 +46,7 @@ export const ExamStatusLabel: Record<ExamStatus, string> = {
 export interface ExamQuestion {
   id: number
   text: string
+  code: string
   point?: number
   level: Level
   tags?: Tag[]
