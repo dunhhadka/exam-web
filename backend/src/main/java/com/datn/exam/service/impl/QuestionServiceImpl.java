@@ -195,7 +195,9 @@ public class QuestionServiceImpl implements QuestionService {
             throw ExceptionUtils.withMessage("Mã code: " + invalidCodes + " không tìm thấy.");
         }
 
-        return questionsCodeMap.values().stream()
+        return validCodes.stream()
+                .map(questionsCodeMap::get)
+                .filter(Objects::nonNull)
                 .map(questionMapper::toQuestionResponse)
                 .toList();
     }
