@@ -26,7 +26,7 @@ import java.util.UUID;
 @SuperBuilder
 @NoArgsConstructor
 @AllArgsConstructor
-public class User extends AuditableEntity{
+public class User extends AuditableEntity {
     @Id
     @Column
     @JdbcTypeCode(SqlTypes.VARCHAR)
@@ -35,6 +35,8 @@ public class User extends AuditableEntity{
     private String email;
 
     private String password;
+
+    private String studentCode;
 
     @Embedded
     @JsonUnwrapped

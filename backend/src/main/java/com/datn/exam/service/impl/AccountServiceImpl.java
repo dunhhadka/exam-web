@@ -47,6 +47,9 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Slf4j
 public class AccountServiceImpl implements AccountService {
+
+    private static final String CODE_PATTERN = "MSV-000%d";
+
     private final TokenProvider tokenProvider;
     private final AuthenticationProperties authenticationProperties;
     private final UserRepository userRepository;
@@ -82,6 +85,7 @@ public class AccountServiceImpl implements AccountService {
                         null,
                         null
                 ))
+                .studentCode(generateCode())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .status(ActiveStatus.ACTIVE) // If add verify code then INACTIVE
                 .accountType(AccountType.SYSTEM)
@@ -108,6 +112,11 @@ public class AccountServiceImpl implements AccountService {
         userRepository.save(user);
 
         //TODO: Add otp, cache with otp and send email
+    }
+
+    private String generateCode() {
+        long userCount = userRepository.countStudent();
+        return String.format(CODE_PATTERN, userCount);
     }
 
     @Override

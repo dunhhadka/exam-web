@@ -183,7 +183,7 @@ public class QuestionServiceImpl implements QuestionService {
         Set<String> validCodes = Arrays.stream(codes.split(","))
                 .map(String::trim)
                 .filter(StringUtils::isNotBlank)
-                .collect(Collectors.toSet());
+                .collect(Collectors.toCollection(LinkedHashSet::new));
 
         var questionsCodeMap = questionRepository.findByCodeIn(validCodes)
                 .stream().collect(Collectors.toMap(Question::getCode, Function.identity(), (first, second) -> first));

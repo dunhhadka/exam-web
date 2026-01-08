@@ -1,5 +1,20 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Modal, Button, Pagination, Tooltip, Empty, Input, Checkbox, Spin, Image, Card, Divider, Table, Space, Tag } from 'antd'
+import {
+  Modal,
+  Button,
+  Pagination,
+  Tooltip,
+  Empty,
+  Input,
+  Checkbox,
+  Spin,
+  Image,
+  Card,
+  Divider,
+  Table,
+  Space,
+  Tag,
+} from 'antd'
 import {
   UploadOutlined,
   DeleteOutlined,
@@ -24,7 +39,12 @@ interface StudentEntry {
   row?: number | null
   avatarCount?: number
   avatarPreviews?: string[]
-  source?: 'IMPORT_VALID' | 'IMPORT_INVALID' | 'IMPORT_DUPLICATE' | 'MANUAL' | 'SELECTED'
+  source?:
+    | 'IMPORT_VALID'
+    | 'IMPORT_INVALID'
+    | 'IMPORT_DUPLICATE'
+    | 'MANUAL'
+    | 'SELECTED'
   manualFiles?: (File | null)[]
 }
 
@@ -136,7 +156,7 @@ const StudentEmailWrapper = styled.div`
 const StudentReason = styled.div`
   font-size: 12px;
   color: #ff4d4f;
-  
+
   &[data-status='DUPLICATE'] {
     color: #faad14;
   }
@@ -317,7 +337,7 @@ const SectionTitle = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
-  
+
   &:before {
     content: '';
     width: 4px;
@@ -350,16 +370,19 @@ export const StudentListModal: React.FC<StudentListModalProps> = ({
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const avatarInputsRef = useRef<Record<string, HTMLInputElement | null>>({})
   const toast = useToast()
-  
-  const [searchStudents, { data: searchResults, isLoading: searchLoading }] = useLazySearchStudentsQuery()
+
+  const [searchStudents, { data: searchResults, isLoading: searchLoading }] =
+    useLazySearchStudentsQuery()
 
   useEffect(() => {
     if (visible) {
       setStudents(initialStudents)
       setCurrentPage(1)
       setSearchKeyword('')
+      // Gọi API để lấy danh sách sinh viên khi modal mở
+      //searchStudents({ keyword: '', size: 20 })
     }
-  }, [visible, initialStudents])
+  }, [visible, initialStudents, searchStudents])
 
   useEffect(() => {
     if (searchKeyword.trim()) {
@@ -384,7 +407,8 @@ export const StudentListModal: React.FC<StudentListModalProps> = ({
   const getSearchResultsData = (): User[] => {
     if (!searchResults) return []
     if (Array.isArray(searchResults)) return searchResults
-    if (searchResults.data && Array.isArray(searchResults.data)) return searchResults.data
+    if (searchResults.data && Array.isArray(searchResults.data))
+      return searchResults.data
     return []
   }
 
@@ -394,7 +418,9 @@ export const StudentListModal: React.FC<StudentListModalProps> = ({
     fileInputRef.current?.click()
   }
 
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = event.target.files?.[0]
     if (!file) return
 
@@ -407,7 +433,9 @@ export const StudentListModal: React.FC<StudentListModalProps> = ({
 
   const handleToggleStudent = (user: User) => {
     const existingIndex = students.findIndex(
-      (s) => s.userId === user.id || s.email.toLowerCase() === user.email.toLowerCase()
+      (s) =>
+        s.userId === user.id ||
+        s.email.toLowerCase() === user.email.toLowerCase()
     )
 
     if (existingIndex >= 0) {
@@ -421,7 +449,10 @@ export const StudentListModal: React.FC<StudentListModalProps> = ({
       )
 
       if (isDuplicate) {
-        toast.warning('Email trùng', `Email ${user.email} đã tồn tại trong danh sách`)
+        toast.warning(
+          'Email trùng',
+          `Email ${user.email} đã tồn tại trong danh sách`
+        )
         return
       }
 
@@ -445,25 +476,35 @@ export const StudentListModal: React.FC<StudentListModalProps> = ({
 
   const isStudentSelected = (user: User): boolean => {
     return students.some(
-      (s) => s.userId === user.id || s.email.toLowerCase() === user.email.toLowerCase()
+      (s) =>
+        s.userId === user.id ||
+        s.email.toLowerCase() === user.email.toLowerCase()
     )
   }
 
   const handleEntryEmailChange = (id: string, newEmail: string) => {
     setStudents((prev) => {
-      const updated = prev.map((entry) => (entry.id === id ? { ...entry, email: newEmail } : entry))
+      const updated = prev.map((entry) =>
+        entry.id === id ? { ...entry, email: newEmail } : entry
+      )
       return recalcStatuses(updated)
     })
   }
 
   const handleRemoveEntry = (id: string) => {
     setStudents((prev) => prev.filter((entry) => entry.id !== id))
-    if (currentPage > 1 && students.length - 1 <= (currentPage - 1) * PAGE_SIZE) {
+    if (
+      currentPage > 1 &&
+      students.length - 1 <= (currentPage - 1) * PAGE_SIZE
+    ) {
       setCurrentPage(currentPage - 1)
     }
   }
 
-  const handleAvatarUpload = async (id: string, event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarUpload = async (
+    id: string,
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const files = Array.from(event.target.files || [])
     if (files.length === 0) return
 
@@ -488,17 +529,17 @@ export const StudentListModal: React.FC<StudentListModalProps> = ({
         if (availableSlots <= 0) return entry
 
         const filesToAdd = files.slice(0, availableSlots)
-        
+
         // Convert files to base64 asynchronously
-        Promise.all(filesToAdd.map(file => convertToBase64(file)))
-          .then(base64Strings => {
-            setStudents(prevStudents =>
-              prevStudents.map(e => {
+        Promise.all(filesToAdd.map((file) => convertToBase64(file)))
+          .then((base64Strings) => {
+            setStudents((prevStudents) =>
+              prevStudents.map((e) => {
                 if (e.id !== id) return e
-                
+
                 const currentFiles = e.manualFiles || []
                 const currentPreviews = e.avatarPreviews || []
-                
+
                 return {
                   ...e,
                   manualFiles: [...currentFiles, ...filesToAdd],
@@ -507,7 +548,7 @@ export const StudentListModal: React.FC<StudentListModalProps> = ({
               })
             )
           })
-          .catch(error => {
+          .catch((error) => {
             console.error('Error converting files to base64:', error)
             toast.error('Lỗi', 'Không thể đọc file ảnh')
           })
@@ -583,307 +624,346 @@ export const StudentListModal: React.FC<StudentListModalProps> = ({
 
   return (
     <>
-    <Modal
-      title={title}
-      open={visible}
-      onCancel={onClose}
-      width={1200}
-      style={{ top: 20 }}
-      bodyStyle={{ minHeight: '95vh', maxHeight: '80vh', overflow: 'auto' }}
-      footer={[
-        <Button key="cancel" onClick={onClose}>
-          Hủy
-        </Button>,
-        <Button
-          key="confirm"
-          type="primary"
-          onClick={handleConfirm}
-          disabled={summary.VALID === 0}
-        >
-          Xác nhận ({summary.VALID} sinh viên)
-        </Button>,
-      ]}
-    >
-      <ModalContent>
-        <ActionButtons>
+      <Modal
+        title={title}
+        open={visible}
+        onCancel={onClose}
+        width={1200}
+        style={{ top: 20 }}
+        bodyStyle={{ minHeight: '95vh', maxHeight: '80vh', overflow: 'auto' }}
+        footer={[
+          <Button key="cancel" onClick={onClose}>
+            Hủy
+          </Button>,
           <Button
-            icon={<UploadOutlined />}
-            onClick={handleImportClick}
-            loading={previewLoading}
+            key="confirm"
+            type="primary"
+            onClick={handleConfirm}
+            disabled={summary.VALID === 0}
           >
-            Import Excel
-          </Button>
-          <HiddenFileInput
-            ref={fileInputRef}
-            type="file"
-            accept=".xlsx,.xls"
-            onChange={handleFileChange}
-          />
-          
-          <SearchSection>
-            <Input
-              placeholder="Tìm kiếm sinh viên theo email hoặc tên..."
-              prefix={<SearchOutlined />}
-              value={searchKeyword}
-              onChange={(e) => setSearchKeyword(e.target.value)}
-              allowClear
+            Xác nhận ({summary.VALID} sinh viên)
+          </Button>,
+        ]}
+      >
+        <ModalContent>
+          <ActionButtons>
+            <Button
+              icon={<UploadOutlined />}
+              onClick={handleImportClick}
+              loading={previewLoading}
+            >
+              Import Excel
+            </Button>
+            <HiddenFileInput
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={handleFileChange}
             />
-            
-            {searchLoading && searchKeyword.trim() && (
-              <SearchResults>
-                <div style={{ textAlign: 'center', padding: '20px' }}>
-                  <Spin tip="Đang tìm kiếm..." />
-                </div>
-              </SearchResults>
-            )}
 
-            {!searchLoading && searchKeyword.trim() && searchResultsData.length > 0 && (
-              <SearchResults>
-                {searchResultsData.map((user) => {
-                  const selected = isStudentSelected(user)
-                  return (
-                    <SearchResultItem
-                      key={user.id}
-                      data-selected={selected}
-                      onClick={() => handleToggleStudent(user)}
-                    >
-                      <Checkbox checked={selected} />
-                      <StudentInfo>
-                        <StudentName>{user.name || 'Chưa có tên'} - {user.email}</StudentName>
-                      </StudentInfo>
-                    </SearchResultItem>
-                  )
-                })}
-              </SearchResults>
-            )}
+            <SearchSection>
+              <Input
+                placeholder="Tìm kiếm sinh viên theo email hoặc tên..."
+                prefix={<SearchOutlined />}
+                value={searchKeyword}
+                onChange={(e) => setSearchKeyword(e.target.value)}
+                allowClear
+                onFocus={() => {
+                  // Gọi API search ngay khi focus
+                  searchStudents({
+                    keyword: searchKeyword.trim() || '',
+                    size: 20,
+                  })
+                }}
+              />
 
-            {!searchLoading && searchKeyword.trim() && searchResults && searchResultsData.length === 0 && (
-              <SearchResults>
-                <Empty description="Không tìm thấy sinh viên nào" style={{ padding: '20px' }} />
-              </SearchResults>
-            )}
-          </SearchSection>
-        </ActionButtons>
+              {searchLoading && searchKeyword.trim() && (
+                <SearchResults>
+                  <div style={{ textAlign: 'center', padding: '20px' }}>
+                    <Spin tip="Đang tìm kiếm..." />
+                  </div>
+                </SearchResults>
+              )}
 
-        {validatedStudents.length > 0 && (
-          <SelectedSection>
-            <SectionTitle>Sinh viên đã chọn ({validatedStudents.length})</SectionTitle>
-            <Table
-              dataSource={validatedStudents}
-              rowKey="id"
-              pagination={{
-                current: currentPage,
-                pageSize: PAGE_SIZE,
-                total: validatedStudents.length,
-                onChange: setCurrentPage,
-                showSizeChanger: false,
-                showTotal: (total) => `Tổng số ${total} sinh viên`,
-              }}
-              size="middle"
-              scroll={{ y: 500 }}
-              columns={[
-                {
-                  title: 'STT',
-                  key: 'index',
-                  width: 60,
-                  align: 'center',
-                  render: (_, __, index) => (currentPage - 1) * PAGE_SIZE + index + 1,
-                },
-                {
-                  title: 'Email',
-                  dataIndex: 'email',
-                  key: 'email',
-                  width: '30%',
-                  render: (email, entry) => (
-                    <div>
-                      <div style={{ 
-                        color: entry.status === 'INVALID' ? '#ff4d4f' : '#262626',
-                        fontWeight: entry.status === 'INVALID' ? 500 : 400,
-                      }}>
-                        {email}
-                      </div>
-                      {entry.reason && entry.status === 'INVALID' && (
-                        <div style={{
-                          fontSize: '12px',
-                          color: '#ff4d4f',
-                          marginTop: '6px',
-                          padding: '6px 10px',
-                          backgroundColor: '#fff2f0',
-                          border: '1px solid #ffccc7',
-                          borderRadius: '4px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                        }}>
-                          <span style={{ fontSize: '14px' }}>⚠️</span>
-                          <span>{entry.reason}</span>
+              {!searchLoading && searchResultsData.length > 0 && (
+                <SearchResults>
+                  {searchResultsData.map((user) => {
+                    const selected = isStudentSelected(user)
+                    return (
+                      <SearchResultItem
+                        key={user.id}
+                        data-selected={selected}
+                        onClick={() => handleToggleStudent(user)}
+                      >
+                        <Checkbox checked={selected} />
+                        <StudentInfo>
+                          <StudentName>
+                            {`${user.code} - ${user.name}` || 'Chưa có tên'} -{' '}
+                            {user.email}
+                          </StudentName>
+                        </StudentInfo>
+                      </SearchResultItem>
+                    )
+                  })}
+                </SearchResults>
+              )}
+
+              {!searchLoading &&
+                searchKeyword.trim() &&
+                searchResults &&
+                searchResultsData.length === 0 && (
+                  <SearchResults>
+                    <Empty
+                      description="Không tìm thấy sinh viên nào"
+                      style={{ padding: '20px' }}
+                    />
+                  </SearchResults>
+                )}
+            </SearchSection>
+          </ActionButtons>
+
+          {validatedStudents.length > 0 && (
+            <SelectedSection>
+              <SectionTitle>
+                Sinh viên đã chọn ({validatedStudents.length})
+              </SectionTitle>
+              <Table
+                dataSource={validatedStudents}
+                rowKey="id"
+                pagination={{
+                  current: currentPage,
+                  pageSize: PAGE_SIZE,
+                  total: validatedStudents.length,
+                  onChange: setCurrentPage,
+                  showSizeChanger: false,
+                  showTotal: (total) => `Tổng số ${total} sinh viên`,
+                }}
+                size="middle"
+                scroll={{ y: 500 }}
+                columns={[
+                  {
+                    title: 'STT',
+                    key: 'index',
+                    width: 60,
+                    align: 'center',
+                    render: (_, __, index) =>
+                      (currentPage - 1) * PAGE_SIZE + index + 1,
+                  },
+                  {
+                    title: 'Email',
+                    dataIndex: 'email',
+                    key: 'email',
+                    width: '30%',
+                    render: (email, entry) => (
+                      <div>
+                        <div
+                          style={{
+                            color:
+                              entry.status === 'INVALID'
+                                ? '#ff4d4f'
+                                : '#262626',
+                            fontWeight: entry.status === 'INVALID' ? 500 : 400,
+                          }}
+                        >
+                          {email}
                         </div>
-                      )}
-                    </div>
-                  ),
-                },
-                {
-                  title: 'Họ tên',
-                  dataIndex: 'fullName',
-                  key: 'fullName',
-                  width: '25%',
-                  render: (name) => name || <span style={{ color: '#999' }}>Chưa có tên</span>,
-                },
-                {
-                  title: 'Trạng thái',
-                  key: 'status',
-                  width: '15%',
-                  align: 'center',
-                  render: (_, entry) => {
-                    if (entry.status === 'VALID') {
+                        {entry.reason && entry.status === 'INVALID' && (
+                          <div
+                            style={{
+                              fontSize: '12px',
+                              color: '#ff4d4f',
+                              marginTop: '6px',
+                              padding: '6px 10px',
+                              backgroundColor: '#fff2f0',
+                              border: '1px solid #ffccc7',
+                              borderRadius: '4px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                            }}
+                          >
+                            <span style={{ fontSize: '14px' }}>⚠️</span>
+                            <span>{entry.reason}</span>
+                          </div>
+                        )}
+                      </div>
+                    ),
+                  },
+                  {
+                    title: 'Họ tên',
+                    dataIndex: 'fullName',
+                    key: 'fullName',
+                    width: '25%',
+                    render: (name) =>
+                      name || (
+                        <span style={{ color: '#999' }}>Chưa có tên</span>
+                      ),
+                  },
+                  {
+                    title: 'Trạng thái',
+                    key: 'status',
+                    width: '15%',
+                    align: 'center',
+                    render: (_, entry) => {
+                      if (entry.status === 'VALID') {
+                        return (
+                          <Tag
+                            color="success"
+                            style={{
+                              padding: '4px 12px',
+                              borderRadius: '12px',
+                              fontWeight: 500,
+                            }}
+                          >
+                            ✓ Hợp lệ
+                          </Tag>
+                        )
+                      }
                       return (
-                        <Tag 
-                          color="success" 
-                          style={{ 
+                        <Tag
+                          color="error"
+                          style={{
                             padding: '4px 12px',
                             borderRadius: '12px',
                             fontWeight: 500,
                           }}
                         >
-                          ✓ Hợp lệ
+                          ✗ Không hợp lệ
                         </Tag>
                       )
-                    }
-                    return (
-                      <Tag 
-                        color="error"
-                        style={{ 
-                          padding: '4px 12px',
-                          borderRadius: '12px',
-                          fontWeight: 500,
-                        }}
-                      >
-                        ✗ Không hợp lệ
-                      </Tag>
-                    )
+                    },
                   },
-                },
-                {
-                  title: 'Thao tác',
-                  key: 'actions',
-                  width: '28%',
-                  render: (_, entry) => {
-                    const reachedAvatarLimit = (entry.avatarPreviews?.length ?? 0) >= MAX_AVATARS_PER_EMAIL
-                    return (
-                      <Space size="small" wrap>
-                        <Button
-                          size="small"
-                          type="link"
-                          onClick={() => avatarInputsRef.current[entry.id]?.click()}
-                          disabled={reachedAvatarLimit}
-                        >
-                          {reachedAvatarLimit ? 'Đủ ảnh' : 'Thêm ảnh'}
-                        </Button>
-                        <HiddenFileInput
-                          ref={(element: HTMLInputElement | null) => {
-                            if (element) {
-                              avatarInputsRef.current[entry.id] = element
-                            } else {
-                              delete avatarInputsRef.current[entry.id]
+                  {
+                    title: 'Thao tác',
+                    key: 'actions',
+                    width: '28%',
+                    render: (_, entry) => {
+                      const reachedAvatarLimit =
+                        (entry.avatarPreviews?.length ?? 0) >=
+                        MAX_AVATARS_PER_EMAIL
+                      return (
+                        <Space size="small" wrap>
+                          <Button
+                            size="small"
+                            type="link"
+                            onClick={() =>
+                              avatarInputsRef.current[entry.id]?.click()
                             }
-                          }}
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          onChange={(event: React.ChangeEvent<HTMLInputElement>) => handleAvatarUpload(entry.id, event)}
-                        />
-                        {entry.avatarPreviews && entry.avatarPreviews.length > 0 && (
-                          <>
-                            <Button
-                              size="small"
-                              type="link"
-                              icon={<EyeOutlined />}
-                              onClick={() => setPreviewEntry(entry)}
-                            >
-                              Xem ({entry.avatarPreviews.length})
-                            </Button>
-                            <Tooltip title="Xóa tất cả ảnh">
-                              <Button
-                                size="small"
-                                type="text"
-                                danger
-                                icon={<CloseCircleOutlined />}
-                                onClick={() => handleClearAvatars(entry.id)}
-                              />
-                            </Tooltip>
-                          </>
-                        )}
-                        <Button
-                          size="small"
-                          type="text"
-                          danger
-                          icon={<DeleteOutlined />}
-                          onClick={() => handleRemoveEntry(entry.id)}
-                        />
-                      </Space>
-                    )
+                            disabled={reachedAvatarLimit}
+                          >
+                            {reachedAvatarLimit ? 'Đủ ảnh' : 'Thêm ảnh'}
+                          </Button>
+                          <HiddenFileInput
+                            ref={(element: HTMLInputElement | null) => {
+                              if (element) {
+                                avatarInputsRef.current[entry.id] = element
+                              } else {
+                                delete avatarInputsRef.current[entry.id]
+                              }
+                            }}
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            onChange={(
+                              event: React.ChangeEvent<HTMLInputElement>
+                            ) => handleAvatarUpload(entry.id, event)}
+                          />
+                          {entry.avatarPreviews &&
+                            entry.avatarPreviews.length > 0 && (
+                              <>
+                                <Button
+                                  size="small"
+                                  type="link"
+                                  icon={<EyeOutlined />}
+                                  onClick={() => setPreviewEntry(entry)}
+                                >
+                                  Xem ({entry.avatarPreviews.length})
+                                </Button>
+                                <Tooltip title="Xóa tất cả ảnh">
+                                  <Button
+                                    size="small"
+                                    type="text"
+                                    danger
+                                    icon={<CloseCircleOutlined />}
+                                    onClick={() => handleClearAvatars(entry.id)}
+                                  />
+                                </Tooltip>
+                              </>
+                            )}
+                          <Button
+                            size="small"
+                            type="text"
+                            danger
+                            icon={<DeleteOutlined />}
+                            onClick={() => handleRemoveEntry(entry.id)}
+                          />
+                        </Space>
+                      )
+                    },
                   },
-                },
-              ]}
-            />
+                ]}
+              />
 
-            <Summary>
-              <SummaryItem data-status="VALID">
-                <span style={{ fontWeight: 600 }}>Hợp lệ:</span> {summary.VALID}
-              </SummaryItem>
-              {summary.INVALID > 0 && (
-                <SummaryItem data-status="INVALID">
-                  <span style={{ fontWeight: 600 }}>Không hợp lệ:</span> {summary.INVALID}
+              <Summary>
+                <SummaryItem data-status="VALID">
+                  <span style={{ fontWeight: 600 }}>Hợp lệ:</span>{' '}
+                  {summary.VALID}
                 </SummaryItem>
-              )}
-            </Summary>
-        </SelectedSection>
-      )}
+                {summary.INVALID > 0 && (
+                  <SummaryItem data-status="INVALID">
+                    <span style={{ fontWeight: 600 }}>Không hợp lệ:</span>{' '}
+                    {summary.INVALID}
+                  </SummaryItem>
+                )}
+              </Summary>
+            </SelectedSection>
+          )}
 
-      {validatedStudents.length === 0 && !searchKeyword.trim() && (
-        <Empty description="Chưa có sinh viên nào. Hãy tìm kiếm và chọn sinh viên hoặc import Excel." />
-      )}
-      </ModalContent>
-    </Modal>
+          {validatedStudents.length === 0 && !searchKeyword.trim() && (
+            <Empty description="Chưa có sinh viên nào. Hãy tìm kiếm và chọn sinh viên hoặc import Excel." />
+          )}
+        </ModalContent>
+      </Modal>
 
-    <Modal
-      title={`Xem ảnh - ${previewEntry?.email || ''}`}
-      open={!!previewEntry}
-      onCancel={() => setPreviewEntry(null)}
-      footer={[
-        <Button key="close" onClick={() => setPreviewEntry(null)}>
-          Đóng
-        </Button>,
-      ]}
-      width={800}
-    >
-      <ImagePreviewGrid>
-        {previewEntry?.avatarPreviews?.map((preview, index) => (
-          <div key={index} style={{ position: 'relative' }}>
-            <Image
-              src={preview}
-              alt={`Avatar ${index + 1}`}
-              style={{
-                width: '100%',
-                height: '120px',
-                objectFit: 'cover',
-                borderRadius: '8px',
-              }}
-              preview={{
-                mask: (
-                  <div style={{ fontSize: '12px' }}>
-                    <EyeOutlined /> Xem
-                  </div>
-                ),
-              }}
-            />
-          </div>
-        ))}
-      </ImagePreviewGrid>
-      {(!previewEntry?.avatarPreviews || previewEntry.avatarPreviews.length === 0) && (
-        <Empty description="Không có ảnh nào" />
-      )}
-    </Modal>
-  </>
+      <Modal
+        title={`Xem ảnh - ${previewEntry?.email || ''}`}
+        open={!!previewEntry}
+        onCancel={() => setPreviewEntry(null)}
+        footer={[
+          <Button key="close" onClick={() => setPreviewEntry(null)}>
+            Đóng
+          </Button>,
+        ]}
+        width={800}
+      >
+        <ImagePreviewGrid>
+          {previewEntry?.avatarPreviews?.map((preview, index) => (
+            <div key={index} style={{ position: 'relative' }}>
+              <Image
+                src={preview}
+                alt={`Avatar ${index + 1}`}
+                style={{
+                  width: '100%',
+                  height: '120px',
+                  objectFit: 'cover',
+                  borderRadius: '8px',
+                }}
+                preview={{
+                  mask: (
+                    <div style={{ fontSize: '12px' }}>
+                      <EyeOutlined /> Xem
+                    </div>
+                  ),
+                }}
+              />
+            </div>
+          ))}
+        </ImagePreviewGrid>
+        {(!previewEntry?.avatarPreviews ||
+          previewEntry.avatarPreviews.length === 0) && (
+          <Empty description="Không có ảnh nào" />
+        )}
+      </Modal>
+    </>
   )
 }

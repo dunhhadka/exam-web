@@ -114,4 +114,7 @@ public interface UserRepository extends JpaRepository<User, UUID> {
                  OR LOWER(u.information.lastName) LIKE LOWER(CONCAT('%', :keyword, '%')))
       """)
   Page<User> searchStudents(@Param("keyword") String keyword, Pageable pageable);
+
+  @Query("SELECT COUNT(u.id) FROM User u")
+  long countStudent();
 }

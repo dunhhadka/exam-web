@@ -13,6 +13,7 @@ import java.util.UUID;
 @AllArgsConstructor
 public class UserResponse {
     private String id;
+    private String code;
     private String email;
     private String name;
 }

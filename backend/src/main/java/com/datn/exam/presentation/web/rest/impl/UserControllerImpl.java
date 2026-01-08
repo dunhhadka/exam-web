@@ -44,6 +44,7 @@ public class UserControllerImpl implements UserController {
                         .id(user.getId().toString())
                         .email(user.getEmail())
                         .name(user.getInformation() != null ? user.getInformation().buildFullName() : "")
+                        .code(user.getStudentCode())
                         .build())
                 .collect(Collectors.toList());
         

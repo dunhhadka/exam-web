@@ -22,7 +22,14 @@ import {
   UploadOutlined,
 } from '@ant-design/icons'
 import dayjs, { Dayjs } from 'dayjs'
-import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  ChangeEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import ConfirmModal from '../../components/common/ConfirmModal'
 import DropdownLoadMore from '../../components/common/DropDownLoadMore'
@@ -75,7 +82,9 @@ interface Props {
   onClose: () => void
 }
 
-type ExamSessionFormData = Partial<Omit<ExamSessionRequest, 'startTime' | 'endTime'>> & {
+type ExamSessionFormData = Partial<
+  Omit<ExamSessionRequest, 'startTime' | 'endTime'>
+> & {
   examName?: string
   startTime?: Dayjs | string | null
   endTime?: Dayjs | string | null
@@ -97,7 +106,12 @@ interface WhitelistEntry {
   row?: number | null
   avatarCount?: number
   avatarPreviews?: string[]
-  source?: 'IMPORT_VALID' | 'IMPORT_INVALID' | 'IMPORT_DUPLICATE' | 'MANUAL' | 'SELECTED'
+  source?:
+    | 'IMPORT_VALID'
+    | 'IMPORT_INVALID'
+    | 'IMPORT_DUPLICATE'
+    | 'MANUAL'
+    | 'SELECTED'
   manualFiles?: (File | null)[]
 }
 
@@ -105,109 +119,126 @@ const MAX_AVATARS_PER_EMAIL = 5
 const WHITELIST_PAGE_SIZE = 10
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-const createEntryId = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`
+const createEntryId = () =>
+  `${Date.now()}-${Math.random().toString(16).slice(2)}`
 
-const parseDateSafely = (dateValue: string | Dayjs | null | undefined): Dayjs | null => {
+const parseDateSafely = (
+  dateValue: string | Dayjs | null | undefined
+): Dayjs | null => {
   if (!dateValue) return null
-  
-  if (typeof dateValue === 'object' && 'isValid' in dateValue && typeof dateValue.isValid === 'function') {
+
+  if (
+    typeof dateValue === 'object' &&
+    'isValid' in dateValue &&
+    typeof dateValue.isValid === 'function'
+  ) {
     const dayjsObj = dateValue as Dayjs
     if (dayjsObj.isValid()) {
       return dayjsObj
     }
   }
-  
+
   if (typeof dateValue === 'string') {
     const isoDate = dayjs(dateValue)
     if (isoDate.isValid()) {
       return isoDate
     }
-    
+
     const customDate = dayjs(dateValue, 'DD-MM-YYYY HH:mm', true)
     if (customDate.isValid()) {
       return customDate
     }
-    
+
     const autoDate = dayjs(dateValue)
     if (autoDate.isValid()) {
       return autoDate
     }
   }
-  
+
   return null
 }
 
 const mapPreviewToEntries = (
-  preview: SessionStudentPreviewResponse,
+  preview: SessionStudentPreviewResponse
 ): WhitelistEntry[] => {
-  const fromValid = preview.validStudents?.map((item) => ({
-    id: createEntryId(),
-    userId: item.userId,
-    email: item.email ?? '',
-    fullName: item.fullName,
-    status: 'VALID' as WhitelistEntryStatus,
-    reason: item.reason ?? '',
-    row: item.row,
-    avatarPreviews: item.avatarPreviews?.map(img => 
-      img.length > 100 ? `${img.substring(0, 100)}...` : img
-    ) ?? [],
-    avatarCount: item.avatarPreviews?.length ?? item.avatarCount ?? 0,
-    manualFiles: (item.avatarPreviews ?? []).map(() => null),
-    source: 'IMPORT_VALID' as const,
-  })) ?? []
+  const fromValid =
+    preview.validStudents?.map((item) => ({
+      id: createEntryId(),
+      userId: item.userId,
+      email: item.email ?? '',
+      fullName: item.fullName,
+      status: 'VALID' as WhitelistEntryStatus,
+      reason: item.reason ?? '',
+      row: item.row,
+      avatarPreviews:
+        item.avatarPreviews?.map((img) =>
+          img.length > 100 ? `${img.substring(0, 100)}...` : img
+        ) ?? [],
+      avatarCount: item.avatarPreviews?.length ?? item.avatarCount ?? 0,
+      manualFiles: (item.avatarPreviews ?? []).map(() => null),
+      source: 'IMPORT_VALID' as const,
+    })) ?? []
 
-  const fromInvalid = preview.invalidStudents?.map((item) => ({
-    id: createEntryId(),
-    userId: item.userId,
-    email: item.email ?? '',
-    fullName: item.fullName,
-    status: 'INVALID' as WhitelistEntryStatus,
-    reason: item.reason ?? 'Email không hợp lệ',
-    row: item.row,
-    avatarPreviews: item.avatarPreviews?.map(img => 
-      img.length > 100 ? `${img.substring(0, 100)}...` : img
-    ) ?? [],
-    avatarCount: item.avatarPreviews?.length ?? item.avatarCount ?? 0,
-    manualFiles: (item.avatarPreviews ?? []).map(() => null),
-    source: 'IMPORT_INVALID' as const,
-  })) ?? []
+  const fromInvalid =
+    preview.invalidStudents?.map((item) => ({
+      id: createEntryId(),
+      userId: item.userId,
+      email: item.email ?? '',
+      fullName: item.fullName,
+      status: 'INVALID' as WhitelistEntryStatus,
+      reason: item.reason ?? 'Email không hợp lệ',
+      row: item.row,
+      avatarPreviews:
+        item.avatarPreviews?.map((img) =>
+          img.length > 100 ? `${img.substring(0, 100)}...` : img
+        ) ?? [],
+      avatarCount: item.avatarPreviews?.length ?? item.avatarCount ?? 0,
+      manualFiles: (item.avatarPreviews ?? []).map(() => null),
+      source: 'IMPORT_INVALID' as const,
+    })) ?? []
 
-  const fromDuplicates = preview.duplicates?.map((item) => ({
-    id: createEntryId(),
-    userId: item.userId,
-    email: item.email ?? '',
-    fullName: item.fullName,
-    status: 'DUPLICATE' as WhitelistEntryStatus,
-    reason: item.reason ?? 'Sinh viên đã tồn tại trong phiên thi',
-    row: item.row,
-    avatarPreviews: item.avatarPreviews?.map(img => 
-      img.length > 100 ? `${img.substring(0, 100)}...` : img
-    ) ?? [],
-    avatarCount: item.avatarPreviews?.length ?? item.avatarCount ?? 0,
-    manualFiles: (item.avatarPreviews ?? []).map(() => null),
-    source: 'IMPORT_DUPLICATE' as const,
-  })) ?? []
+  const fromDuplicates =
+    preview.duplicates?.map((item) => ({
+      id: createEntryId(),
+      userId: item.userId,
+      email: item.email ?? '',
+      fullName: item.fullName,
+      status: 'DUPLICATE' as WhitelistEntryStatus,
+      reason: item.reason ?? 'Sinh viên đã tồn tại trong phiên thi',
+      row: item.row,
+      avatarPreviews:
+        item.avatarPreviews?.map((img) =>
+          img.length > 100 ? `${img.substring(0, 100)}...` : img
+        ) ?? [],
+      avatarCount: item.avatarPreviews?.length ?? item.avatarCount ?? 0,
+      manualFiles: (item.avatarPreviews ?? []).map(() => null),
+      source: 'IMPORT_DUPLICATE' as const,
+    })) ?? []
 
-  const fromMissing = preview.missingStudents?.map((item) => ({
-    id: createEntryId(),
-    userId: item.userId,
-    email: item.email ?? '',
-    fullName: item.fullName,
-    status: 'INVALID' as WhitelistEntryStatus,
-    reason: item.reason ?? 'Không tìm thấy tài khoản trong hệ thống',
-    row: item.row,
-    avatarPreviews: item.avatarPreviews?.map(img => 
-      img.length > 100 ? `${img.substring(0, 100)}...` : img
-    ) ?? [],
-    avatarCount: item.avatarPreviews?.length ?? item.avatarCount ?? 0,
-    manualFiles: (item.avatarPreviews ?? []).map(() => null),
-    source: 'IMPORT_INVALID' as const,
-  })) ?? []
+  const fromMissing =
+    preview.missingStudents?.map((item) => ({
+      id: createEntryId(),
+      userId: item.userId,
+      email: item.email ?? '',
+      fullName: item.fullName,
+      status: 'INVALID' as WhitelistEntryStatus,
+      reason: item.reason ?? 'Không tìm thấy tài khoản trong hệ thống',
+      row: item.row,
+      avatarPreviews:
+        item.avatarPreviews?.map((img) =>
+          img.length > 100 ? `${img.substring(0, 100)}...` : img
+        ) ?? [],
+      avatarCount: item.avatarPreviews?.length ?? item.avatarCount ?? 0,
+      manualFiles: (item.avatarPreviews ?? []).map(() => null),
+      source: 'IMPORT_INVALID' as const,
+    })) ?? []
 
   return [...fromValid, ...fromInvalid, ...fromDuplicates, ...fromMissing]
 }
 
-const recalcWhitelistStatuses = (entries: WhitelistEntry[]): WhitelistEntry[] => {
+const recalcWhitelistStatuses = (
+  entries: WhitelistEntry[]
+): WhitelistEntry[] => {
   const emailCount: Record<string, number> = {}
 
   entries.forEach((entry) => {
@@ -229,7 +260,11 @@ const recalcWhitelistStatuses = (entries: WhitelistEntry[]): WhitelistEntry[] =>
     }
 
     if (!email) {
-      return { ...normalizedEntry, status: 'INVALID', reason: 'Email không được bỏ trống' }
+      return {
+        ...normalizedEntry,
+        status: 'INVALID',
+        reason: 'Email không được bỏ trống',
+      }
     }
 
     if (avatarCount > MAX_AVATARS_PER_EMAIL) {
@@ -241,12 +276,20 @@ const recalcWhitelistStatuses = (entries: WhitelistEntry[]): WhitelistEntry[] =>
     }
 
     if (!EMAIL_PATTERN.test(email)) {
-      return { ...normalizedEntry, status: 'INVALID', reason: 'Email không đúng định dạng' }
+      return {
+        ...normalizedEntry,
+        status: 'INVALID',
+        reason: 'Email không đúng định dạng',
+      }
     }
 
     const normalized = email.toLowerCase()
     if ((emailCount[normalized] ?? 0) > 1) {
-      return { ...normalizedEntry, status: 'DUPLICATE', reason: 'Email bị trùng trong danh sách' }
+      return {
+        ...normalizedEntry,
+        status: 'DUPLICATE',
+        reason: 'Email bị trùng trong danh sách',
+      }
     }
 
     return { ...normalizedEntry, status: 'VALID', reason: '' }
@@ -321,17 +364,21 @@ const ExamSessionCreate = ({
         preventCopyPaste: !!antiCheat?.blockCopyPaste,
         blockDevTools: !!antiCheat?.blockDevTools,
         preventRightClick:
-          antiCheat?.maxWindowBlurAllowed !== null
-          && antiCheat?.maxWindowBlurAllowed !== undefined,
+          antiCheat?.maxWindowBlurAllowed !== null &&
+          antiCheat?.maxWindowBlurAllowed !== undefined,
         maxExitAttempts: antiCheat?.maxWindowBlurAllowed ?? 3,
-        preventMemoryExit: antiCheat?.maxExitFullscreenAllowed !== null && antiCheat?.maxExitFullscreenAllowed !== undefined,
+        preventMemoryExit:
+          antiCheat?.maxExitFullscreenAllowed !== null &&
+          antiCheat?.maxExitFullscreenAllowed !== undefined,
         maxFullscreenExitAttempts: antiCheat?.maxExitFullscreenAllowed ?? 3,
         enableGoogleMeet: false,
         meetActivation: false,
         sendResultEmail: notifications?.sendResultEmail ?? true,
-        releasePolicy: notifications?.releasePolicy ?? ReleasePolicy.AFTER_MARKING,
+        releasePolicy:
+          notifications?.releasePolicy ?? ReleasePolicy.AFTER_MARKING,
       },
-      whitelistEmails: initData.whitelistEntries?.map((entry) => entry.email) ?? [],
+      whitelistEmails:
+        initData.whitelistEntries?.map((entry) => entry.email) ?? [],
     }
   }, [initData])
 
@@ -384,7 +431,9 @@ const ExamSessionCreate = ({
 
   const toast = useToast()
   const [confirmModal, setConfirmModal] = useState(false)
-  const [whitelistEntries, setWhitelistEntries] = useState<WhitelistEntry[]>(initialWhitelistEntries)
+  const [whitelistEntries, setWhitelistEntries] = useState<WhitelistEntry[]>(
+    initialWhitelistEntries
+  )
   const [studentModalVisible, setStudentModalVisible] = useState(false)
   const [showManualForm, setShowManualForm] = useState(false)
   const [manualEmail, setManualEmail] = useState('')
@@ -392,8 +441,8 @@ const ExamSessionCreate = ({
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const avatarInputsRef = useRef<Record<string, HTMLInputElement | null>>({})
   const [currentWhitelistPage, setCurrentWhitelistPage] = useState(1)
-  const [previewSessionStudents, { isLoading: previewLoading }]
-    = usePreviewSessionStudentsMutation()
+  const [previewSessionStudents, { isLoading: previewLoading }] =
+    usePreviewSessionStudentsMutation()
 
   useEffect(() => {
     reset(defaultFormValues)
@@ -429,8 +478,10 @@ const ExamSessionCreate = ({
       return
     }
 
-
-    if (data.accessMode === AccessMode.PRIVATE && !validWhitelistEmails.length) {
+    if (
+      data.accessMode === AccessMode.PRIVATE &&
+      !validWhitelistEmails.length
+    ) {
       toast.error('Danh sách truy nhập chưa có email hợp lệ')
       return
     }
@@ -440,39 +491,42 @@ const ExamSessionCreate = ({
       ? {
           blockCopyPaste: !!antiCheatForm.preventCopyPaste,
           blockDevTools: !!antiCheatForm.blockDevTools,
-          maxWindowBlurAllowed: antiCheatForm.preventRightClick
-            ? 0
-            : null,
-          maxExitFullscreenAllowed: antiCheatForm.preventMemoryExit
-            ? 0
-            : null,
+          maxWindowBlurAllowed: antiCheatForm.preventRightClick ? 0 : null,
+          maxExitFullscreenAllowed: antiCheatForm.preventMemoryExit ? 0 : null,
         }
       : undefined
 
     const selectedIdentityMode = antiCheatForm.webcamCapture
       ? IdentityMode.WEBCAM
       : antiCheatForm.uploadImage
-        ? IdentityMode.UPLOAD
-        : IdentityMode.NONE
+      ? IdentityMode.UPLOAD
+      : IdentityMode.NONE
 
-    if (antiCheatForm.uploadId && selectedIdentityMode !== IdentityMode.UPLOAD) {
-      toast.error('Vui lòng bật "Upload ảnh chân dung" trước khi yêu cầu "Upload ảnh ID"')
+    if (
+      antiCheatForm.uploadId &&
+      selectedIdentityMode !== IdentityMode.UPLOAD
+    ) {
+      toast.error(
+        'Vui lòng bật "Upload ảnh chân dung" trước khi yêu cầu "Upload ảnh ID"'
+      )
       return
     }
 
-    const shouldIncludeProctoring = antiCheatForm.enableAntiCheat
-      && (
-        selectedIdentityMode !== IdentityMode.NONE
-        || !!antiCheatForm.uploadId
-        || !!antiCheatForm.screenRecording
-      )
+    const shouldIncludeProctoring =
+      antiCheatForm.enableAntiCheat &&
+      (selectedIdentityMode !== IdentityMode.NONE ||
+        !!antiCheatForm.uploadId ||
+        !!antiCheatForm.screenRecording)
 
     const proctoringPayload = shouldIncludeProctoring
       ? {
           monitorEnabled: selectedIdentityMode === IdentityMode.WEBCAM,
           identityMode: selectedIdentityMode,
           requireIdUpload:
-            selectedIdentityMode === IdentityMode.UPLOAD && antiCheatForm.uploadId ? true : false,
+            selectedIdentityMode === IdentityMode.UPLOAD &&
+            antiCheatForm.uploadId
+              ? true
+              : false,
           screenRecording: !!antiCheatForm.screenRecording,
         }
       : undefined
@@ -482,15 +536,19 @@ const ExamSessionCreate = ({
       releasePolicy: ReleasePolicy.AFTER_MARKING,
     }
 
-    const settingsPayload = antiCheatPayload || notificationsPayload || proctoringPayload
-      ? {
-          ...(antiCheatPayload ? { antiCheat: antiCheatPayload } : {}),
-          ...(proctoringPayload ? { proctoring: proctoringPayload } : {}),
-          ...(notificationsPayload ? { notifications: notificationsPayload } : {}),
-        }
-      : undefined
+    const settingsPayload =
+      antiCheatPayload || notificationsPayload || proctoringPayload
+        ? {
+            ...(antiCheatPayload ? { antiCheat: antiCheatPayload } : {}),
+            ...(proctoringPayload ? { proctoring: proctoringPayload } : {}),
+            ...(notificationsPayload
+              ? { notifications: notificationsPayload }
+              : {}),
+          }
+        : undefined
 
-    const accessModeValue: ExamSessionAccessMode = data.accessMode ?? AccessMode.PUBLIC
+    const accessModeValue: ExamSessionAccessMode =
+      data.accessMode ?? AccessMode.PUBLIC
 
     const requestData: ExamSessionRequest = {
       examId: data.examId!,
@@ -509,15 +567,16 @@ const ExamSessionCreate = ({
     }
 
     if (accessModeValue === AccessMode.PRIVATE) {
-      const whitelistPayload: ExamSessionWhitelistEntry[] = validWhitelistEntries
-        .map((entry) => ({
-          email: entry.email.trim(),
-          avatarImages:
-            entry.avatarPreviews && entry.avatarPreviews.length
-              ? entry.avatarPreviews
-              : undefined,
-        }))
-        .filter((entry) => entry.email)
+      const whitelistPayload: ExamSessionWhitelistEntry[] =
+        validWhitelistEntries
+          .map((entry) => ({
+            email: entry.email.trim(),
+            avatarImages:
+              entry.avatarPreviews && entry.avatarPreviews.length
+                ? entry.avatarPreviews
+                : undefined,
+          }))
+          .filter((entry) => entry.email)
 
       if (whitelistPayload.length) {
         requestData.whitelistEntries = whitelistPayload
@@ -527,7 +586,10 @@ const ExamSessionCreate = ({
       // Extract student IDs and avatars
       const studentIds = validWhitelistEntries
         .map((entry) => entry.userId)
-        .filter((id): id is string => id !== undefined && id !== null && id.trim() !== '')
+        .filter(
+          (id): id is string =>
+            id !== undefined && id !== null && id.trim() !== ''
+        )
 
       if (studentIds.length > 0) {
         requestData.studentIds = studentIds
@@ -535,13 +597,18 @@ const ExamSessionCreate = ({
 
       // Build studentAvatars map: only include entries with avatarPreviews
       const studentAvatars: Record<string, string[]> = {}
-      validWhitelistEntries.forEach(entry => {
-        if (entry.userId && entry.avatarPreviews && entry.avatarPreviews.length > 0) {
+      validWhitelistEntries.forEach((entry) => {
+        if (
+          entry.userId &&
+          entry.avatarPreviews &&
+          entry.avatarPreviews.length > 0
+        ) {
           studentAvatars[entry.userId] = entry.avatarPreviews
-          
+
           // Debug: Log first 100 chars of each avatar
           entry.avatarPreviews.forEach((avatar, idx) => {
-            const preview = avatar.length > 100 ? avatar.substring(0, 100) + '...' : avatar
+            const preview =
+              avatar.length > 100 ? avatar.substring(0, 100) + '...' : avatar
             console.log(`Avatar ${idx} for ${entry.email}: ${preview}`)
           })
         }
@@ -549,7 +616,11 @@ const ExamSessionCreate = ({
 
       if (Object.keys(studentAvatars).length > 0) {
         requestData.studentAvatars = studentAvatars
-        console.log('Sending studentAvatars for', Object.keys(studentAvatars).length, 'students')
+        console.log(
+          'Sending studentAvatars for',
+          Object.keys(studentAvatars).length,
+          'students'
+        )
       }
     }
 
@@ -580,14 +651,14 @@ const ExamSessionCreate = ({
   const validWhitelistEntries = useMemo(
     () =>
       whitelistEntries.filter(
-        (entry) => entry.status === 'VALID' && entry.email.trim(),
+        (entry) => entry.status === 'VALID' && entry.email.trim()
       ),
-    [whitelistEntries],
+    [whitelistEntries]
   )
 
   const validWhitelistEmails = useMemo(
     () => validWhitelistEntries.map((entry) => entry.email.trim()),
-    [validWhitelistEntries],
+    [validWhitelistEntries]
   )
 
   const whitelistSummary = useMemo(
@@ -597,9 +668,12 @@ const ExamSessionCreate = ({
           acc[entry.status] += 1
           return acc
         },
-        { VALID: 0, INVALID: 0, DUPLICATE: 0 } as Record<WhitelistEntryStatus, number>,
+        { VALID: 0, INVALID: 0, DUPLICATE: 0 } as Record<
+          WhitelistEntryStatus,
+          number
+        >
       ),
-    [whitelistEntries],
+    [whitelistEntries]
   )
 
   const paginatedEntries = useMemo(() => {
@@ -618,7 +692,10 @@ const ExamSessionCreate = ({
   }, [accessMode, setValue, validWhitelistEmails])
 
   useEffect(() => {
-    const totalPages = Math.max(1, Math.ceil(whitelistEntries.length / WHITELIST_PAGE_SIZE))
+    const totalPages = Math.max(
+      1,
+      Math.ceil(whitelistEntries.length / WHITELIST_PAGE_SIZE)
+    )
     if (currentWhitelistPage > totalPages) {
       setCurrentWhitelistPage(totalPages)
     }
@@ -630,17 +707,22 @@ const ExamSessionCreate = ({
 
   const handleFileImport = async (file: File) => {
     try {
-      console.log('Starting import for file:', file.name, 'sessionId:', initData?.id)
-      
+      console.log(
+        'Starting import for file:',
+        file.name,
+        'sessionId:',
+        initData?.id
+      )
+
       const result = await previewSessionStudents({
         file,
         sessionId: initData?.id,
       })
-      
+
       console.log('Raw mutation result:', result)
-      
+
       const preview = result.data
-      
+
       console.log('Preview response:', preview)
 
       // Validate response structure - must have at least one of the student arrays
@@ -651,22 +733,28 @@ const ExamSessionCreate = ({
       }
 
       const mapped = mapPreviewToEntries(preview)
-      
+
       // Merge với students hiện tại: giữ lại student cũ nếu không bị trùng
-      const existingEmails = new Set(mapped.map(s => s.email.toLowerCase()))
+      const existingEmails = new Set(mapped.map((s) => s.email.toLowerCase()))
       const keptExisting = whitelistEntries.filter(
-        existing => !existingEmails.has(existing.email.toLowerCase())
+        (existing) => !existingEmails.has(existing.email.toLowerCase())
       )
-      
+
       const mergedStudents = [...keptExisting, ...mapped]
       setWhitelistEntries(recalcWhitelistStatuses(mergedStudents))
-      
-      const validCount = mapped.filter(s => s.status === 'VALID').length
+
+      const validCount = mapped.filter((s) => s.status === 'VALID').length
       const duplicateCount = preview.duplicates?.length || 0
-      const invalidCount = (preview.invalidStudents?.length || 0) + (preview.missingStudents?.length || 0)
-      
+      const invalidCount =
+        (preview.invalidStudents?.length || 0) +
+        (preview.missingStudents?.length || 0)
+
       if (validCount > 0) {
-        toast.success(`Đã import ${validCount} sinh viên${duplicateCount > 0 ? ` (${duplicateCount} trùng)` : ''}${invalidCount > 0 ? ` (${invalidCount} không hợp lệ)` : ''}`)
+        toast.success(
+          `Đã import ${validCount} sinh viên${
+            duplicateCount > 0 ? ` (${duplicateCount} trùng)` : ''
+          }${invalidCount > 0 ? ` (${invalidCount} không hợp lệ)` : ''}`
+        )
       } else if (duplicateCount > 0) {
         toast.warning(`Tất cả ${duplicateCount} sinh viên đã tồn tại`)
       } else {
@@ -677,7 +765,7 @@ const ExamSessionCreate = ({
         error,
         status: error?.status,
         data: error?.data,
-        message: error?.message
+        message: error?.message,
       })
       toast.error('Không thể xem trước danh sách sinh viên, thử lại sau')
     }
@@ -687,12 +775,16 @@ const ExamSessionCreate = ({
     setWhitelistEntries(students)
     setCurrentWhitelistPage(1)
     setShowManualForm(false)
-    
-    const validCount = students.filter(s => s.status === 'VALID').length
-    const duplicateCount = students.filter(s => s.status === 'DUPLICATE').length
-    
+
+    const validCount = students.filter((s) => s.status === 'VALID').length
+    const duplicateCount = students.filter(
+      (s) => s.status === 'DUPLICATE'
+    ).length
+
     if (duplicateCount > 0) {
-      toast.success(`Đã cập nhật ${validCount} sinh viên (${duplicateCount} sinh viên đã tồn tại)`)
+      toast.success(
+        `Đã cập nhật ${validCount} sinh viên (${duplicateCount} sinh viên đã tồn tại)`
+      )
     } else {
       toast.success(`Đã cập nhật ${validCount} sinh viên`)
     }
@@ -730,7 +822,7 @@ const ExamSessionCreate = ({
   const handleEntryEmailChange = (id: string, value: string) => {
     setWhitelistEntries((prev) => {
       const updated = prev.map((entry) =>
-        entry.id === id ? { ...entry, email: value } : entry,
+        entry.id === id ? { ...entry, email: value } : entry
       )
       return recalcWhitelistStatuses(updated)
     })
@@ -739,9 +831,14 @@ const ExamSessionCreate = ({
   const handleRemoveEntry = (id: string) => {
     delete avatarInputsRef.current[id]
     setWhitelistEntries((prev) => {
-      const next = recalcWhitelistStatuses(prev.filter((entry) => entry.id !== id))
+      const next = recalcWhitelistStatuses(
+        prev.filter((entry) => entry.id !== id)
+      )
       setCurrentWhitelistPage((page) => {
-        const maxPage = Math.max(1, Math.ceil(next.length / WHITELIST_PAGE_SIZE) || 1)
+        const maxPage = Math.max(
+          1,
+          Math.ceil(next.length / WHITELIST_PAGE_SIZE) || 1
+        )
         return Math.min(page, maxPage)
       })
       return next
@@ -759,7 +856,7 @@ const ExamSessionCreate = ({
 
   const handleAvatarUpload = async (
     id: string,
-    event: ChangeEvent<HTMLInputElement>,
+    event: ChangeEvent<HTMLInputElement>
   ) => {
     const files = Array.from(event.target.files ?? [])
     event.target.value = ''
@@ -785,7 +882,7 @@ const ExamSessionCreate = ({
 
     try {
       const newPreviews = await Promise.all(
-        filesToUse.map((file) => convertFileToBase64(file)),
+        filesToUse.map((file) => convertFileToBase64(file))
       )
 
       setWhitelistEntries((prev) =>
@@ -795,16 +892,16 @@ const ExamSessionCreate = ({
               return entry
             }
 
-            const baseManualFiles = entry.manualFiles
-              ?? (entry.avatarPreviews ?? []).map(() => null)
+            const baseManualFiles =
+              entry.manualFiles ?? (entry.avatarPreviews ?? []).map(() => null)
 
             return {
               ...entry,
               avatarPreviews: [...(entry.avatarPreviews ?? []), ...newPreviews],
               manualFiles: [...baseManualFiles, ...filesToUse],
             }
-          }),
-        ),
+          })
+        )
       )
 
       setPreviewEntry((prev) => {
@@ -812,8 +909,8 @@ const ExamSessionCreate = ({
           return prev
         }
 
-        const baseManualFiles = prev.manualFiles
-          ?? (prev.avatarPreviews ?? []).map(() => null)
+        const baseManualFiles =
+          prev.manualFiles ?? (prev.avatarPreviews ?? []).map(() => null)
 
         return {
           ...prev,
@@ -823,7 +920,9 @@ const ExamSessionCreate = ({
       })
 
       if (files.length > filesToUse.length) {
-        toast.warning(`Đã chọn nhiều hơn ${MAX_AVATARS_PER_EMAIL} ảnh, chỉ lấy ${filesToUse.length} ảnh đầu tiên`)
+        toast.warning(
+          `Đã chọn nhiều hơn ${MAX_AVATARS_PER_EMAIL} ảnh, chỉ lấy ${filesToUse.length} ảnh đầu tiên`
+        )
       }
     } catch (error) {
       toast.error('Không thể tải ảnh, vui lòng thử lại')
@@ -844,9 +943,7 @@ const ExamSessionCreate = ({
 
         previews.splice(index, 1)
 
-        let manualFiles = entry.manualFiles
-          ? [...entry.manualFiles]
-          : undefined
+        let manualFiles = entry.manualFiles ? [...entry.manualFiles] : undefined
 
         if (manualFiles && manualFiles.length > index) {
           manualFiles.splice(index, 1)
@@ -877,9 +974,7 @@ const ExamSessionCreate = ({
 
       previews.splice(index, 1)
 
-      let manualFiles = prev.manualFiles
-        ? [...prev.manualFiles]
-        : undefined
+      let manualFiles = prev.manualFiles ? [...prev.manualFiles] : undefined
 
       if (manualFiles && manualFiles.length > index) {
         manualFiles.splice(index, 1)
@@ -911,9 +1006,9 @@ const ExamSessionCreate = ({
                 avatarPreviews: [],
                 manualFiles: [],
               }
-            : entry,
-        ),
-      ),
+            : entry
+        )
+      )
     )
 
     setPreviewEntry((prev) =>
@@ -923,7 +1018,7 @@ const ExamSessionCreate = ({
             avatarPreviews: [],
             manualFiles: [],
           }
-        : prev,
+        : prev
     )
   }
 
@@ -951,7 +1046,7 @@ const ExamSessionCreate = ({
         hasMore: false,
       }
     },
-    [searchExamLazy],
+    [searchExamLazy]
   )
 
   const renderExamOption = useCallback(
@@ -959,7 +1054,7 @@ const ExamSessionCreate = ({
       label: item.name,
       value: item.id,
     }),
-    [],
+    []
   )
 
   return (
@@ -968,12 +1063,12 @@ const ExamSessionCreate = ({
         <IllustrationColumn>
           <IllustrationCard>
             <IllustrationImageWrapper>
-              <IllustrationImage 
+              <IllustrationImage
                 src="/baitap.gif"
                 alt="Exam Illustration"
                 onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.src = '/logo_create_session.png';
+                  const target = e.target as HTMLImageElement
+                  target.src = '/logo_create_session.png'
                 }}
               />
             </IllustrationImageWrapper>
@@ -984,524 +1079,573 @@ const ExamSessionCreate = ({
         <FormColumn>
           <FormContent>
             <form onSubmit={handleSubmit(handleFormSubmit)}>
-                {/* Chọn bài kiểm tra */}
-                <FormGroup>
-                  <Label>
-                    Chọn bài kiểm tra: <RequiredStar>*</RequiredStar>
-                  </Label>
-                  <Controller
-                    name="examName"
-                    control={control}
-                    rules={{ required: 'Vui lòng chọn bài kiểm tra' }}
-                    render={({ field }) => (
-                      <>
-                        <DropdownLoadMore<Exam>
-                          {...field}
-                          fetchData={fetchExam}
-                          renderOption={renderExamOption}
-                          onSelect={(value) => setValue('examId', value)}
-                          placeholder="Chọn bài kiểm tra"
-                          style={{ width: '100%' }}
-                          disabled={!!initData}
-                        />
-                        {errors.examName && (
-                          <ErrorText>{errors.examName.message}</ErrorText>
-                        )}
-                      </>
-                    )}
-                  />
-                </FormGroup>
-
-                {/* Tên bài kiểm tra */}
-                <FormGroup>
-                  <Label>
-                    Tên bài kiểm tra: <RequiredStar>*</RequiredStar>
-                  </Label>
-                  <Controller
-                    name="name"
-                    control={control}
-                    rules={{ required: 'Vui lòng nhập tên bài kiểm tra' }}
-                    render={({ field }) => (
-                      <>
-                        <StyledInput
-                          {...field}
-                          placeholder="Nhập tên bài kiểm tra"
-                          status={errors.name ? 'error' : ''}
-                        />
-                        {errors.name && (
-                          <ErrorText>{errors.name.message}</ErrorText>
-                        )}
-                      </>
-                    )}
-                  />
-                </FormGroup>
-
-                {/* Ngày bắt đầu */}
-                <FormGroup>
-                  <Label>
-                    Ngày bắt đầu: <RequiredStar>*</RequiredStar>
-                  </Label>
-                  <Controller
-                    name="startTime"
-                    control={control}
-                    rules={{ required: 'Vui lòng chọn ngày bắt đầu' }}
-                    render={({ field }) => {
-                      // Parse date an toàn cho DatePicker
-                      const dateValue = field.value 
-                        ? (typeof field.value === 'object' && 'isValid' in field.value 
-                            ? (field.value as Dayjs).isValid() ? field.value as Dayjs : parseDateSafely(field.value)
-                            : parseDateSafely(field.value))
-                        : null
-                      
-                      return (
-                        <>
-                          <StyledDatePicker
-                            {...field}
-                            value={dateValue}
-                            onChange={(date) => field.onChange(date)}
-                            placeholder="Nhập ngày bắt đầu"
-                            format="DD/MM/YYYY HH:mm"
-                            showTime={{ format: 'HH:mm' }}
-                            status={errors.startTime ? 'error' : ''}
-                            getPopupContainer={(trigger) => trigger.parentElement || document.body}
-                            popupStyle={{ position: 'absolute' }}
-                          />
-                          {errors.startTime && (
-                            <ErrorText>{errors.startTime.message}</ErrorText>
-                          )}
-                        </>
-                      )
-                    }}
-                  />
-                </FormGroup>
-
-                {/* Ngày kết thúc */}
-                <FormGroup>
-                  <Label>
-                    Ngày kết thúc: <RequiredStar>*</RequiredStar>
-                  </Label>
-                  <Controller
-                    name="endTime"
-                    control={control}
-                    rules={{
-                      required: 'Vui lòng chọn ngày kết thúc',
-                      validate: (value) => {
-                        if (
-                          startTimeValue &&
-                          value &&
-                          dayjs(value).isBefore(dayjs(startTimeValue))
-                        ) {
-                          return 'Ngày kết thúc phải sau ngày bắt đầu'
-                        }
-                        return true
-                      },
-                    }}
-                    render={({ field }) => {
-                      // Parse date an toàn cho DatePicker
-                      const dateValue = field.value 
-                        ? (typeof field.value === 'object' && 'isValid' in field.value 
-                            ? (field.value as Dayjs).isValid() ? field.value as Dayjs : parseDateSafely(field.value)
-                            : parseDateSafely(field.value))
-                        : null
-                      
-                      return (
-                        <>
-                          <StyledDatePicker
-                            {...field}
-                            value={dateValue}
-                            onChange={(date) => field.onChange(date)}
-                            placeholder="Nhập ngày kết thúc"
-                            format="DD/MM/YYYY HH:mm"
-                            showTime={{ format: 'HH:mm' }}
-                            status={errors.endTime ? 'error' : ''}
-                            getPopupContainer={(trigger) => trigger.parentElement || document.body}
-                            popupStyle={{ position: 'absolute' }}
-                          />
-                          {errors.endTime && (
-                            <ErrorText>{errors.endTime.message}</ErrorText>
-                          )}
-                        </>
-                      )
-                    }}
-                  />
-                </FormGroup>
-
-                {/* Thời gian làm bài */}
-                <FormGroup>
-                  <Label>
-                    Thời gian làm bài: <RequiredStar>*</RequiredStar>
-                  </Label>
-                  <Controller
-                    name="durationMinutes"
-                    control={control}
-                    rules={{
-                      required: 'Vui lòng nhập thời gian làm bài',
-                      min: { value: 1, message: 'Thời gian phải lớn hơn 0' },
-                    }}
-                    render={({ field }) => (
-                      <>
-                        <StyledInput
-                          {...field}
-                          placeholder="Phút"
-                          type="number"
-                          status={errors.durationMinutes ? 'error' : ''}
-                        />
-                        {errors.durationMinutes && (
-                          <ErrorText>{errors.durationMinutes.message}</ErrorText>
-                        )}
-                      </>
-                    )}
-                  />
-                </FormGroup>
-
-                {/* Thời gian được vào trễ */}
-                <FormGroup>
-                  <LabelWithIcon>
-                    Thời gian được vào trễ (phút): <RequiredStar>*</RequiredStar>
-                    <InfoCircleOutlined />
-                  </LabelWithIcon>
-                  <Controller
-                    name="lateJoinMinutes"
-                    control={control}
-                    rules={{
-                      required: 'Vui lòng nhập thời gian vào trễ',
-                      min: { value: 0, message: 'Thời gian không được âm' },
-                    }}
-                    render={({ field }) => (
-                      <>
-                        <StyledInput
-                          {...field}
-                          placeholder="Phút"
-                          type="number"
-                          status={errors.lateJoinMinutes ? 'error' : ''}
-                        />
-                        {errors.lateJoinMinutes && (
-                          <ErrorText>{errors.lateJoinMinutes.message}</ErrorText>
-                        )}
-                      </>
-                    )}
-                  />
-                </FormGroup>
-
-                {/* Chế độ truy cập */}
-                <FormGroup>
-                  <Label>
-                    Chế độ truy cập: <RequiredStar>*</RequiredStar>
-                  </Label>
-                  <Controller
-                    control={control}
-                    name="accessMode"
-                    render={({ field }) => (
-                      <Radio.Group {...field} disabled={!!initData}>
-                        <Space direction="vertical" size={8}>
-                          <Radio value={AccessMode.PUBLIC}>Công khai</Radio>
-                          <Radio value={AccessMode.PRIVATE}>Riêng tư</Radio>
-                        </Space>
-                      </Radio.Group>
-                    )}
-                  />
-                  {accessMode === AccessMode.PRIVATE && (
-                    <WhitelistContainer>
-                      <WhitelistActions>
-                        <Button
-                          icon={<PlusOutlined />}
-                          onClick={handleImportClick}
-                          loading={previewLoading}
-                          type="primary"
-                        >
-                          {whitelistEntries.length > 0 ? 'Quản lý danh sách sinh viên' : 'Chọn sinh viên'}
-                        </Button>
-                      </WhitelistActions>
-
-                      {whitelistEntries.length === 0 ? (
-                        <WhitelistEmpty>
-                          Chưa có sinh viên nào. Hãy click nút "Chọn sinh viên" để thêm.
-                        </WhitelistEmpty>
-                      ) : (
-                        <>
-                          <WhitelistSummary>
-                            <SummaryItem data-status="VALID">
-                              Hợp lệ: {whitelistSummary.VALID}
-                            </SummaryItem>
-                            <SummaryItem data-status="DUPLICATE">
-                              Trùng: {whitelistSummary.DUPLICATE}
-                            </SummaryItem>
-                            <SummaryItem data-status="INVALID">
-                              Không hợp lệ: {whitelistSummary.INVALID}
-                            </SummaryItem>
-                          </WhitelistSummary>
-                          <Button
-                            type="link"
-                            onClick={handleImportClick}
-                            style={{ marginTop: 8 }}
-                          >
-                            Xem và chỉnh sửa danh sách ({whitelistEntries.length} sinh viên)
-                          </Button>
-                        </>
+              {/* Chọn bài kiểm tra */}
+              <FormGroup>
+                <Label>
+                  Chọn bài kiểm tra: <RequiredStar>*</RequiredStar>
+                </Label>
+                <Controller
+                  name="examName"
+                  control={control}
+                  rules={{ required: 'Vui lòng chọn bài kiểm tra' }}
+                  render={({ field }) => (
+                    <>
+                      <DropdownLoadMore<Exam>
+                        {...field}
+                        fetchData={fetchExam}
+                        renderOption={renderExamOption}
+                        onSelect={(value) => setValue('examId', value)}
+                        placeholder="Chọn bài kiểm tra"
+                        style={{ width: '100%' }}
+                        disabled={!!initData}
+                      />
+                      {errors.examName && (
+                        <ErrorText>{errors.examName.message}</ErrorText>
                       )}
-                    </WhitelistContainer>
+                    </>
                   )}
+                />
+              </FormGroup>
 
-                  <InfoBox>
-                    <InfoCircleOutlined />
-                    <div>
-                      <strong>Ghi chú:</strong>
-                      <ul>
-                        <li>"Công khai": Khi giao bài công khai, bất cứ học viên nào cũng có thể truy cập.</li>
-                        <li>"Danh sách sinh viên": Khi giao bài với danh sách sinh viên, chỉ học sinh được phân công mới có thể truy cập.</li>
-                      </ul>
-                    </div>
-                  </InfoBox>
-                </FormGroup>
-
-                {/* Chống gian lận */}
-                <FormGroup>
-                  <LabelRow>
-                    <Label>Chống gian lận:</Label>
-                    <Controller
-                      name="antiCheatSettings.enableAntiCheat"
-                      control={control}
-                      render={({ field }) => (
-                        <Switch
-                          checked={field.value}
-                          onChange={field.onChange}
-                          size="small"
-                        />
+              {/* Tên bài kiểm tra */}
+              <FormGroup>
+                <Label>
+                  Tên bài kiểm tra: <RequiredStar>*</RequiredStar>
+                </Label>
+                <Controller
+                  name="name"
+                  control={control}
+                  rules={{ required: 'Vui lòng nhập tên bài kiểm tra' }}
+                  render={({ field }) => (
+                    <>
+                      <StyledInput
+                        {...field}
+                        placeholder="Nhập tên bài kiểm tra"
+                        status={errors.name ? 'error' : ''}
+                      />
+                      {errors.name && (
+                        <ErrorText>{errors.name.message}</ErrorText>
                       )}
-                    />
-                  </LabelRow>
+                    </>
+                  )}
+                />
+              </FormGroup>
 
-                  {enableAntiCheat && (
-                    <AntiCheatSection>
-                      <StyledCollapse ghost expandIconPosition="end">
-                        <Panel header="Xác minh danh tính" key="1">
+              {/* Ngày bắt đầu */}
+              <FormGroup>
+                <Label>
+                  Ngày bắt đầu: <RequiredStar>*</RequiredStar>
+                </Label>
+                <Controller
+                  name="startTime"
+                  control={control}
+                  rules={{ required: 'Vui lòng chọn ngày bắt đầu' }}
+                  render={({ field }) => {
+                    // Parse date an toàn cho DatePicker
+                    const dateValue = field.value
+                      ? typeof field.value === 'object' &&
+                        'isValid' in field.value
+                        ? (field.value as Dayjs).isValid()
+                          ? (field.value as Dayjs)
+                          : parseDateSafely(field.value)
+                        : parseDateSafely(field.value)
+                      : null
+
+                    return (
+                      <>
+                        <StyledDatePicker
+                          {...field}
+                          value={dateValue}
+                          onChange={(date) => field.onChange(date)}
+                          placeholder="Nhập ngày bắt đầu"
+                          format="DD/MM/YYYY HH:mm"
+                          showTime={{ format: 'HH:mm' }}
+                          status={errors.startTime ? 'error' : ''}
+                          getPopupContainer={(trigger) =>
+                            trigger.parentElement || document.body
+                          }
+                          popupStyle={{ position: 'absolute' }}
+                        />
+                        {errors.startTime && (
+                          <ErrorText>{errors.startTime.message}</ErrorText>
+                        )}
+                      </>
+                    )
+                  }}
+                />
+              </FormGroup>
+
+              {/* Ngày kết thúc */}
+              <FormGroup>
+                <Label>
+                  Ngày kết thúc: <RequiredStar>*</RequiredStar>
+                </Label>
+                <Controller
+                  name="endTime"
+                  control={control}
+                  rules={{
+                    required: 'Vui lòng chọn ngày kết thúc',
+                    validate: (value) => {
+                      if (
+                        startTimeValue &&
+                        value &&
+                        dayjs(value).isBefore(dayjs(startTimeValue))
+                      ) {
+                        return 'Ngày kết thúc phải sau ngày bắt đầu'
+                      }
+                      return true
+                    },
+                  }}
+                  render={({ field }) => {
+                    // Parse date an toàn cho DatePicker
+                    const dateValue = field.value
+                      ? typeof field.value === 'object' &&
+                        'isValid' in field.value
+                        ? (field.value as Dayjs).isValid()
+                          ? (field.value as Dayjs)
+                          : parseDateSafely(field.value)
+                        : parseDateSafely(field.value)
+                      : null
+
+                    return (
+                      <>
+                        <StyledDatePicker
+                          {...field}
+                          value={dateValue}
+                          onChange={(date) => field.onChange(date)}
+                          placeholder="Nhập ngày kết thúc"
+                          format="DD/MM/YYYY HH:mm"
+                          showTime={{ format: 'HH:mm' }}
+                          status={errors.endTime ? 'error' : ''}
+                          getPopupContainer={(trigger) =>
+                            trigger.parentElement || document.body
+                          }
+                          popupStyle={{ position: 'absolute' }}
+                        />
+                        {errors.endTime && (
+                          <ErrorText>{errors.endTime.message}</ErrorText>
+                        )}
+                      </>
+                    )
+                  }}
+                />
+              </FormGroup>
+
+              {/* Thời gian làm bài */}
+              <FormGroup>
+                <Label>
+                  Thời gian làm bài: <RequiredStar>*</RequiredStar>
+                </Label>
+                <Controller
+                  name="durationMinutes"
+                  control={control}
+                  rules={{
+                    required: 'Vui lòng nhập thời gian làm bài',
+                    min: { value: 1, message: 'Thời gian phải lớn hơn 0' },
+                  }}
+                  render={({ field }) => (
+                    <>
+                      <StyledInput
+                        {...field}
+                        placeholder="Phút"
+                        type="number"
+                        status={errors.durationMinutes ? 'error' : ''}
+                      />
+                      {errors.durationMinutes && (
+                        <ErrorText>{errors.durationMinutes.message}</ErrorText>
+                      )}
+                    </>
+                  )}
+                />
+              </FormGroup>
+
+              {/* Thời gian được vào trễ */}
+              <FormGroup>
+                <LabelWithIcon>
+                  Thời gian được vào trễ (phút): <RequiredStar>*</RequiredStar>
+                  <InfoCircleOutlined />
+                </LabelWithIcon>
+                <Controller
+                  name="lateJoinMinutes"
+                  control={control}
+                  rules={{
+                    required: 'Vui lòng nhập thời gian vào trễ',
+                    min: { value: 0, message: 'Thời gian không được âm' },
+                  }}
+                  render={({ field }) => (
+                    <>
+                      <StyledInput
+                        {...field}
+                        placeholder="Phút"
+                        type="number"
+                        status={errors.lateJoinMinutes ? 'error' : ''}
+                      />
+                      {errors.lateJoinMinutes && (
+                        <ErrorText>{errors.lateJoinMinutes.message}</ErrorText>
+                      )}
+                    </>
+                  )}
+                />
+              </FormGroup>
+
+              {/* Chế độ truy cập */}
+              <FormGroup>
+                <Label>
+                  Chế độ truy cập: <RequiredStar>*</RequiredStar>
+                </Label>
+                <Controller
+                  control={control}
+                  name="accessMode"
+                  render={({ field }) => (
+                    <Radio.Group {...field} disabled={!!initData}>
+                      <Space direction="vertical" size={8}>
+                        <Radio value={AccessMode.PUBLIC}>Công khai</Radio>
+                        <Radio value={AccessMode.PRIVATE}>Riêng tư</Radio>
+                      </Space>
+                    </Radio.Group>
+                  )}
+                />
+                {accessMode === AccessMode.PRIVATE && (
+                  <WhitelistContainer>
+                    <WhitelistActions>
+                      <Button
+                        icon={<PlusOutlined />}
+                        onClick={handleImportClick}
+                        loading={previewLoading}
+                        type="primary"
+                      >
+                        {whitelistEntries.length > 0
+                          ? 'Quản lý danh sách sinh viên'
+                          : 'Chọn sinh viên'}
+                      </Button>
+                    </WhitelistActions>
+
+                    {whitelistEntries.length === 0 ? (
+                      <WhitelistEmpty>
+                        Chưa có sinh viên nào. Hãy click nút "Chọn sinh viên" để
+                        thêm.
+                      </WhitelistEmpty>
+                    ) : (
+                      <>
+                        <WhitelistSummary>
+                          <SummaryItem data-status="VALID">
+                            Hợp lệ: {whitelistSummary.VALID}
+                          </SummaryItem>
+                          <SummaryItem data-status="DUPLICATE">
+                            Trùng: {whitelistSummary.DUPLICATE}
+                          </SummaryItem>
+                          <SummaryItem data-status="INVALID">
+                            Không hợp lệ: {whitelistSummary.INVALID}
+                          </SummaryItem>
+                        </WhitelistSummary>
+                        <Button
+                          type="link"
+                          onClick={handleImportClick}
+                          style={{ marginTop: 8 }}
+                        >
+                          Xem và chỉnh sửa danh sách ({whitelistEntries.length}{' '}
+                          sinh viên)
+                        </Button>
+                      </>
+                    )}
+                  </WhitelistContainer>
+                )}
+
+                <InfoBox>
+                  <InfoCircleOutlined />
+                  <div>
+                    <strong>Ghi chú:</strong>
+                    <ul>
+                      <li>
+                        "Công khai": Khi giao bài công khai, bất cứ học viên nào
+                        cũng có thể truy cập.
+                      </li>
+                      <li>
+                        "Danh sách sinh viên": Khi giao bài với danh sách sinh
+                        viên, chỉ học sinh được phân công mới có thể truy cập.
+                      </li>
+                    </ul>
+                  </div>
+                </InfoBox>
+              </FormGroup>
+
+              {/* Chống gian lận */}
+              <FormGroup>
+                <LabelRow>
+                  <Label>Chống gian lận:</Label>
+                  <Controller
+                    name="antiCheatSettings.enableAntiCheat"
+                    control={control}
+                    render={({ field }) => (
+                      <Switch
+                        checked={field.value}
+                        onChange={field.onChange}
+                        size="small"
+                      />
+                    )}
+                  />
+                </LabelRow>
+
+                {enableAntiCheat && (
+                  <AntiCheatSection>
+                    <StyledCollapse ghost expandIconPosition="end">
+                      <Panel header="Xác minh danh tính" key="1">
+                        <PanelContent>
+                          <SubLabel>Ảnh chân dung</SubLabel>
+                          <Controller
+                            name="antiCheatSettings.webcamCapture"
+                            control={control}
+                            render={({ field }) => (
+                              <StyledCheckbox
+                                checked={field.value}
+                                onChange={(e) => {
+                                  const checked = e.target.checked
+                                  field.onChange(checked)
+                                  if (checked) {
+                                    setValue(
+                                      'antiCheatSettings.uploadImage',
+                                      false
+                                    )
+                                    setValue(
+                                      'antiCheatSettings.uploadId',
+                                      false
+                                    )
+                                  }
+                                }}
+                              >
+                                Xác thực bằng chụp ảnh webcam
+                              </StyledCheckbox>
+                            )}
+                          />
+                          <div
+                            style={{
+                              marginTop: 8,
+                              color: '#666',
+                              fontSize: 13,
+                              fontStyle: 'italic',
+                            }}
+                          >
+                            <InfoCircleOutlined style={{ marginRight: 4 }} />
+                            Lưu ý: Nếu ảnh ID đã được import, thí sinh sẽ không
+                            cần upload. Nếu chưa, thí sinh sẽ cần upload.
+                          </div>
+                        </PanelContent>
+                      </Panel>
+
+                      <Panel header="Bảo mật ghi hình" key="2">
+                        <PanelContent>
+                          <Controller
+                            name="antiCheatSettings.screenRecording"
+                            control={control}
+                            render={({ field }) => (
+                              <StyledCheckbox
+                                checked={field.value}
+                                onChange={(e) =>
+                                  field.onChange(e.target.checked)
+                                }
+                              >
+                                Ghi hình màn hình chia sẻ
+                              </StyledCheckbox>
+                            )}
+                          />
+                        </PanelContent>
+                      </Panel>
+
+                      <Panel header="Khóa trình duyệt web" key="3">
+                        <PanelContent>
+                          <Controller
+                            name="antiCheatSettings.preventCopyPaste"
+                            control={control}
+                            render={({ field }) => (
+                              <StyledCheckbox
+                                checked={field.value}
+                                onChange={(e) =>
+                                  field.onChange(e.target.checked)
+                                }
+                              >
+                                Khóa copy-paste
+                              </StyledCheckbox>
+                            )}
+                          />
+                          <Controller
+                            name="antiCheatSettings.blockDevTools"
+                            control={control}
+                            render={({ field }) => (
+                              <StyledCheckbox
+                                checked={field.value}
+                                onChange={(e) =>
+                                  field.onChange(e.target.checked)
+                                }
+                              >
+                                Chặn mở Developer Tool
+                              </StyledCheckbox>
+                            )}
+                          />
+                          <Controller
+                            name="antiCheatSettings.preventRightClick"
+                            control={control}
+                            render={({ field }) => (
+                              <StyledCheckbox
+                                checked={field.value}
+                                onChange={(e) => {
+                                  const checked = e.target.checked
+                                  field.onChange(checked)
+                                  // Khi bật, set số lần = 0 (không cho phép lần nào)
+                                  if (checked) {
+                                    setValue(
+                                      'antiCheatSettings.maxExitAttempts',
+                                      0
+                                    )
+                                  }
+                                }}
+                              >
+                                Không cho phép chuyển sang tab khác
+                              </StyledCheckbox>
+                            )}
+                          />
+                          <Controller
+                            name="antiCheatSettings.preventMemoryExit"
+                            control={control}
+                            render={({ field }) => (
+                              <StyledCheckbox
+                                checked={field.value}
+                                onChange={(e) => {
+                                  const checked = e.target.checked
+                                  field.onChange(checked)
+                                  // Khi bật, set số lần = 0 (không cho phép lần nào)
+                                  if (checked) {
+                                    setValue(
+                                      'antiCheatSettings.maxFullscreenExitAttempts',
+                                      0
+                                    )
+                                  }
+                                }}
+                              >
+                                Không cho phép thu nhỏ màn hình
+                              </StyledCheckbox>
+                            )}
+                          />
+                        </PanelContent>
+                      </Panel>
+                    </StyledCollapse>
+
+                    <Divider />
+
+                    <SubSection>
+                      <Label>Cài đặt:</Label>
+                      <StyledCollapse
+                        ghost
+                        expandIconPosition="end"
+                        defaultActiveKey={['settings']}
+                      >
+                        <Panel header="Cài đặt" key="settings">
                           <PanelContent>
-                            <SubLabel>Ảnh chân dung</SubLabel>
                             <Controller
-                              name="antiCheatSettings.webcamCapture"
+                              name="antiCheatSettings.sendResultEmail"
                               control={control}
                               render={({ field }) => (
-                                <StyledCheckbox
-                                  checked={field.value}
-                                  onChange={(e) => {
-                                    const checked = e.target.checked
-                                    field.onChange(checked)
-                                    if (checked) {
-                                      setValue('antiCheatSettings.uploadImage', false)
-                                      setValue('antiCheatSettings.uploadId', false)
-                                    }
-                                  }}
-                                >
-                                  Xác thực bằng chụp ảnh webcam
-                                </StyledCheckbox>
+                                <CheckboxEnabled checked={true} disabled>
+                                  Gửi mail thông báo kết quả
+                                </CheckboxEnabled>
                               )}
                             />
-                            <div style={{ marginTop: 8, color: '#666', fontSize: 13, fontStyle: 'italic' }}>
-                              <InfoCircleOutlined style={{ marginRight: 4 }} />
-                              Lưu ý: Nếu ảnh ID đã được import, thí sinh sẽ không cần upload. Nếu chưa, thí sinh sẽ cần upload.
-                            </div>
-                          </PanelContent>
-                        </Panel>
-
-                        <Panel header="Bảo mật ghi hình" key="2">
-                          <PanelContent>
-                            <Controller
-                              name="antiCheatSettings.screenRecording"
-                              control={control}
-                              render={({ field }) => (
-                                <StyledCheckbox
-                                  checked={field.value}
-                                  onChange={(e) => field.onChange(e.target.checked)}
-                                >
-                                  Ghi hình màn hình chia sẻ
-                                </StyledCheckbox>
-                              )}
-                            />
-                          </PanelContent>
-                        </Panel>
-
-                        <Panel header="Khóa trình duyệt web" key="3">
-                          <PanelContent>
-                            <Controller
-                              name="antiCheatSettings.preventCopyPaste"
-                              control={control}
-                              render={({ field }) => (
-                                <StyledCheckbox
-                                  checked={field.value}
-                                  onChange={(e) => field.onChange(e.target.checked)}
-                                >
-                                  Khóa copy-paste
-                                </StyledCheckbox>
-                              )}
-                            />
-                            <Controller
-                              name="antiCheatSettings.blockDevTools"
-                              control={control}
-                              render={({ field }) => (
-                                <StyledCheckbox
-                                  checked={field.value}
-                                  onChange={(e) => field.onChange(e.target.checked)}
-                                >
-                                  Chặn mở Developer Tool
-                                </StyledCheckbox>
-                              )}
-                            />
-                            <Controller
-                              name="antiCheatSettings.preventRightClick"
-                              control={control}
-                              render={({ field }) => (
-                                <StyledCheckbox
-                                  checked={field.value}
-                                  onChange={(e) => {
-                                    const checked = e.target.checked
-                                    field.onChange(checked)
-                                    // Khi bật, set số lần = 0 (không cho phép lần nào)
-                                    if (checked) {
-                                      setValue('antiCheatSettings.maxExitAttempts', 0)
-                                    }
-                                  }}
-                                >
-                                  Không cho phép chuyển sang tab khác
-                                </StyledCheckbox>
-                              )}
-                            />
-                            <Controller
-                              name="antiCheatSettings.preventMemoryExit"
-                              control={control}
-                              render={({ field }) => (
-                                <StyledCheckbox
-                                  checked={field.value}
-                                  onChange={(e) => {
-                                    const checked = e.target.checked
-                                    field.onChange(checked)
-                                    // Khi bật, set số lần = 0 (không cho phép lần nào)
-                                    if (checked) {
-                                      setValue('antiCheatSettings.maxFullscreenExitAttempts', 0)
-                                    }
-                                  }}
-                                >
-                                  Không cho phép thu nhỏ màn hình
-                                </StyledCheckbox>
-                              )}
-                            />
-                          </PanelContent>
-                        </Panel>
-
-                        
-                      </StyledCollapse>
-
-                      <Divider />
-
-                      <SubSection>
-                        <Label>Cài đặt:</Label>
-                        <StyledCollapse ghost expandIconPosition="end" defaultActiveKey={['settings']}>
-                          <Panel header="Cài đặt" key="settings">
-                            <PanelContent>
+                            <div style={{ marginLeft: 24, marginTop: 12 }}>
                               <Controller
-                                name="antiCheatSettings.sendResultEmail"
+                                name="antiCheatSettings.releasePolicy"
                                 control={control}
                                 render={({ field }) => (
-                                  <CheckboxEnabled
-                                    checked={true}
-                                    disabled
-                                  >
-                                    Gửi mail thông báo kết quả
+                                  <CheckboxEnabled checked={true} disabled>
+                                    Gửi sau khi giáo viên chấm xong
                                   </CheckboxEnabled>
                                 )}
                               />
-                              <div style={{ marginLeft: 24, marginTop: 12 }}>
-                                <Controller
-                                  name="antiCheatSettings.releasePolicy"
-                                  control={control}
-                                  render={({ field }) => (
-                                    <CheckboxEnabled
-                                      checked={true}
-                                      disabled
-                                    >
-                                      Gửi sau khi giáo viên chấm xong
-                                    </CheckboxEnabled>
-                                  )}
-                                />
-                              </div>
-                            </PanelContent>
-                          </Panel>
-                        </StyledCollapse>
-                      </SubSection>
-                    </AntiCheatSection>
+                            </div>
+                          </PanelContent>
+                        </Panel>
+                      </StyledCollapse>
+                    </SubSection>
+                  </AntiCheatSection>
+                )}
+              </FormGroup>
+
+              {/* Số lần làm bài & Xáo trộn */}
+              <FormGroup>
+                <Label>
+                  Số lần làm bài tối đa: <RequiredStar>*</RequiredStar>
+                </Label>
+                <Controller
+                  name="attemptLimit"
+                  control={control}
+                  rules={{
+                    required: 'Vui lòng nhập số lần làm bài',
+                    min: { value: 1, message: 'Số lần phải lớn hơn 0' },
+                  }}
+                  render={({ field }) => (
+                    <>
+                      <StyledInput
+                        {...field}
+                        placeholder="1"
+                        type="number"
+                        status={errors.attemptLimit ? 'error' : ''}
+                      />
+                      {errors.attemptLimit && (
+                        <ErrorText>{errors.attemptLimit.message}</ErrorText>
+                      )}
+                    </>
                   )}
-                </FormGroup>
+                />
+              </FormGroup>
 
-                {/* Số lần làm bài & Xáo trộn */}
-                <FormGroup>
-                  <Label>
-                    Số lần làm bài tối đa: <RequiredStar>*</RequiredStar>
-                  </Label>
-                  <Controller
-                    name="attemptLimit"
-                    control={control}
-                    rules={{
-                      required: 'Vui lòng nhập số lần làm bài',
-                      min: { value: 1, message: 'Số lần phải lớn hơn 0' },
-                    }}
-                    render={({ field }) => (
-                      <>
-                        <StyledInput
-                          {...field}
-                          placeholder="1"
-                          type="number"
-                          status={errors.attemptLimit ? 'error' : ''}
-                        />
-                        {errors.attemptLimit && (
-                          <ErrorText>{errors.attemptLimit.message}</ErrorText>
-                        )}
-                      </>
-                    )}
-                  />
-                </FormGroup>
+              <FormGroup>
+                <Controller
+                  name="shuffleQuestion"
+                  control={control}
+                  render={({ field }) => (
+                    <StyledCheckbox
+                      checked={field.value}
+                      onChange={(e) => field.onChange(e.target.checked)}
+                    >
+                      Xáo trộn câu hỏi
+                    </StyledCheckbox>
+                  )}
+                />
+                <Controller
+                  name="shuffleAnswers"
+                  control={control}
+                  render={({ field }) => (
+                    <StyledCheckbox
+                      checked={field.value}
+                      onChange={(e) => field.onChange(e.target.checked)}
+                    >
+                      Xáo trộn đáp án
+                    </StyledCheckbox>
+                  )}
+                />
+              </FormGroup>
+              <SaveButton
+                type="primary"
+                htmlType="submit"
+                loading={loading}
+                block
+              >
+                Lưu
+              </SaveButton>
+            </form>
+          </FormContent>
+        </FormColumn>
+      </ContentWrapper>
 
-                <FormGroup>
-                  <Controller
-                    name="shuffleQuestion"
-                    control={control}
-                    render={({ field }) => (
-                      <StyledCheckbox
-                        checked={field.value}
-                        onChange={(e) => field.onChange(e.target.checked)}
-                      >
-                        Xáo trộn câu hỏi
-                      </StyledCheckbox>
-                    )}
-                  />
-                  <Controller
-                    name="shuffleAnswers"
-                    control={control}
-                    render={({ field }) => (
-                      <StyledCheckbox
-                        checked={field.value}
-                        onChange={(e) => field.onChange(e.target.checked)}
-                      >
-                        Xáo trộn đáp án
-                      </StyledCheckbox>
-                    )}
-                  />
-                </FormGroup>
-                <SaveButton type="primary" htmlType="submit" loading={loading} block>
-                  Lưu
-                </SaveButton>
-              </form>
-            </FormContent>
-          </FormColumn>
-        </ContentWrapper>
-
-      <StudentListModal
-        visible={studentModalVisible}
-        onClose={() => setStudentModalVisible(false)}
-        onConfirm={handleStudentModalConfirm}
-        initialStudents={whitelistEntries}
-        title="Quản lý danh sách sinh viên"
-        previewLoading={previewLoading}
-        onImportExcel={handleFileImport}
-      />
+      {studentModalVisible && (
+        <StudentListModal
+          visible={studentModalVisible}
+          onClose={() => setStudentModalVisible(false)}
+          onConfirm={handleStudentModalConfirm}
+          initialStudents={whitelistEntries}
+          title="Quản lý danh sách sinh viên"
+          previewLoading={previewLoading}
+          onImportExcel={handleFileImport}
+        />
+      )}
 
       {confirmModal && (
         <ConfirmModal
@@ -1516,7 +1660,9 @@ const ExamSessionCreate = ({
         open={!!previewEntry}
         onCancel={() => setPreviewEntry(null)}
         footer={null}
-        title={previewEntry ? `Ảnh đi kèm ${previewEntry.email}` : 'Ảnh whitelist'}
+        title={
+          previewEntry ? `Ảnh đi kèm ${previewEntry.email}` : 'Ảnh whitelist'
+        }
         width={600}
       >
         <AvatarPreviewContent>
@@ -1652,7 +1798,7 @@ const LabelWithIcon = styled.label`
   font-weight: 500;
   color: #333;
   margin-bottom: 8px;
-  
+
   .anticon {
     color: #1890ff;
     font-size: 12px;
@@ -1670,11 +1816,11 @@ const StyledInput = styled(AntInput)`
   height: 40px;
   border-radius: 6px;
   border: 1px solid #d9d9d9;
-  
+
   &:hover {
     border-color: #40a9ff;
   }
-  
+
   &:focus {
     border-color: #1890ff;
     box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
@@ -1685,16 +1831,17 @@ const StyledDatePicker = styled(DatePicker)`
   width: 100%;
   height: 40px;
   border-radius: 6px;
-  
+
   .ant-picker-input {
     font-size: 14px;
   }
-  
+
   &:hover {
     border-color: #40a9ff;
   }
-  
-  &:focus, &.ant-picker-focused {
+
+  &:focus,
+  &.ant-picker-focused {
     border-color: #1890ff;
     box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
   }
@@ -1720,28 +1867,28 @@ const InfoBox = styled.div`
   font-size: 13px;
   display: flex;
   gap: 8px;
-  
+
   .anticon {
     color: #1890ff;
     margin-top: 2px;
     flex-shrink: 0;
   }
-  
+
   > div {
     flex: 1;
   }
-  
+
   strong {
     display: block;
     margin-bottom: 4px;
     color: #0c5aa0;
   }
-  
+
   ul {
     margin: 4px 0 0 0;
     padding-left: 20px;
   }
-  
+
   li {
     margin: 4px 0;
     line-height: 1.5;
@@ -1997,7 +2144,7 @@ const AntiCheatSection = styled.div`
 const StyledCollapse = styled(Collapse)`
   background: transparent !important;
   border: none !important;
-  
+
   .ant-collapse-item {
     border: 1px solid #e8e8e8 !important;
     margin-bottom: 8px;
@@ -2005,23 +2152,23 @@ const StyledCollapse = styled(Collapse)`
     background: white;
     overflow: hidden;
   }
-  
+
   .ant-collapse-header {
     font-weight: 500 !important;
     font-size: 14px !important;
     padding: 12px 16px !important;
     background: #fafafa !important;
     color: #333 !important;
-    
+
     &:hover {
       background: #f5f5f5 !important;
     }
   }
-  
+
   .ant-collapse-content {
     border-top: 1px solid #f0f0f0 !important;
   }
-  
+
   .ant-collapse-content-box {
     padding: 16px !important;
   }
@@ -2036,11 +2183,11 @@ const PanelContent = styled.div`
 const StyledCheckbox = styled(Checkbox)`
   font-size: 14px;
   color: #333;
-  
+
   .ant-checkbox {
     top: 2px;
   }
-  
+
   &:hover {
     color: #1890ff;
   }
@@ -2049,21 +2196,21 @@ const StyledCheckbox = styled(Checkbox)`
 const CheckboxEnabled = styled(Checkbox)`
   font-size: 14px;
   color: #333;
-  
+
   .ant-checkbox {
     top: 2px;
   }
-  
+
   &.ant-checkbox-wrapper-disabled {
     .ant-checkbox-checked .ant-checkbox-inner {
       background-color: #1890ff !important;
       border-color: #1890ff !important;
     }
-    
+
     .ant-checkbox-inner::after {
       border-color: #fff !important;
     }
-    
+
     span:not(.ant-checkbox) {
       color: #333 !important;
     }
@@ -2077,7 +2224,7 @@ const InputRow = styled.div`
   gap: 12px;
   margin-left: 24px;
   padding: 8px 0;
-  
+
   span {
     font-size: 13px;
     color: #666;
@@ -2088,7 +2235,7 @@ const InputRow = styled.div`
 const SmallInputNumber = styled(InputNumber)`
   width: 80px;
   border-radius: 4px;
-  
+
   input {
     text-align: center;
   }
@@ -2119,13 +2266,13 @@ const SaveButton = styled(Button)`
   background: #ff4757 !important;
   border-color: #ff4757 !important;
   color: white !important;
-  
+
   &:hover:not(:disabled) {
     background: #ff3447 !important;
     border-color: #ff3447 !important;
     box-shadow: 0 2px 8px rgba(255, 71, 87, 0.3) !important;
   }
-  
+
   &:disabled {
     opacity: 0.6;
   }
@@ -2234,7 +2381,8 @@ const IllustrationImageWrapper = styled.div`
   box-shadow: 0 12px 28px rgba(79, 70, 229, 0.18);
 
   @keyframes float {
-    0%, 100% {
+    0%,
+    100% {
       transform: translateY(0px);
     }
     50% {
