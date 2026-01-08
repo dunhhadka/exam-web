@@ -431,7 +431,7 @@ def save_cheating_log(
         # Force log timestamps to UTC+7 (VN) regardless of server OS timezone.
         # DB schema typically uses naive DATETIME, so store a naive datetime that
         # already represents local time in the desired offset.
-        tz_offset_hours = _int_env("AI_LOG_TZ_OFFSET_HOURS", 7)
+        tz_offset_hours = _int_env("AI_LOG_TZ_OFFSET_HOURS", 0)
         tz = timezone(timedelta(hours=tz_offset_hours))
         logged_at = datetime.fromtimestamp(timestamp / 1000.0, tz=timezone.utc).astimezone(tz).replace(tzinfo=None)
 

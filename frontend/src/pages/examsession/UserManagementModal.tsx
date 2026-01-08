@@ -257,6 +257,8 @@ const LogDetailModal = ({ open, onClose, sessionId, studentEmail, userName }: Lo
     { skip: !studentEmail }
   )
 
+  const [evidenceModal, setEvidenceModal] = useState<{ url: string; logId: number } | null>(null)
+
   const totalLogs = attempts?.reduce((sum, attempt) => sum + attempt.logs.length, 0) || 0
 
   const formatDate = (dateStr: string | undefined) => {
@@ -323,6 +325,24 @@ const LogDetailModal = ({ open, onClose, sessionId, studentEmail, userName }: Lo
     return labels[severity] || severity
   }
 
+  const resolveEvidenceUrl = (evidence?: string) => {
+    if (!evidence) return null
+    const raw = String(evidence).trim()
+    if (!raw) return null
+
+    // If BE already returns a full URL, use it.
+    if (raw.startsWith('http://') || raw.startsWith('https://')) return raw
+
+    // Common case: BE returns a relative path like "evidence_images\\...".
+    const normalized = raw.replace(/\\/g, '/').replace(/^\/+/, '')
+    if (normalized.startsWith('evidence_images/')) {
+      // backend-ai runs on port 8000 in local dev.
+      return `http://localhost:8000/${normalized}`
+    }
+
+    return null
+  }
+
   const columns: ColumnsType<Log> = [
     {
       title: 'Thời gian',
@@ -356,6 +376,28 @@ const LogDetailModal = ({ open, onClose, sessionId, studentEmail, userName }: Lo
       dataIndex: 'message',
       key: 'message',
       render: (text: string) => <LogMessage>{text}</LogMessage>,
+    },
+    {
+      title: 'Minh chứng',
+      key: 'evidence',
+      width: 140,
+      render: (_: unknown, record: Log) => {
+        const url = resolveEvidenceUrl(record.evidence)
+        return (
+          <Button
+            type="link"
+            size="small"
+            icon={<EyeOutlined />}
+            disabled={!url}
+            onClick={() => {
+              if (!url) return
+              setEvidenceModal({ url, logId: record.id })
+            }}
+          >
+            Xem
+          </Button>
+        )
+      },
     },
   ]
 
@@ -436,6 +478,29 @@ const LogDetailModal = ({ open, onClose, sessionId, studentEmail, userName }: Lo
           )
         )}
       </LogModalBody>
+
+      <StyledEvidenceModal
+        open={!!evidenceModal}
+        onCancel={() => setEvidenceModal(null)}
+        centered
+        footer={null}
+        destroyOnClose
+        width={960}
+        closeIcon={<CloseIcon>✕</CloseIcon>}
+      >
+        <EvidenceModalHeader>
+          <EvidenceModalTitle>Minh chứng</EvidenceModalTitle>
+        </EvidenceModalHeader>
+        {evidenceModal?.url && (
+          <EvidenceModalBody>
+            <EvidenceImage
+              src={evidenceModal.url}
+              alt={`evidence-${evidenceModal.logId}`}
+              onError={() => setEvidenceModal(null)}
+            />
+          </EvidenceModalBody>
+        )}
+      </StyledEvidenceModal>
     </StyledLogModal>
   )
 }
@@ -883,6 +948,46 @@ const AttemptCount = styled.div`
   font-weight: 600;
   color: #374151;
   white-space: nowrap;
+`
+
+const StyledEvidenceModal = styled(Modal)`
+  .ant-modal-content {
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  .ant-modal-body {
+    padding: 0;
+  }
+`
+
+const EvidenceModalHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #E5E7EB;
+  background: white;
+`
+
+const EvidenceModalTitle = styled.div`
+  font-size: 15px;
+  font-weight: 600;
+  color: #111827;
+`
+
+const EvidenceModalBody = styled.div`
+  padding: 16px 20px 20px;
+  background: #FAFAFA;
+`
+
+const EvidenceImage = styled.img`
+  width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+  border-radius: 10px;
+  border: 1px solid #E5E7EB;
+  background: #FFFFFF;
 `
 
 const LogTableWrapper = styled.div`

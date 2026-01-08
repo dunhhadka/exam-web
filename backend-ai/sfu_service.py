@@ -1,7 +1,3 @@
-"""
-SFU (Selective Forwarding Unit) Service - Phase 1
-Forward WebRTC streams from candidates to single proctor
-"""
 import asyncio
 import logging
 from typing import Dict, Optional
@@ -15,7 +11,7 @@ try:
     except Exception:
         candidate_to_sdp = None
     AIORTC_AVAILABLE = True
-    print(f"[SFU_SERVICE] aiortc imported successfully, AIORTC_AVAILABLE = True")
+    print("[SFU_SERVICE] Import aiortc thành công, AIORTC_AVAILABLE = True")
 except ImportError as e:
     AIORTC_AVAILABLE = False
     RTCPeerConnection = None
@@ -24,21 +20,21 @@ except ImportError as e:
     RTCIceCandidate = None
     candidate_from_sdp = None
     candidate_to_sdp = None
-    print(f"[SFU_SERVICE] aiortc import failed: {e}, AIORTC_AVAILABLE = False")
+    print(f"[SFU_SERVICE] Import aiortc thất bại: {e}, AIORTC_AVAILABLE = False")
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
 class CandidateConnection:
-    """Represents a candidate's WebRTC connection"""
+    """Đại diện cho kết nối WebRTC của thí sinh."""
     pc: 'RTCPeerConnection'
     user_id: str
     room_id: str
     camera_track: Optional['MediaStreamTrack'] = None
     screen_track: Optional['MediaStreamTrack'] = None
     audio_track: Optional['MediaStreamTrack'] = None
-    track_labels: dict = None  # trackId -> label mapping
+    track_labels: dict = None  # ánh xạ trackId -> nhãn (camera/screen/audio)
     
     def __post_init__(self):
         if self.track_labels is None:
@@ -47,7 +43,7 @@ class CandidateConnection:
 
 @dataclass
 class ProctorConnection:
-    """Represents the proctor's WebRTC connection"""
+    """Đại diện cho kết nối WebRTC của giám thị (proctor)."""
     pc: 'RTCPeerConnection'
     user_id: str
     room_id: str
@@ -55,56 +51,56 @@ class ProctorConnection:
 
 class SFUManager:
     """
-    Manages WebRTC connections for stream forwarding
-    
-    Flow:
-    1. Candidates connect → Backend receives their tracks
-    2. Proctor connects → Backend forwards all candidate tracks to proctor
-    3. New candidates join → Renegotiate with proctor to add new tracks
+    Quản lý các kết nối WebRTC để chuyển tiếp luồng (stream forwarding).
+
+    Luồng tổng quát:
+    1) Thí sinh kết nối → Backend nhận các track (camera/screen/audio)
+    2) Giám thị kết nối → Backend chuyển tiếp toàn bộ track của thí sinh tới giám thị
+    3) Khi thí sinh bật track mới (ví dụ chia sẻ màn hình) → Backend renegotiate với giám thị để thêm track
     """
     
     def __init__(self):
         if not AIORTC_AVAILABLE:
-            logger.warning("aiortc not available - SFU disabled")
+            logger.warning("Không có aiortc - SFU bị vô hiệu hóa")
         
         # room_id -> candidate_user_id -> CandidateConnection
         self._candidates: Dict[str, Dict[str, CandidateConnection]] = {}
         
-        # room_id -> ProctorConnection (single proctor per room)
+        # room_id -> ProctorConnection (mỗi phòng chỉ 1 giám thị)
         self._proctors: Dict[str, ProctorConnection] = {}
         
         self._lock = asyncio.Lock()
         
-        # Track metadata: track_id -> label (camera/screen/audio)
+        # Metadata track: track_id -> label (camera/screen/audio)
         self._track_labels: Dict[str, str] = {}
         
-        # Pending renegotiation offer (for delivery to proctor)
+        # Offer renegotiation đang chờ (để gửi cho giám thị)
         self._pending_renegotiate = None
         
-        # Renegotiation debounce: track_count per candidate to batch multiple tracks
+        # Debounce renegotiation: tránh tạo offer liên tục, gom nhiều track vào 1 lần renegotiate
         self._renegotiate_pending = {}  # room_id -> bool
         
-        # Track if renegotiation offer sent and waiting for answer
+        # Đánh dấu đang renegotiate và chờ answer từ giám thị
         self._renegotiate_in_progress: Dict[str, bool] = {}  # room_id -> bool
         
-        # Callback for renegotiation ready (to notify main.py immediately)
+        # Callback khi offer renegotiate sẵn sàng (để có thể notify main.py ngay)
         self._renegotiate_callback = None
     
     def set_renegotiate_callback(self, callback):
-        """Set callback to be called when renegotiation offer is ready"""
+        """Thiết lập callback được gọi khi offer renegotiate đã sẵn sàng."""
         self._renegotiate_callback = callback
 
     async def _send_ice_to_participant(self, room_id: str, user_id: str, candidate: 'RTCIceCandidate'):
-        """Send server ICE candidate to a participant via main.rooms websocket (best-effort)."""
+        """Gửi ICE candidate của server tới một participant qua websocket (best-effort)."""
         try:
             if candidate is None:
                 return
 
-            # Convert aiortc ICE candidate to browser RTCIceCandidateInit
+            # Chuyển ICE candidate của aiortc sang định dạng RTCIceCandidateInit phía trình duyệt
             if candidate_to_sdp is not None:
                 cand_sdp = candidate_to_sdp(candidate)
             else:
-                # Fallback: some aiortc versions expose to_sdp
+                # Fallback: một số phiên bản aiortc có to_sdp
                 cand_sdp = candidate.to_sdp()  # type: ignore[attr-defined]
 
             payload = {
@@ -117,7 +113,7 @@ class SFUManager:
                 "from": "server",
             }
 
-            # Import at runtime to avoid circular dependency
+            # Import runtime để tránh vòng lặp phụ thuộc (circular import)
             import sys
             main_module = sys.modules.get('main')
             if not main_module or not hasattr(main_module, 'rooms'):
@@ -139,29 +135,28 @@ class SFUManager:
         track_info: list = None
     ) -> dict:
         """
-        Handle offer from candidate
-        Returns answer SDP
-        
-        If candidate already has a connection, this is a renegotiation (e.g., screen share added)
+        Xử lý offer từ thí sinh và trả về answer SDP.
+
+        Nếu thí sinh đã có kết nối trước đó, đây là renegotiation (ví dụ: thí sinh bật chia sẻ màn hình).
         """
         if not AIORTC_AVAILABLE:
             raise RuntimeError("aiortc not available")
         
-        print(f"[DEBUG] Starting handle_candidate_offer for {user_id}", flush=True)
+        print(f"[DEBUG] Bắt đầu handle_candidate_offer cho {user_id}", flush=True)
         
         async with self._lock:
-            print(f"[DEBUG] Acquired lock for {user_id}", flush=True)
+            print(f"[DEBUG] Đã giữ lock cho {user_id}", flush=True)
             
-            # Check if this is a renegotiation (candidate already connected)
+            # Kiểm tra có phải renegotiation không (thí sinh đã kết nối từ trước)
             existing_candidates = self._candidates.get(room_id, {})
             existing_conn = existing_candidates.get(user_id)
             
             if existing_conn:
-                print(f"[RENEGOTIATE] Candidate {user_id} is renegotiating (e.g., added screen share)", flush=True)
-                # This is a renegotiation - update existing connection
+                print(f"[RENEGOTIATE] Thí sinh {user_id} đang renegotiate (ví dụ: thêm chia sẻ màn hình)", flush=True)
+                # Đây là renegotiation - cập nhật kết nối hiện có
                 pc = existing_conn.pc
                 
-                # Update track info
+                # Cập nhật track info
                 if track_info:
                     for info in track_info:
                         track_id = info.get('trackId')
@@ -170,41 +165,41 @@ class SFUManager:
                             existing_conn.track_labels[track_id] = label
                             self._track_labels[track_id] = label
                 
-                print(f"[RENEGOTIATE] Updated track info: {existing_conn.track_labels}", flush=True)
+                print(f"[RENEGOTIATE] Track info sau cập nhật: {existing_conn.track_labels}", flush=True)
                 
-                # Set new remote description (new offer from candidate)
+                # Set remote description mới (offer mới từ thí sinh)
                 await pc.setRemoteDescription(RTCSessionDescription(
                     sdp=offer_sdp['sdp'],
                     type=offer_sdp['type']
                 ))
                 
-                print(f"[RENEGOTIATE] Set new remote description, creating answer", flush=True)
+                print(f"[RENEGOTIATE] Đã set remote description mới, tạo answer", flush=True)
                 
-                # Create new answer
+                # Tạo answer mới
                 answer = await pc.createAnswer()
                 await pc.setLocalDescription(answer)
                 
-                print(f"[RENEGOTIATE] Created answer for {user_id}, tracks will fire in on_track", flush=True)
+                print(f"[RENEGOTIATE] Đã tạo answer cho {user_id}, track sẽ được nhận trong on_track", flush=True)
                 
                 return {
                     "sdp": pc.localDescription.sdp,
                     "type": pc.localDescription.type
                 }
             
-            # Not a renegotiation - create new connection
-            print(f"[DEBUG] Creating new connection for {user_id}", flush=True)
+            # Không phải renegotiation - tạo kết nối mới
+            print(f"[DEBUG] Tạo kết nối mới cho {user_id}", flush=True)
             
-            # Create peer connection for candidate
+            # Tạo peer connection cho thí sinh
             pc = RTCPeerConnection()
-            print(f"[DEBUG] Created RTCPeerConnection for {user_id}", flush=True)
+            print(f"[DEBUG] Đã tạo RTCPeerConnection cho {user_id}", flush=True)
 
-            # Trickle ICE from server -> candidate
+            # Trickle ICE từ server -> thí sinh
             @pc.on("icecandidate")
             async def on_icecandidate(candidate):
-                # Send to candidate via websocket (best-effort)
+                # Gửi về thí sinh qua websocket (best-effort)
                 await self._send_ice_to_participant(room_id=room_id, user_id=user_id, candidate=candidate)
             
-            # Prepare track labels
+            # Chuẩn bị nhãn track (camera/screen/audio)
             track_labels = {}
             if track_info:
                 for info in track_info:
@@ -220,18 +215,18 @@ class SFUManager:
                 room_id=room_id,
                 track_labels=track_labels
             )
-            print(f"[DEBUG] Created CandidateConnection for {user_id}", flush=True)
+            print(f"[DEBUG] Đã tạo CandidateConnection cho {user_id}", flush=True)
             
             print(f"Candidate {user_id} track info: {track_labels}")
             
             print(f"[DEBUG] About to setup track handlers for {user_id}", flush=True)
             
-            # Handle incoming tracks from candidate
+            # Nhận các track từ thí sinh
             @pc.on("track")
             async def on_track(track):
                 print(f"[TRACK] Received track from candidate {user_id}: kind={track.kind}, id={track.id}", flush=True)
                 
-                # Identify track type using track_info stored in candidate_conn
+                # Xác định loại track dựa vào track_info lưu trong candidate_conn
                 track_label = candidate_conn.track_labels.get(track.id, '')
                 print(f"[TRACK] Track label for {track.id}: '{track_label}'", flush=True)
                 
@@ -243,7 +238,7 @@ class SFUManager:
                         candidate_conn.screen_track = track
                         print(f"Set screen track for candidate {user_id}")
                     else:
-                        # Fallback: first video = camera, second = screen
+                        # Fallback: video đầu tiên = camera, video thứ hai = screen
                         if not candidate_conn.camera_track:
                             candidate_conn.camera_track = track
                             print(f"Set camera track (fallback) for {user_id}")
@@ -255,38 +250,37 @@ class SFUManager:
                     candidate_conn.audio_track = track
                     print(f"Set audio track for candidate {user_id}")
                 
-                # Forward track to proctor if connected
-                # Run renegotiation in background to avoid blocking on_track
+                # Nếu có giám thị, kích hoạt renegotiate ở background để không block on_track
                 proctor_conn = self._proctors.get(room_id)
                 print(f"[DEBUG] on_track: proctor_conn={proctor_conn}, renegotiate_pending={self._renegotiate_pending.get(room_id)}", flush=True)
                 
-                # Always allow renegotiation for new tracks (screen share can be added later)
+                # Luôn cho phép renegotiate khi có track mới (screen share có thể bật sau)
                 if proctor_conn:
-                    # Check if we should trigger renegotiation
+                    # Kiểm tra có nên trigger renegotiate không
                     should_renegotiate = False
                     
                     if not self._renegotiate_pending.get(room_id):
-                        # Not currently renegotiating
+                        # Hiện không renegotiate
                         should_renegotiate = True
                     elif track.kind == "video" and track_label == "screen":
-                        # Screen share is being added - force renegotiation even if pending
-                        print(f"[RENEGOTIATE] Screen track detected, forcing renegotiation", flush=True)
+                        # Thêm screen share - ép renegotiate kể cả khi đang pending
+                        print("[RENEGOTIATE] Phát hiện screen track, ép renegotiate", flush=True)
                         should_renegotiate = True
-                        # Wait for any pending renegotiation to complete
+                        # Chờ chút để renegotiation trước đó hoàn tất
                         await asyncio.sleep(0.3)
                     
                     if should_renegotiate:
                         self._renegotiate_pending[room_id] = True
-                        print(f"[RENEGOTIATE] Triggering renegotiation for {user_id} (track: {track_label or track.kind})", flush=True)
+                        print(f"[RENEGOTIATE] Trigger renegotiate cho {user_id} (track: {track_label or track.kind})", flush=True)
                         
-                        # Schedule renegotiation as background task with direct WebSocket access
+                        # Chạy renegotiation dưới dạng background task
                         asyncio.create_task(self._do_renegotiation(
                             room_id=room_id,
                             user_id=user_id,
                             candidate_conn=candidate_conn,
                             proctor_conn=proctor_conn,
                             is_screen_track=(track.kind == "video" and track_label == "screen"),
-                            rooms_manager=True  # Flag to enable direct sending
+                            rooms_manager=True  # bật gửi offer trực tiếp qua websocket
                         ))
             
             @pc.on("connectionstatechange")
@@ -295,36 +289,35 @@ class SFUManager:
                 if pc.connectionState in ["failed", "closed"]:
                     await self._cleanup_candidate(room_id, user_id)
             
-            print(f"[DEBUG] About to setRemoteDescription for {user_id}", flush=True)
+            print(f"[DEBUG] Chuẩn bị setRemoteDescription cho {user_id}", flush=True)
             
-            # Set remote description (offer from candidate)
+            # Set remote description (offer từ thí sinh)
             await pc.setRemoteDescription(RTCSessionDescription(
                 sdp=offer_sdp['sdp'],
                 type=offer_sdp['type']
             ))
             
-            print(f"[DEBUG] Set remote description for candidate {user_id}", flush=True)
+            print(f"[DEBUG] Đã set remote description cho thí sinh {user_id}", flush=True)
             print(f"[DEBUG] Transceivers: {len(pc.getTransceivers())}", flush=True)
             for idx, transceiver in enumerate(pc.getTransceivers()):
                 print(f"[DEBUG]   Transceiver {idx}: mid={transceiver.mid}, direction={transceiver.direction}, kind={transceiver.receiver.track.kind if transceiver.receiver.track else 'None'}", flush=True)
             
-            print(f"[DEBUG] About to createAnswer for {user_id}", flush=True)
+            print(f"[DEBUG] Chuẩn bị createAnswer cho {user_id}", flush=True)
             
-            # Create answer
+            # Tạo answer
             answer = await pc.createAnswer()
             await pc.setLocalDescription(answer)
             
-            print(f"[DEBUG] Created and set answer for {user_id}", flush=True)
+            print(f"[DEBUG] Đã tạo và set answer cho {user_id}", flush=True)
             
-            # Store connection
+            # Lưu connection
             if room_id not in self._candidates:
                 self._candidates[room_id] = {}
             self._candidates[room_id][user_id] = candidate_conn
             
-            print(f"Created answer for candidate {user_id} in room {room_id}")
+            print(f"Đã tạo answer cho thí sinh {user_id} trong phòng {room_id}")
             
-            # Note: Renegotiation with proctor will happen automatically in on_track handler
-            # when tracks are received
+            # Ghi chú: renegotiation với giám thị sẽ tự diễn ra trong on_track khi track được nhận.
             
             return {
                 "sdp": pc.localDescription.sdp,
@@ -338,21 +331,21 @@ class SFUManager:
         offer_sdp: dict
     ) -> dict:
         """
-        Handle offer from proctor
-        Returns answer SDP for the proctor's initial offer.
+        Xử lý offer từ giám thị và trả về answer SDP cho offer ban đầu.
 
-        Important: the proctor's offer may not include audio/video m-lines (e.g. datachannel-only).
-        In that case, adding media tracks before answering can break aiortc direction negotiation.
-        We therefore answer first, then use server-initiated renegotiation to add existing tracks.
+        Lưu ý quan trọng:
+        - Offer của giám thị có thể không có m-line audio/video (ví dụ chỉ datachannel).
+        - Nếu thêm media track trước khi trả lời có thể làm sai hướng (direction) khi aiortc negotiate.
+        - Vì vậy: trả lời (answer) trước, sau đó server chủ động renegotiate để thêm các track đang có.
         """
         if not AIORTC_AVAILABLE:
             raise RuntimeError("aiortc not available")
         
         async with self._lock:
-            # Create peer connection for proctor
+            # Tạo peer connection cho giám thị
             pc = RTCPeerConnection()
 
-            # Trickle ICE from server -> proctor
+            # Trickle ICE từ server -> giám thị
             @pc.on("icecandidate")
             async def on_icecandidate(candidate):
                 await self._send_ice_to_participant(room_id=room_id, user_id=user_id, candidate=candidate)
@@ -369,23 +362,22 @@ class SFUManager:
                 if pc.connectionState in ["failed", "closed"]:
                     await self._cleanup_proctor(room_id)
             
-            # Set remote description (offer from proctor)
+            # Set remote description (offer từ giám thị)
             await pc.setRemoteDescription(RTCSessionDescription(
                 sdp=offer_sdp['sdp'],
                 type=offer_sdp['type']
             ))
             
-            # Create answer
+            # Tạo answer
             answer = await pc.createAnswer()
             await pc.setLocalDescription(answer)
             
-            # Store proctor connection
+            # Lưu proctor connection
             self._proctors[room_id] = proctor_conn
             
-            print(f"Created answer for proctor {user_id} in room {room_id}")
+            print(f"Đã tạo answer cho giám thị {user_id} trong phòng {room_id}")
 
-            # If candidates already exist (proctor joined late), trigger a single renegotiation offer
-            # from the server side to add all current tracks.
+            # Nếu đã có thí sinh trước đó (giám thị vào muộn), server tạo renegotiation để thêm toàn bộ track hiện có.
             asyncio.create_task(self._renegotiate_proctor_add_all_existing_tracks(room_id))
             
             return {
@@ -394,12 +386,12 @@ class SFUManager:
             }
 
     async def _renegotiate_proctor_add_all_existing_tracks(self, room_id: str):
-        """Server-initiated renegotiation to add all currently available candidate tracks."""
+        """Server chủ động renegotiate để thêm toàn bộ track của thí sinh đang có."""
         if not AIORTC_AVAILABLE:
             return
 
         try:
-            # Give the initial answer a moment to be applied on the client.
+            # Cho client một chút thời gian áp dụng answer ban đầu.
             await asyncio.sleep(0.1)
 
             async with self._lock:
@@ -407,7 +399,7 @@ class SFUManager:
                 if not proctor_conn:
                     return
 
-                # Avoid overlapping renegotiations.
+                # Tránh renegotiate chồng chéo.
                 if self._renegotiate_in_progress.get(room_id, False):
                     return
 
@@ -450,7 +442,7 @@ class SFUManager:
                     "candidate_id": "bulk"
                 }
 
-                # Send offer directly to proctor via WebSocket (best-effort)
+                # Gửi offer trực tiếp cho giám thị qua WebSocket (best-effort)
                 try:
                     import json
                     import sys
@@ -470,7 +462,7 @@ class SFUManager:
                                 "renegotiate": True,
                                 "candidate_id": "bulk",
                             }))
-                            print(f"[SFU] Sent initial bulk renegotiation offer to proctor {proctor_conn.user_id} in room {room_id}", flush=True)
+                            print(f"[SFU] Đã gửi bulk renegotiation offer tới giám thị {proctor_conn.user_id} (room {room_id})", flush=True)
                 except Exception as e:
                     print(f"[SFU] Failed to send bulk renegotiation offer: {e}", flush=True)
 
@@ -489,11 +481,11 @@ class SFUManager:
         rooms_manager = None  # Pass RoomManager to send directly
     ):
         """
-        Perform renegotiation in background task to avoid blocking on_track
+        Thực hiện renegotiation ở background task để tránh block on_track.
         """
         try:
-            # Wait briefly for all tracks to arrive
-            # For screen share (single track), wait less time
+            # Chờ một chút để track tới đủ.
+            # Với screen share (thường chỉ 1 track) thì chờ ít hơn.
             if is_screen_track:
                 await asyncio.sleep(0.05)  # 50ms for screen share
             else:
@@ -501,7 +493,7 @@ class SFUManager:
             
             print(f"[RENEGOTIATE] Checking tracks from {user_id} to add to proctor", flush=True)
             
-            # Get existing track IDs in proctor connection
+            # Lấy danh sách track id đã có bên proctor
             existing_track_ids = set()
             for sender in proctor_conn.pc.getSenders():
                 if sender.track:
@@ -509,12 +501,12 @@ class SFUManager:
             
             print(f"[RENEGOTIATE] Existing tracks in proctor: {existing_track_ids}", flush=True)
             
-            # Add only NEW tracks from this candidate
-            # Add tracks DIRECTLY - in aiortc, tracks can be shared between PCs in same process
+            # Chỉ add các track MỚI từ thí sinh.
+            # Lưu ý: với aiortc, trong cùng process có thể dùng chung object track để add sang PC khác.
             track_count = 0
             
             if candidate_conn.camera_track and candidate_conn.camera_track.id not in existing_track_ids:
-                # Add track directly (works in aiortc since both PCs are in same process)
+                # Add track trực tiếp (aiortc cho phép trong cùng process)
                 proctor_conn.pc.addTrack(candidate_conn.camera_track)
                 print(f"[RENEGOTIATE] ✅ Added camera track directly (id={candidate_conn.camera_track.id})", flush=True)
                 track_count += 1
@@ -522,7 +514,7 @@ class SFUManager:
                 print(f"  - Skipped camera track (already added)", flush=True)
                 
             if candidate_conn.screen_track and candidate_conn.screen_track.id not in existing_track_ids:
-                # Add track directly
+                # Add track trực tiếp
                 proctor_conn.pc.addTrack(candidate_conn.screen_track)
                 print(f"[RENEGOTIATE] ✅ Added screen track directly (id={candidate_conn.screen_track.id})", flush=True)
                 track_count += 1
@@ -530,7 +522,7 @@ class SFUManager:
                 print(f"  - Skipped screen track (already added)", flush=True)
                 
             if candidate_conn.audio_track and candidate_conn.audio_track.id not in existing_track_ids:
-                # Add track directly
+                # Add track trực tiếp
                 proctor_conn.pc.addTrack(candidate_conn.audio_track)
                 print(f"[RENEGOTIATE] ✅ Added audio track directly (id={candidate_conn.audio_track.id})", flush=True)
                 track_count += 1
@@ -539,19 +531,19 @@ class SFUManager:
             
             print(f"[RENEGOTIATE] Total NEW tracks added: {track_count}", flush=True)
             
-            # Only create offer if we added new tracks
+            # Chỉ tạo offer nếu có track mới được add
             if track_count > 0:
                 print(f"[RENEGOTIATE] Starting createOffer()...", flush=True)
-                # Create new offer for renegotiation
+                # Tạo offer mới để renegotiate
                 offer = await proctor_conn.pc.createOffer()
                 print(f"[RENEGOTIATE] createOffer() completed, setting local description...", flush=True)
                 await proctor_conn.pc.setLocalDescription(offer)
                 print(f"[RENEGOTIATE] setLocalDescription() completed", flush=True)
                 
-                # Mark renegotiation in progress
+                # Đánh dấu đang renegotiate
                 self._renegotiate_in_progress[room_id] = True
                 
-                # Store for delivery to proctor
+                # Lưu offer để gửi cho proctor
                 self._pending_renegotiate = {
                     "sdp": proctor_conn.pc.localDescription.sdp,
                     "type": proctor_conn.pc.localDescription.type,
@@ -561,7 +553,7 @@ class SFUManager:
                 }
                 print(f"[RENEGOTIATE] Created offer, stored for delivery to proctor", flush=True)
                 
-                # If rooms_manager is provided, send offer directly to proctor
+                # Nếu có rooms_manager, gửi offer trực tiếp tới proctor
                 if rooms_manager:
                     print(f"[RENEGOTIATE] Sending offer directly to proctor via WebSocket", flush=True)
                     try:
@@ -582,19 +574,19 @@ class SFUManager:
                                     },
                                     "from": "server",
                                     "renegotiate": True,
-                                    "candidate_id": user_id  # Add candidate_id to help frontend map tracks
+                                    "candidate_id": user_id  # thêm candidate_id để frontend map track
                                 }))
                                 print(f"[SFU] Sent renegotiation offer to proctor {proctor_conn.user_id} for candidate {user_id}", flush=True)
                             else:
                                 print(f"[SFU] Warning: Proctor {proctor_conn.user_id} not found in room participants", flush=True)
                         else:
-                            print(f"[RENEGOTIATE] main module not loaded yet, falling back to polling", flush=True)
+                            print("[RENEGOTIATE] main module chưa load, fallback polling", flush=True)
                     except Exception as e:
                         print(f"[RENEGOTIATE] Error sending offer directly: {e}", flush=True)
                         import traceback
                         traceback.print_exc()
             else:
-                print(f"[RENEGOTIATE] No new tracks to add, skipping offer creation", flush=True)
+                print("[RENEGOTIATE] Không có track mới, bỏ qua tạo offer", flush=True)
             
             self._renegotiate_pending[room_id] = False
             
@@ -605,9 +597,7 @@ class SFUManager:
             self._renegotiate_pending[room_id] = False
     
     async def handle_proctor_answer(self, room_id: str, answer_sdp: dict):
-        """
-        Handle answer from proctor (response to renegotiation offer)
-        """
+        """Xử lý answer từ giám thị (phản hồi cho offer renegotiation)."""
         if not AIORTC_AVAILABLE:
             return
         
@@ -619,34 +609,32 @@ class SFUManager:
             
             pc = proctor_conn.pc
             
-            # Check signaling state before applying answer
+            # Kiểm tra signaling state trước khi apply answer
             if pc.signalingState != "have-local-offer":
                 print(f"[SFU] WARNING: Cannot apply answer in signaling state '{pc.signalingState}' (expected 'have-local-offer')")
                 print(f"[SFU] This is likely a race condition - answer arrived after offer was already answered")
                 print(f"[SFU] Ignoring duplicate answer for room {room_id}")
                 return
             
-            # Check if we're expecting an answer
+            # Kiểm tra có đang chờ answer không
             if not self._renegotiate_in_progress.get(room_id, False):
                 print(f"[SFU] WARNING: Received answer but no renegotiation in progress for room {room_id}")
                 print(f"[SFU] Ignoring unexpected answer")
                 return
             
-            # Set remote description (answer from proctor)
+            # Set remote description (answer từ giám thị)
             await pc.setRemoteDescription(RTCSessionDescription(
                 sdp=answer_sdp['sdp'],
                 type=answer_sdp['type']
             ))
             
-            # Clear renegotiation flag
+            # Xóa cờ renegotiation
             self._renegotiate_in_progress[room_id] = False
             
             print(f"[SFU] ✅ Applied answer from proctor in room {room_id}, state: {pc.signalingState}")
     
     def get_pending_renegotiate(self):
-        """
-        Get and clear pending renegotiation offer
-        """
+        """Lấy và xóa offer renegotiation đang chờ."""
         renegotiate = self._pending_renegotiate
         self._pending_renegotiate = None
         return renegotiate
@@ -660,8 +648,8 @@ class SFUManager:
         audio_track=None
     ):
         """
-        Add tracks from a newly joined candidate to the proctor's peer connection.
-        Triggers renegotiation by creating a new offer.
+        Thêm track của thí sinh mới vào peer connection của giám thị.
+        Sau đó tạo offer mới để trigger renegotiation.
         """
         if not AIORTC_AVAILABLE:
             return
@@ -675,7 +663,7 @@ class SFUManager:
             pc = proctor_conn.pc
             added_count = 0
             
-            # Add new tracks
+            # Thêm các track mới
             if camera_track:
                 pc.addTrack(camera_track)
                 added_count += 1
@@ -693,11 +681,11 @@ class SFUManager:
             
             print(f"[RENEGOTIATE] Added {added_count} tracks, creating new offer for proctor")
             
-            # Create new offer to trigger renegotiation
+            # Tạo offer mới để trigger renegotiation
             offer = await pc.createOffer()
             await pc.setLocalDescription(offer)
             
-            # Return the offer so main.py can send it to proctor via WebSocket
+            # Trả offer để main.py gửi cho giám thị qua WebSocket
             return {
                 "sdp": pc.localDescription.sdp,
                 "type": pc.localDescription.type,
@@ -712,11 +700,11 @@ class SFUManager:
         candidate_id: str,
         track_label: str
     ):
-        """Forward new track from candidate to proctor (requires renegotiation)"""
+        """Chuyển tiếp track mới từ thí sinh lên giám thị (cần renegotiation)."""
         proctor = self._proctors.get(room_id)
         
         if not proctor:
-            print(f"No proctor connected to room {room_id}, track will be added when proctor joins")
+            print(f"Chưa có giám thị trong room {room_id}, track sẽ được add khi giám thị vào")
             return
         
         try:
@@ -724,8 +712,8 @@ class SFUManager:
             proctor.pc.addTrack(track)
             print(f"Added {track_label} track from {candidate_id} to proctor, need renegotiation")
             
-            # Note: Renegotiation needs to be triggered via WebSocket
-            # The main WebSocket handler will need to send a "renegotiate" message to proctor
+            # Ghi chú: renegotiation cần được trigger qua WebSocket.
+            # WebSocket handler chính trong main.py sẽ gửi offer/answer tới giám thị.
             
         except Exception as e:
             logger.error(f"Failed to forward track to proctor: {e}")
@@ -737,7 +725,7 @@ class SFUManager:
         candidate_dict: dict, 
         is_proctor: bool = False
     ):
-        """Add ICE candidate to peer connection"""
+        """Thêm ICE candidate vào peer connection."""
         try:
             if is_proctor:
                 conn = self._proctors.get(room_id)
@@ -753,19 +741,19 @@ class SFUManager:
                     return
                 pc = conn.pc
             
-            # Check if connection is still open
+            # Kiểm tra kết nối còn mở không
             if pc.connectionState in ["closed", "failed"]:
                 logger.warning(f"Connection for {user_id} is {pc.connectionState}, skipping ICE candidate")
                 return
             
             if pc and candidate_dict:
-                # Parse ICE candidate from browser format to aiortc format
+                # Parse ICE candidate từ format browser sang format aiortc
                 candidate_str = candidate_dict.get('candidate', '')
                 sdp_mid = candidate_dict.get('sdpMid')
                 sdp_mline_index = candidate_dict.get('sdpMLineIndex')
                 
                 if candidate_str and candidate_str != '':
-                    # Parse candidate string using aiortc's parser
+                    # Parse candidate string bằng parser của aiortc
                     ice_candidate = candidate_from_sdp(candidate_str.split(':', 1)[1])
                     ice_candidate.sdpMid = sdp_mid
                     ice_candidate.sdpMLineIndex = sdp_mline_index
@@ -776,20 +764,20 @@ class SFUManager:
                     logger.warning(f"Empty ICE candidate from {user_id}")
         
         except Exception as e:
-            # Ignore errors during cleanup phase
+            # Bỏ qua lỗi trong giai đoạn cleanup
             if "NoneType" not in str(e) and "call_exception_handler" not in str(e):
                 logger.error(f"Failed to add ICE candidate for {user_id}: {e}")
                 import traceback
                 traceback.print_exc()
     
     async def _cleanup_candidate(self, room_id: str, user_id: str):
-        """Clean up candidate connection"""
+        """Dọn dẹp kết nối của thí sinh."""
         async with self._lock:
             candidates = self._candidates.get(room_id, {})
             if user_id in candidates:
                 candidate_conn = candidates[user_id]
                 try:
-                    # Stop all tracks first to avoid cleanup issues
+                    # Stop tất cả track trước để tránh lỗi cleanup
                     if candidate_conn.camera_track:
                         candidate_conn.camera_track.stop()
                     if candidate_conn.screen_track:
@@ -797,7 +785,7 @@ class SFUManager:
                     if candidate_conn.audio_track:
                         candidate_conn.audio_track.stop()
                     
-                    # Close peer connection
+                    # Đóng peer connection
                     if candidate_conn.pc.connectionState not in ["closed"]:
                         await candidate_conn.pc.close()
                 except Exception as e:
@@ -805,19 +793,19 @@ class SFUManager:
                 
                 del candidates[user_id]
                 
-                # Clean up room if no candidates left
+                # Xóa room trong map nếu không còn thí sinh nào
                 if not candidates and room_id in self._candidates:
                     del self._candidates[room_id]
                 
                 print(f"Cleaned up candidate {user_id} from room {room_id}")
     
     async def _cleanup_proctor(self, room_id: str):
-        """Clean up proctor connection"""
+        """Dọn dẹp kết nối của giám thị."""
         async with self._lock:
             if room_id in self._proctors:
                 proctor_conn = self._proctors[room_id]
                 try:
-                    # Close peer connection
+                    # Đóng peer connection
                     if proctor_conn.pc.connectionState not in ["closed"]:
                         await proctor_conn.pc.close()
                 except Exception as e:
@@ -825,7 +813,7 @@ class SFUManager:
                 
                 del self._proctors[room_id]
                 
-                # Clear renegotiation flags
+                # Xóa các cờ renegotiation
                 self._renegotiate_pending.pop(room_id, None)
                 self._renegotiate_in_progress.pop(room_id, None)
                 
@@ -833,20 +821,20 @@ class SFUManager:
     
     def get_candidate_connection(self, candidate_id: str, room_id: str) -> Optional['CandidateConnection']:
         """
-        Get candidate connection for AI analysis
-        
+        Lấy CandidateConnection để phục vụ AI analysis.
+
         Args:
-            candidate_id: User ID of candidate
-            room_id: Room ID
-            
+            candidate_id: user_id của thí sinh
+            room_id: mã phòng
+
         Returns:
-            CandidateConnection with tracks, or None if not found
+            CandidateConnection chứa các track, hoặc None nếu không tìm thấy
         """
         candidates = self._candidates.get(room_id, {})
         return candidates.get(candidate_id)
     
     def get_room_stats(self, room_id: str) -> dict:
-        """Get statistics for a room"""
+        """Lấy thống kê nhanh cho một phòng."""
         candidates = list(self._candidates.get(room_id, {}).keys())
         proctor = self._proctors.get(room_id)
         proctor_id = proctor.user_id if proctor else None
@@ -860,9 +848,9 @@ class SFUManager:
         }
     
     def is_available(self) -> bool:
-        """Check if SFU is available (aiortc installed)"""
+        """Kiểm tra SFU có khả dụng không (đã cài aiortc)."""
         return AIORTC_AVAILABLE
 
 
-# Global SFU manager instance
+# Instance SFU manager dùng toàn cục
 sfu_manager = SFUManager()

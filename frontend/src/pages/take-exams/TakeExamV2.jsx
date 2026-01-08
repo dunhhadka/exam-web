@@ -617,10 +617,10 @@ export default function Candidate() {
   useEffect(() => {
     const onVis = () => {
       if (document.hidden) {
-        sigRef.current?.send({ type: 'incident', tag: 'A3', level: 'S1', note: 'Tab hidden/blur', ts: Date.now(), by: userId })
+        sigRef.current?.send({ type: 'incident', tag: 'A3', level: 'S1', note: 'Chuyển tab khi không được phép', ts: Date.now(), by: userId })
       }
     }
-    const onBlur = () => sigRef.current?.send({ type: 'incident', tag: 'A3', level: 'S1', note: 'Window blur', ts: Date.now(), by: userId })
+    const onBlur = () => sigRef.current?.send({ type: 'incident', tag: 'A3', level: 'S1', note: 'Chuyển tab khi không được phép', ts: Date.now(), by: userId })
     document.addEventListener('visibilitychange', onVis)
     window.addEventListener('blur', onBlur)
     return () => {

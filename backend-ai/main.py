@@ -10,6 +10,7 @@ from typing import Dict, List, Optional
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from rules_engine import rules_engine
 from fastapi import UploadFile, File, Form
 import shutil
@@ -28,13 +29,44 @@ from kyc_service import (
 from ai_analysis.model_adapters.arcface_model import ArcFaceModel
 from ai_analysis.model_adapters.yolo_detector import YOLODetector
 import os
+
+
+def _load_env_file() -> None:
+    """Load environment variables from a local .env file (best-effort).
+
+    - No external dependency (python-dotenv) required.
+    - Does not override variables already present in the process environment.
+    """
+    try:
+        env_path = os.path.join(os.path.dirname(__file__), ".env")
+        if not os.path.exists(env_path):
+            return
+
+        with open(env_path, "r", encoding="utf-8") as f:
+            for raw_line in f:
+                line = raw_line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if "=" not in line:
+                    continue
+                key, value = line.split("=", 1)
+                key = key.strip()
+                value = value.strip().strip('"').strip("'")
+                if not key:
+                    continue
+                os.environ.setdefault(key, value)
+    except Exception as e:
+        print(f"[STARTUP] Failed to load .env: {e}")
+
+
+_load_env_file()
 KYC_THRESHOLD = float(os.getenv("KYC_THRESHOLD", "0.5"))
 arcface_singleton = None
 yolo_singleton = None
 
 _s3_client = None
 
-
+# Khởi tạo S3 client để làm việc với MinIO (tương thích S3).
 def _get_s3_client():
     global _s3_client
     if _s3_client is not None:
@@ -57,14 +89,17 @@ def _get_s3_client():
 
 
 async def _fetch_whitelist_image_bytes(url_or_key: str) -> Optional[bytes]:
-    """Fetch image bytes from either a http(s) URL or an S3 object key.
+    """Lấy bytes của ảnh từ 2 nguồn:
 
-    For private MinIO buckets, keys are fetched via S3 API using credentials.
+    - Nếu là URL http(s) thì tải trực tiếp bằng HTTP.
+    - Nếu là "key" (đường dẫn object trong MinIO/S3) thì tải qua S3 API.
+
+    Lưu ý: Với bucket MinIO private, bắt buộc dùng credential để gọi S3 API.
     """
     if not url_or_key or not isinstance(url_or_key, str):
         return None
 
-    # URL case
+    # Trường hợp 1: URL http(s)
     if url_or_key.startswith("http://") or url_or_key.startswith("https://"):
         async with httpx.AsyncClient() as client:
             resp = await client.get(url_or_key, timeout=10.0)
@@ -80,7 +115,7 @@ async def _fetch_whitelist_image_bytes(url_or_key: str) -> Optional[bytes]:
                 return None
             return bytes(resp.content)
 
-    # Key case (MinIO/S3)
+    # Trường hợp 2: object key (MinIO/S3)
     bucket = os.getenv("MINIO_BUCKET", "exam-bucket")
     key = url_or_key.lstrip("/")
     try:
@@ -91,7 +126,7 @@ async def _fetch_whitelist_image_bytes(url_or_key: str) -> Optional[bytes]:
         print(f"[KYC] MinIO get_object failed: bucket={bucket} key={key} err={e}", flush=True)
         return None
 
-# Suppress specific aioice/asyncio warnings that occur during cleanup
+    # Ẩn một số warning của aioice/asyncio hay xuất hiện lúc cleanup (không ảnh hưởng nghiệp vụ).
 warnings.filterwarnings("ignore", message=".*NoneType.*has no attribute.*")
 logging.getLogger("aioice").setLevel(logging.ERROR)
 
@@ -102,7 +137,8 @@ except ImportError:
 
 try:
     from sfu_service import sfu_manager, AIORTC_AVAILABLE
-    SFU_ENABLED = AIORTC_AVAILABLE  # Check if aiortc library is installed
+    # Bật SFU khi thư viện aiortc có sẵn.
+    SFU_ENABLED = AIORTC_AVAILABLE
     if SFU_ENABLED:
         print("[STARTUP] SFU enabled - aiortc available")
     else:
@@ -113,7 +149,7 @@ except ImportError:
     AIORTC_AVAILABLE = False
     print("[STARTUP] SFU disabled - sfu_service import failed")
 
-# Mock AI - Commented out, using Real AI instead
+# Mock AI (để tham khảo) - hiện đang tắt và dùng Real AI.
 # try:
 #     from ai_analysis import MockAIAnalyzer
 #     mock_analyzer = MockAIAnalyzer()
@@ -122,7 +158,7 @@ except ImportError:
 #     mock_analyzer = None
 #     AI_ANALYSIS_ENABLED = False
 
-# Real AI Integration
+# Tích hợp Real AI
 try:
     from ai_analysis.integration_helper import (
         run_real_analysis_loop,
@@ -139,7 +175,7 @@ except ImportError:
 @dataclass
 class Participant:
     websocket: WebSocket
-    role: str  # "proctor" | "candidate" | "observer"
+    role: str  # Vai trò: "proctor" | "candidate" | "observer"
     user_id: str
     attempt_id: Optional[int] = None
 
@@ -154,7 +190,7 @@ class Room:
         target_id = message.get("to")
         payload = json.dumps({"from": sender_id, **message})
         if target_id:
-            # Route only to target if present
+            # Nếu có "to" thì chỉ gửi đúng người nhận.
             target = self.participants.get(str(target_id))
             if target:
                 try:
@@ -163,7 +199,7 @@ class Room:
                     pass
                 return
 
-            # Helpful debug for cases where UI tries to send to a non-existent participant id.
+            # Debug: trường hợp UI gửi tới participant_id không tồn tại trong phòng.
             try:
                 print(
                     f"[WS] target_not_found room={self.room_id} sender={sender_id} to={target_id} type={message.get('type')}",
@@ -172,14 +208,14 @@ class Room:
             except Exception:
                 pass
             return
-        # Fanout to all except sender
+        # Không có "to": broadcast cho tất cả trừ người gửi.
         for pid, participant in list(self.participants.items()):
             if pid == sender_id:
                 continue
             try:
                 await participant.websocket.send_text(payload)
             except RuntimeError:
-                # Skip if closed
+                # Bỏ qua nếu websocket đã đóng.
                 pass
 
 
@@ -203,57 +239,69 @@ class RoomManager:
 
 rooms = RoomManager()
 
-# Global dict to track analysis tasks: candidate_id -> asyncio.Task
+# Map quản lý task phân tích nền: candidate_id -> asyncio.Task
 analysis_tasks: Dict[str, asyncio.Task] = {}
 
-# Custom exception handler to suppress ICE cleanup errors
+# Handler lỗi tùy biến để "nuốt" một số lỗi cleanup ICE (aioice) gây nhiễu log.
 def custom_exception_handler(loop, context):
-    """Suppress aioice/asyncio cleanup errors"""
+    """Bỏ qua lỗi cleanup của aioice/asyncio (thường gặp khi đóng kết nối WebRTC)."""
     exception = context.get('exception')
     message = context.get('message', '')
     
-    # Ignore specific cleanup errors
+    # Bỏ qua một số lỗi cleanup đã biết.
     if exception and isinstance(exception, AttributeError):
         error_msg = str(exception)
         if "NoneType" in error_msg and ("sendto" in error_msg or "call_exception_handler" in error_msg):
-            # This is a known cleanup issue with aioice, ignore it
+            # Lỗi cleanup đã biết của aioice: an toàn để bỏ qua.
             return
     
-    # For other exceptions, use default handler
+    # Các lỗi khác: để handler mặc định xử lý.
     loop.default_exception_handler(context)
 
-# Set the custom exception handler for the event loop
+# Gắn handler tùy biến cho event loop.
 try:
     loop = asyncio.get_event_loop()
     loop.set_exception_handler(custom_exception_handler)
 except RuntimeError:
-    # If no event loop is running, it will be set when FastAPI starts
+    # Nếu chưa có event loop, FastAPI sẽ tạo và gắn ở startup.
     pass
 
 app = FastAPI(title="Proctoring Signaling Server", version="0.1.0")
 
+# Serve evidence/kyc images so the frontend can display proof images.
+try:
+    evidence_dir = os.getenv("EVIDENCE_DIR") or os.path.join(os.getcwd(), "evidence_images")
+    os.makedirs(evidence_dir, exist_ok=True)
+    app.mount("/evidence_images", StaticFiles(directory=evidence_dir), name="evidence_images")
+
+    kyc_dir = os.path.join(os.getcwd(), "kyc_images")
+    os.makedirs(kyc_dir, exist_ok=True)
+    app.mount("/kyc_images", StaticFiles(directory=kyc_dir), name="kyc_images")
+except Exception as e:
+    print(f"[STARTUP] StaticFiles mount failed: {e}")
+
 @app.on_event("startup")
 async def startup_event():
-    """Set exception handler and initialize AI models on startup"""
+    """Gắn exception handler; model AI sẽ được load lazy (khi cần)."""
     loop = asyncio.get_event_loop()
     loop.set_exception_handler(custom_exception_handler)
     print("[STARTUP] Real AI models will be loaded on first use")
 
 @app.post("/api/kyc/upload")
 async def kyc_upload(candidateId: str = Form(...), image: UploadFile = File(...)):
-    # Save image to disk
+    # Lưu ảnh KYC xuống ổ đĩa (phục vụ debug/đối soát).
     kyc_dir = os.path.join(os.getcwd(), "kyc_images")
     os.makedirs(kyc_dir, exist_ok=True)
     image_path = os.path.join(kyc_dir, f"{candidateId}.jpg")
     with open(image_path, "wb") as f:
         shutil.copyfileobj(image.file, f)
-    # Load image
+    # Đọc ảnh bằng OpenCV.
     import cv2
     img = cv2.imread(image_path)
     if img is None:
         raise HTTPException(status_code=400, detail="Invalid image")
     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    # Get arcface model (reuse analyzer if loaded)
+    # Lấy model ArcFace (dùng singleton để tái sử dụng).
     global arcface_singleton
     if 'arcface_singleton' not in globals() or arcface_singleton is None:
         arcface_singleton = ArcFaceModel(device="cpu")
@@ -273,11 +321,12 @@ async def check_whitelist(
     session_id: int = Form(...)
 ):
     """
-    Check if a candidate is in the whitelist and has avatar URLs.
-    Returns:
-        - exists: boolean
-        - has_avatar: boolean
-        - avatar_count: int
+    Kiểm tra thí sinh có nằm trong whitelist của ca thi và có ảnh avatar hay không.
+
+    Trả về:
+        - exists: có trong danh sách của ca thi
+        - has_avatar: có ít nhất 1 ảnh avatar
+        - avatar_count: số lượng ảnh avatar
     """
     exists_in_session, whitelist_urls = check_session_student_whitelist(email, session_id)
     return {
@@ -299,11 +348,11 @@ async def kyc_verify(
     
     selfie_path = os.path.join(kyc_dir, f"{candidateId}_selfie.jpg")
     
-    # Save selfie
+    # Lưu ảnh selfie.
     with open(selfie_path, "wb") as f:
         shutil.copyfileobj(selfie.file, f)
         
-    # Load selfie
+    # Đọc ảnh selfie.
     import cv2
     selfie_bgr = cv2.imread(selfie_path, cv2.IMREAD_COLOR)
     if selfie_bgr is None:
@@ -311,7 +360,7 @@ async def kyc_verify(
     selfie_rgb = cv2.cvtColor(selfie_bgr, cv2.COLOR_BGR2RGB)
 
     def ensure_rgb3(img: np.ndarray) -> np.ndarray:
-        """Ensure image is HxWx3 RGB uint8 for downstream models."""
+        """Chuẩn hóa ảnh về dạng RGB 3 kênh (HxWx3) cho các model phía sau."""
         if img is None or not isinstance(img, np.ndarray) or img.size == 0:
             raise ValueError("Empty image")
         if img.ndim == 2:
@@ -319,7 +368,7 @@ async def kyc_verify(
         if img.ndim == 3 and img.shape[2] == 1:
             return cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
         if img.ndim == 3 and img.shape[2] == 4:
-            # Assume RGBA -> RGB
+            # RGBA -> RGB
             return cv2.cvtColor(img, cv2.COLOR_RGBA2RGB)
         return img
 
@@ -328,7 +377,7 @@ async def kyc_verify(
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid selfie image")
 
-    # Ensure models
+    # Đảm bảo model đã được load.
     global arcface_singleton, yolo_singleton
     if arcface_singleton is None:
         arcface_singleton = ArcFaceModel(device="cpu")
@@ -337,8 +386,8 @@ async def kyc_verify(
         yolo_singleton = YOLODetector(device="cpu", confidence_threshold=0.4)
         yolo_singleton.load()
 
-    # Fast-path: if selfie has no detectable face, return a clear message
-    # This avoids falling into lower-level model code that can emit confusing OpenCV warnings.
+    # Fast-path: nếu selfie không có mặt thì trả về thông báo rõ ràng.
+    # Mục tiêu: tránh rơi vào pipeline phía dưới gây warning OpenCV khó hiểu.
     try:
         selfie_bgr_for_detect = cv2.cvtColor(selfie_rgb, cv2.COLOR_RGB2BGR)
         faces = arcface_singleton.app.get(selfie_bgr_for_detect)
@@ -347,7 +396,7 @@ async def kyc_verify(
     except HTTPException:
         raise
     except Exception:
-        # If detector fails for any reason, continue with the existing embedding pipeline
+        # Nếu detector lỗi vì lý do nào đó, vẫn tiếp tục pipeline trích xuất embedding (best-effort).
         pass
 
     def extract_embedding(img_rgb):
@@ -356,11 +405,11 @@ async def kyc_verify(
         except Exception:
             return None
 
-        # First try ArcFace internal detection
+        # Ưu tiên 1: dùng detector nội bộ của ArcFace.
         emb = arcface_singleton.infer(img_rgb)
         if emb is not None:
             return emb
-        # Try rotations
+        # Ưu tiên 2: thử xoay ảnh (trường hợp ảnh bị rotate).
         try:
             for k in [1, 2, 3]:  # 90, 180, 270 degrees
                 rotated = np.ascontiguousarray(np.rot90(img_rgb, k))
@@ -369,7 +418,7 @@ async def kyc_verify(
                     return emb
         except Exception:
             pass
-        # Try downscale to reasonable size (longest side)
+        # Ưu tiên 3: downscale về kích thước hợp lý (giảm lỗi/giảm tải).
         try:
             h, w = img_rgb.shape[:2]
             for target in [1024, 800, 640]:
@@ -385,11 +434,11 @@ async def kyc_verify(
                         return emb
         except Exception:
             pass
-        # Fallback: YOLO face detect then crop largest face
+        # Fallback: dùng YOLO detect mặt, crop khuôn mặt lớn nhất rồi infer lại.
         try:
             detections = yolo_singleton.infer(img_rgb)
             if detections and len(detections) > 0:
-                # pick highest confidence
+                # Chọn bbox có confidence cao nhất.
                 best = max(detections, key=lambda d: d.get("confidence", 0.0))
                 x, y, w, h = best["bbox"]
                 h_img, w_img = img_rgb.shape[:2]
@@ -402,17 +451,17 @@ async def kyc_verify(
             pass
         return None
 
-    # 1. Extract Selfie Embedding
+    # 1) Trích xuất embedding từ selfie
     selfie_emb = extract_embedding(selfie_rgb)
     if selfie_emb is None:
-        raise HTTPException(status_code=400, detail="ảnh selfie không có mặt")
+        raise HTTPException(status_code=400, detail="Ảnh selfie không có mặt")
 
-    # 2. Determine Reference Image (Whitelist vs Manual Upload)
+    # 2) Xác định ảnh tham chiếu: ưu tiên whitelist, nếu không được thì dùng ảnh CCCD/ID upload.
     reference_emb = None
     used_whitelist = False
     found_whitelist_images = False
     
-    # Case A: Try Whitelist if email & session_id provided
+    # Case A: thử whitelist nếu có email & session_id
     if email and session_id:
         print(f"[KYC] Checking whitelist for {email} in session {session_id}")
         whitelist_urls = get_whitelist_images(email, session_id)
@@ -452,7 +501,7 @@ async def kyc_verify(
     if found_whitelist_images and reference_emb is None:
         print("[KYC] Whitelist entries exist but none usable; will require id_image fallback", flush=True)
 
-    # Case B: Manual Upload (if no whitelist success)
+    # Case B: dùng ảnh upload thủ công (khi whitelist không có/không dùng được)
     if reference_emb is None:
         if id_image is None:
              detail = "ID image required (no whitelist found)"
@@ -477,11 +526,11 @@ async def kyc_verify(
         if reference_emb is None:
             raise HTTPException(status_code=400, detail="Failed to extract embedding from ID image")
 
-    # 3. Compare
+    # 3) So khớp (so sánh embedding)
     sim = arcface_singleton.compute_similarity(reference_emb, selfie_emb)
     passed = sim >= KYC_THRESHOLD
     
-    # Save KYC profile only if pass
+    # Chỉ lưu KYC khi đạt ngưỡng.
     saved = False
     if passed:
         saved = save_kyc_profile(candidateId, selfie_emb.tolist(), selfie_path)
@@ -507,7 +556,7 @@ async def kyc_delete(candidate_id: str):
     return {"deleted": ok}
 @app.on_event("shutdown")
 async def shutdown_event():
-    """Cleanup AI resources on shutdown"""
+    """Dọn tài nguyên AI khi server tắt."""
     if AI_ANALYSIS_ENABLED:
         print("[SHUTDOWN] Cleaning up AI analyzer...")
         try:
@@ -537,22 +586,11 @@ async def health():
     }
 
 
-# ==================== AI ANALYSIS ENDPOINTS ====================
-
-# MOCK AI ANALYSIS - Commented out (kept for reference)
-# async def _run_mock_analysis(room_id: str, candidate_id: str):
-#     """
-#     Background task that runs mock AI analysis periodically
-#     """
-#     if not AI_ANALYSIS_ENABLED:
-#         print(f"[MOCK] AI Analysis not enabled")
-#         return
-#     
-#     print(f"[MOCK] Started analysis for {candidate_id} in room {room_id}")
+# ==================== CÁC ENDPOINT PHÂN TÍCH AI ====================
 
 async def _run_real_analysis(room_id: str, candidate_id: str, websocket: WebSocket):
     """
-    Background task that runs REAL AI analysis using all 5 models
+    Task chạy nền phân tích Real AI (dùng đầy đủ 3 nhóm model).
     """
     if not AI_ANALYSIS_ENABLED:
         print(f"[REAL AI] AI Analysis not enabled")
@@ -561,69 +599,16 @@ async def _run_real_analysis(room_id: str, candidate_id: str, websocket: WebSock
     print(f"[REAL AI] Started analysis for {candidate_id} in room {room_id}")
     
     try:
-        # Run real AI analysis loop
+        # Chạy vòng lặp phân tích Real AI
         await run_real_analysis_loop(
             candidate_id=candidate_id,
             room_id=room_id,
             sfu_manager=sfu_manager,
             websocket_send_func=lambda data: websocket.send_text(json.dumps(data)),
-            rooms_manager=rooms,  # Pass rooms manager for broadcasting to proctor
-            use_mock_models=False,  # FALSE = Use real AI models
-            frame_skip=15  # 30 FPS / 15 = 2 FPS analysis rate
+            rooms_manager=rooms,  # truyền rooms manager để broadcast cho proctor
+            use_mock_models=False,  # False = dùng model thật
+            frame_skip=15 # 30 FPS / 15 ~= 2 FPS phân tích
         )
-        
-        # Old mock code (commented out)
-        # while candidate_id in analysis_tasks:
-        #     # Generate mock AI analysis
-        #     results = mock_analyzer.analyze_frame(candidate_id, room_id)
-        #     
-        #     print(f"[MOCK] Generated analysis for {candidate_id}: scenario={results.get('scenario')}")
-            
-        # Old mock broadcasting code (now handled by run_real_analysis_loop)
-        #     # Find proctor in room and send results
-        #     try:
-        #         room = await rooms.get_or_create(room_id)
-        #         proctor = None
-        #         candidate = None
-        #         
-        #         for participant in room.participants.values():
-        #             if participant.role == "proctor":
-        #                 proctor = participant
-        #             elif participant.user_id == candidate_id:
-        #                 candidate = participant
-        #         
-        #         # Send to proctor
-        #         if proctor:
-        #             # Add candidate_id to results
-        #             results["candidate_id"] = candidate_id
-        #             
-        #             await proctor.websocket.send_text(json.dumps({
-        #                 "type": "ai_analysis",
-        #                 "data": results
-        #             }))
-        #         
-        #         # Also send to candidate (so they can see their own status)
-        #         if candidate:
-        #             await candidate.websocket.send_text(json.dumps({
-        #                 "type": "ai_analysis",
-        #                 "data": results
-        #             }))
-        #             
-        #             # Check for alerts and log incidents
-        #             for analysis in results.get("analyses", []):
-        #                 alert = analysis.get("result", {}).get("alert")
-        #                 if alert:
-        #                     print(f"[MOCK] Alert generated: {alert['type']} ({alert['level']}) - {alert['message']}")
-        #                     
-        #                     # Log to incidents (optional - already handled in rules_engine)
-        #                     # rules_engine can pick this up from WebSocket messages
-        #         
-        #     except Exception as e:
-        #         print(f"[MOCK] Error broadcasting analysis: {e}")
-        #     
-        #     # Wait 2-5 seconds before next analysis
-        #     import random
-        #     await asyncio.sleep(random.uniform(2, 5))
     
     except asyncio.CancelledError:
         print(f"[REAL AI] Analysis cancelled for {candidate_id}")
@@ -634,23 +619,21 @@ async def _run_real_analysis(room_id: str, candidate_id: str, websocket: WebSock
     finally:
         print(f"[REAL AI] Stopped analysis for {candidate_id}")
 
-
+#Sẽ được gọi tự động khi candidate kết nối SFU
 @app.post("/api/analysis/start/{room_id}/{candidate_id}")
 async def start_real_analysis(room_id: str, candidate_id: str):
     """
-    Start REAL AI analysis for a candidate
+    Bắt đầu phân tích Real AI cho một thí sinh.
     
-    This creates a background task that runs real AI analysis using 5 models:
-    - YOLO Face Detection
-    - ArcFace Face Recognition
-    - PaddleOCR Screen Analysis
-    - Silero VAD Voice Detection
-    - Gaze Estimator
+    API này tạo một background task chạy phân tích theo chu kỳ, gồm các thành phần:
+    - YOLO: phát hiện khuôn mặt
+    - ArcFace: nhận dạng/đối sánh khuôn mặt
+    - Gaze Estimator: ước lượng hướng nhìn/hành vi
     """
     if not AI_ANALYSIS_ENABLED:
         raise HTTPException(status_code=503, detail="AI Analysis not available")
     
-    # Check if already running
+    # Nếu đã có task chạy rồi thì không tạo thêm.
     if candidate_id in analysis_tasks:
         return {
             "status": "already_running",
@@ -658,7 +641,7 @@ async def start_real_analysis(room_id: str, candidate_id: str):
             "room_id": room_id
         }
     
-    # Get candidate websocket from room
+    # Lấy websocket của candidate trong phòng.
     room = await rooms.get_or_create(room_id)
     candidate_ws = None
     for participant in room.participants.values():
@@ -669,7 +652,7 @@ async def start_real_analysis(room_id: str, candidate_id: str):
     if not candidate_ws:
         return {"ok": False, "error": "Candidate not found in room"}
     
-    # Create background task with real AI
+    # Tạo background task chạy Real AI.
     task = asyncio.create_task(_run_real_analysis(room_id, candidate_id, candidate_ws))
     analysis_tasks[candidate_id] = task
     
@@ -685,9 +668,9 @@ async def start_real_analysis(room_id: str, candidate_id: str):
 @app.post("/api/analysis/stop/{candidate_id}")
 async def stop_mock_analysis(candidate_id: str):
     """
-    Stop mock AI analysis for a candidate
-    
-    This cancels the background task and cleans up resources.
+    Dừng phân tích AI đang chạy cho thí sinh.
+
+    Lưu ý: tên hàm giữ nguyên để tương thích, nhưng thực tế đang dừng Real AI task.
     """
     if candidate_id not in analysis_tasks:
         return {
@@ -695,17 +678,17 @@ async def stop_mock_analysis(candidate_id: str):
             "candidate_id": candidate_id
         }
     
-    # Cancel the task
+    # Hủy task.
     task = analysis_tasks[candidate_id]
     task.cancel()
     
-    # Wait a bit for cancellation
+    # Chờ một chút cho việc cancel hoàn tất.
     try:
         await asyncio.wait_for(task, timeout=1.0)
     except (asyncio.CancelledError, asyncio.TimeoutError):
         pass
     
-    # Remove from dict
+    # Xóa khỏi map quản lý.
     del analysis_tasks[candidate_id]
     
     print(f"[API] Stopped REAL AI analysis for {candidate_id}")
@@ -719,13 +702,13 @@ async def stop_mock_analysis(candidate_id: str):
 @app.get("/api/analysis/stats")
 async def get_analysis_stats():
     """
-    Get Real AI analyzer statistics
+    Lấy thống kê hoạt động của Real AI analyzer.
     
-    Returns:
-        - frames_analyzed: Total frames processed
-        - total_time_ms: Total inference time
-        - avg_time_ms: Average time per frame
-        - errors: Number of errors
+    Trả về ví dụ:
+        - frames_analyzed: tổng số frame đã xử lý
+        - total_time_ms: tổng thời gian inference
+        - avg_time_ms: thời gian trung bình mỗi frame
+        - errors: số lỗi
     """
     if not AI_ANALYSIS_ENABLED:
         return {"error": "AI Analysis not enabled"}
@@ -742,7 +725,7 @@ async def get_analysis_stats():
             "error": str(e)
         }
 
-
+#Lịch sử vi phạm sẽ được lấy bên Java ko dùng hàm này
 @app.get("/api/analysis/history/{room_id}/{candidate_id}")
 async def get_analysis_history(
     room_id: str,
@@ -753,20 +736,20 @@ async def get_analysis_history(
     type: Optional[str] = None
 ):
     """
-    Get analysis history (incidents) for a candidate
+    Lấy lịch sử vi phạm (incidents) của một thí sinh.
     
-    Query parameters:
-    - from_ts: Filter incidents from this timestamp (ms)
-    - to_ts: Filter incidents to this timestamp (ms)
-    - level: Filter by severity level (S1/S2/S3/S4)
-    - type: Filter by incident type (A1/A2/B1/etc.)
+    Query params:
+    - from_ts: lọc từ mốc thời gian này (ms)
+    - to_ts: lọc đến mốc thời gian này (ms)
+    - level: lọc theo mức độ (S1/S2/S3/S4)
+    - type: lọc theo loại (A1/A2/B1/...)
     """
     try:
-        # Get incidents from rules_engine
+        # Lấy incidents từ rules_engine.
         session_summary = rules_engine.get_session_summary(room_id, candidate_id)
         incidents = session_summary.get("incidents", [])
         
-        # Apply filters
+        # Áp dụng filter.
         if from_ts:
             incidents = [i for i in incidents if i.get("ts", 0) >= from_ts]
         
@@ -779,7 +762,7 @@ async def get_analysis_history(
         if type:
             incidents = [i for i in incidents if i.get("tag") == type]
         
-        # Calculate summary statistics
+        # Tính thống kê theo severity.
         summary = {
             "S1": len([i for i in incidents if i.get("level") == "S1"]),
             "S2": len([i for i in incidents if i.get("level") == "S2"]),
@@ -801,7 +784,7 @@ async def get_analysis_history(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ==================== WEBSOCKET ENDPOINT ====================
+# ==================== ENDPOINT WEBSOCKET ====================
 
 @app.websocket("/ws/{room_id}")
 async def ws_endpoint(websocket: WebSocket, room_id: str):
@@ -809,7 +792,7 @@ async def ws_endpoint(websocket: WebSocket, room_id: str):
     participant: Optional[Participant] = None
     room: Optional[Room] = None
     try:
-        # First message must be a join with {type:"join", userId, role}
+        # Message đầu tiên bắt buộc là join: {type:"join", userId, role}
         join_raw = await websocket.receive_text()
         join_msg = json.loads(join_raw)
         if join_msg.get("type") != "join":
@@ -828,14 +811,14 @@ async def ws_endpoint(websocket: WebSocket, room_id: str):
         participant = Participant(websocket=websocket, role=role, user_id=user_id)
         room.participants[user_id] = participant
 
-        # Notify current roster
+        # Gửi danh sách participant hiện tại cho client mới vào.
         roster = [
             {"userId": p.user_id, "role": p.role}
             for p in room.participants.values()
         ]
         await websocket.send_text(json.dumps({"type": "roster", "participants": roster}))
 
-        # Broadcast join event
+        # Broadcast sự kiện join cho các client còn lại.
         join_event = {"type": "participant_joined", "userId": user_id, "role": role}
         for pid, p in room.participants.items():
             if pid != user_id:
@@ -844,7 +827,7 @@ async def ws_endpoint(websocket: WebSocket, room_id: str):
                 except RuntimeError:
                     pass
         
-        # Auto-start REAL AI analysis for candidates (if enabled and SFU mode)
+        # Tự động start Real AI cho candidate khi chạy SFU và AI_ANALYSIS_ENABLED.
         if role == "candidate" and SFU_ENABLED and AI_ANALYSIS_ENABLED:
             print(f"[AUTO] Checking auto-start for {user_id}, current tasks: {list(analysis_tasks.keys())}")
             if user_id not in analysis_tasks:
@@ -856,14 +839,14 @@ async def ws_endpoint(websocket: WebSocket, room_id: str):
         else:
             print(f"[AUTO] Not starting analysis: role={role}, SFU={SFU_ENABLED}, AI={AI_ANALYSIS_ENABLED}")
 
-        # Main loop for signaling messages
+        # Vòng lặp chính nhận/gửi message signaling.
         while True:
             text = await websocket.receive_text()
             msg = json.loads(text)
             mtype = msg.get("type")
 
             if mtype == "candidate_context":
-                # Expect: {type:"candidate_context", attemptId, userId?}
+            # Expect: {type:"candidate_context", attemptId, userId?}
                 raw_attempt_id = msg.get("attemptId")
                 try:
                     attempt_id = int(raw_attempt_id)
@@ -891,16 +874,16 @@ async def ws_endpoint(websocket: WebSocket, room_id: str):
                     )
                 continue
 
-            # Relay signaling/chat/control messages to others in room
-            # NOTE: routing to a specific participant is supported via message["to"].
+            # Chuyển tiếp (relay) message signaling/chat/control cho các participant khác trong phòng.
+            # NOTE: có thể gửi riêng (unicast) bằng cách set message["to"].
             if mtype in {"offer", "answer", "ice", "chat", "control", "force_submit"}:
-                # If SFU is enabled, handle WebRTC signaling via SFU
+                # Nếu bật SFU: xử lý signaling WebRTC thông qua SFU.
                 if SFU_ENABLED and mtype == "offer":
                     track_info = msg.get("trackInfo", [])
                     print(f"[SFU] Received offer from {user_id} (role={role})")
                     
                     if role == "candidate":
-                        # Candidate sending streams to backend
+                        # Candidate gửi stream lên backend.
                         try:
                             print(f"[SFU] Handling candidate offer from {user_id}", flush=True)
                             print(f"[DEBUG] About to call handle_candidate_offer", flush=True)
@@ -913,13 +896,13 @@ async def ws_endpoint(websocket: WebSocket, room_id: str):
                                 track_info=track_info
                             )
                             
-                            # Extract answer SDP
+                            # Lấy SDP answer.
                             answer_sdp = {
                                 "sdp": result["sdp"],
                                 "type": result["type"]
                             }
                             
-                            # Send answer back to candidate
+                            # Gửi answer về candidate.
                             await websocket.send_text(json.dumps({
                                 "type": "answer",
                                 "sdp": answer_sdp,
@@ -927,32 +910,32 @@ async def ws_endpoint(websocket: WebSocket, room_id: str):
                             }))
                             print(f"[SFU] Sent answer to candidate {user_id}", flush=True)
                             
-                            # Auto-start AI analysis now that SFU connection is established
+                            # Khi SFU đã kết nối xong, auto-start phân tích AI.
                             if AI_ANALYSIS_ENABLED and user_id not in analysis_tasks:
                                 print(f"[AUTO] Auto-starting REAL AI analysis for candidate {user_id} (SFU connected)")
                                 task = asyncio.create_task(_run_real_analysis(room_id, user_id, websocket))
                                 analysis_tasks[user_id] = task
                             
-                            # Check if there's a pending renegotiation (tracks received in on_track)
-                            # Poll with longer intervals to give time for offer creation
+                            # Kiểm tra có renegotiation pending không (track mới nhận trong on_track).
+                            # Poll với interval dài hơn để chờ offer được tạo.
                             print(f"[DEBUG] Polling for renegotiation offer...", flush=True)
-                            await asyncio.sleep(0.4)  # Initial wait: 400ms
+                            await asyncio.sleep(0.4)  # chờ lần đầu: 400ms
                             renegotiate_offer = sfu_manager.get_pending_renegotiate()
                             
-                            # Poll multiple times with longer delays
+                            # Poll nhiều lần.
                             poll_count = 1
                             while not renegotiate_offer and poll_count < 5:
                                 print(f"[DEBUG] No offer yet, polling again (attempt {poll_count + 1}/5)...", flush=True)
-                                await asyncio.sleep(0.3)  # 300ms between polls
+                                await asyncio.sleep(0.3)  # chờ giữa các lần poll: 300ms
                                 renegotiate_offer = sfu_manager.get_pending_renegotiate()
                                 poll_count += 1
                             
                             if renegotiate_offer:
                                 proctor_id = renegotiate_offer.get("proctor_id")
-                                candidate_id = renegotiate_offer.get("candidate_id")  # Get candidate_id from stored offer
+                                candidate_id = renegotiate_offer.get("candidate_id")  # lấy candidate_id từ offer lưu tạm
                                 print(f"[SFU] Renegotiating: sending new offer to proctor {proctor_id} for candidate {candidate_id}")
                                 
-                                # Find proctor's websocket in room
+                                # Tìm websocket của proctor trong phòng.
                                 room = await rooms.get_or_create(room_id)
                                 proctor_participant = room.participants.get(proctor_id)
                                 if proctor_participant:
@@ -964,7 +947,7 @@ async def ws_endpoint(websocket: WebSocket, room_id: str):
                                         },
                                         "from": "server",
                                         "renegotiate": True,
-                                        "candidate_id": candidate_id  # Add candidate_id here too!
+                                        "candidate_id": candidate_id  # kèm candidate_id để FE dễ map
                                     }))
                                     print(f"[SFU] Sent renegotiation offer to proctor {proctor_id} for candidate {candidate_id}")
                                 else:
@@ -980,7 +963,7 @@ async def ws_endpoint(websocket: WebSocket, room_id: str):
                             }))
                     
                     elif role == "proctor":
-                        # Proctor requesting streams from backend
+                        # Proctor yêu cầu stream từ backend.
                         try:
                             print(f"[SFU] Handling proctor offer from {user_id}")
                             answer = await sfu_manager.handle_proctor_offer(
@@ -988,7 +971,7 @@ async def ws_endpoint(websocket: WebSocket, room_id: str):
                                 user_id=user_id,
                                 offer_sdp=msg.get("sdp")
                             )
-                            # Send answer back to proctor
+                            # Gửi answer về proctor.
                             await websocket.send_text(json.dumps({
                                 "type": "answer",
                                 "sdp": answer,
@@ -1005,7 +988,7 @@ async def ws_endpoint(websocket: WebSocket, room_id: str):
                             }))
                 
                 elif SFU_ENABLED and mtype == "ice":
-                    # Handle ICE candidate via SFU
+                    # Xử lý ICE candidate qua SFU.
                     is_proctor = (role == "proctor")
                     print(f"[SFU] Received ICE candidate from {user_id} (proctor={is_proctor})")
                     try:
@@ -1019,7 +1002,7 @@ async def ws_endpoint(websocket: WebSocket, room_id: str):
                         print(f"[SFU] ICE error: {e}")
                 
                 elif SFU_ENABLED and mtype == "answer":
-                    # Handle answer from proctor (renegotiation response)
+                    # Nhận answer từ proctor (phục vụ renegotiation).
                     if role == "proctor":
                         print(f"[SFU] Received answer from proctor {user_id} (renegotiation)")
                         try:
@@ -1034,10 +1017,10 @@ async def ws_endpoint(websocket: WebSocket, room_id: str):
                             traceback.print_exc()
                 
                 else:
-                    # Fallback: P2P mode or chat - relay to others
+                    # Fallback: P2P mode hoặc chat - relay cho participant khác.
                     await room.broadcast(sender_id=user_id, message=msg)
             elif mtype == "heartbeat":
-                # Update last activity/heartbeat for A11 idle detection
+                # Cập nhật heartbeat để phục vụ rule A11 (idle).
                 try:
                     ts = int(msg.get("ts") or 0) or int(asyncio.get_event_loop().time() * 1000)
                 except Exception:
@@ -1046,12 +1029,12 @@ async def ws_endpoint(websocket: WebSocket, room_id: str):
                     record_heartbeat(room_id, user_id, ts)
                 except Exception as e:
                     print(f"[HEARTBEAT] record failed: {e}")
-                # Optionally acknowledge
+                # (Tuỳ chọn) phản hồi ack.
                 # await websocket.send_text(json.dumps({"type":"heartbeat_ack","ts":ts}))
             elif mtype == "leave":
                 break
             elif mtype == "incident":
-                # {type:"incident", tag, level, note, ts, by}
+                # Payload mẫu: {type:"incident", tag, level, note, ts, by}
                 incident = {
                     "roomId": room.room_id,
                     "by": msg.get("by", user_id),
@@ -1060,10 +1043,10 @@ async def ws_endpoint(websocket: WebSocket, room_id: str):
                     "note": msg.get("note"),
                     "ts": msg.get("ts"),
                 }
-                # Process through rules engine
+                # Cho rules engine xử lý (tính điểm/chuẩn hóa dữ liệu, ...)
                 processed = rules_engine.process_incident(room.room_id, user_id, incident)
                 room.incidents.append(processed)
-                # fanout for live sync
+                # Broadcast để đồng bộ realtime.
                 await room.broadcast(sender_id=user_id, message={"type": "incident", **processed})
             else:
                 await websocket.send_text(json.dumps({"type": "error", "reason": "unknown_type"}))
@@ -1072,7 +1055,7 @@ async def ws_endpoint(websocket: WebSocket, room_id: str):
         pass
     finally:
         if room and participant:
-            # Clean up AI analysis tasks
+            # Dọn task AI của candidate khi disconnect.
             if AI_ANALYSIS_ENABLED and participant.role == "candidate":
                 if user_id in analysis_tasks:
                     print(f"[AUTO] Auto-stopping REAL AI analysis for candidate {user_id}")
@@ -1084,7 +1067,7 @@ async def ws_endpoint(websocket: WebSocket, room_id: str):
                         pass
                     del analysis_tasks[user_id]
             
-            # Clean up SFU connections
+            # Dọn kết nối SFU.
             if SFU_ENABLED:
                 try:
                     role = participant.role
@@ -1098,7 +1081,7 @@ async def ws_endpoint(websocket: WebSocket, room_id: str):
                     print(f"[SFU] Error during cleanup: {e}", flush=True)
             
             room.participants.pop(participant.user_id, None)
-            # Notify others
+            # Thông báo cho những người còn lại.
             leave_event = {"type": "participant_left", "userId": participant.user_id}
             for p in list(room.participants.values()):
                 try:
@@ -1127,20 +1110,20 @@ async def post_incident(room_id: str, body: dict):
 
 @app.get("/rooms/{room_id}/sessions/{user_id}/summary")
 async def get_session_summary(room_id: str, user_id: str):
-    """Lấy summary session từ rules engine"""
+    """Lấy tổng hợp phiên (summary) từ rules engine."""
     summary = rules_engine.get_session_summary(room_id, user_id)
     return JSONResponse(summary)
 
 
 @app.get("/rooms/{room_id}/sfu/stats")
 async def get_sfu_stats(room_id: str):
-    """Lấy thống kê SFU cho room"""
+    """Lấy thống kê SFU theo phòng."""
     if not SFU_ENABLED:
         raise HTTPException(status_code=503, detail="SFU not enabled")
     stats = sfu_manager.get_room_stats(room_id)
     return JSONResponse(stats)
 
 
-# Run: uvicorn main:app --reload --host 0.0.0.0 --port 8000
-# Note: Import ml_service may fail if dependencies missing - that's OK for MVP
+# Chạy local: uvicorn main:app --reload --host 0.0.0.0 --port 8000
+# Ghi chú: import ml_service có thể fail nếu thiếu dependency; MVP vẫn chạy được.
 
