@@ -651,6 +651,9 @@ export const QuestionCreatePage = () => {
             onChange={(value) =>
               setRequestInput({ ...requestInput, code: value.target.value })
             }
+            min={0}
+            style={{ width: 'calc(50% - 20px)' }}
+            placeholder="Nhập mã câu hỏi"
           />
         </QuestionSection>
 
