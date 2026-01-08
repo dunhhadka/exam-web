@@ -14,7 +14,8 @@ public enum NotFoundError implements ResponseError {
     EXAM_SESSION_NOT_FOUND(404006, "Không tìm thấy phiên thi với id: %s"),
     NO_ACTIVE_ATTEMPT(404007, "Không tìm thấy lượt thi đang hoạt động cho phiên thi này"),
     EXAM_ATTEMPT_NOT_FOUND(404008, "Không tìm thấy lượt thi"),
-    WHITELIST_NOT_FOUND(404002, "Không tìm thấy whitelist");
+    WHITELIST_NOT_FOUND(404009, "Không tìm thấy whitelist"),
+    SESSION_STUDENT_NOT_FOUND(404010, "Không tìm thấy student trong session")
     ;
 
     private final int code;

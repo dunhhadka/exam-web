@@ -38,5 +38,11 @@ public class ExamSessionResponse {
     private ExamSession.AccessMode accessMode;
     @JsonProperty("hasAccessPassword")
     private boolean hasAccessPassword;
+    
+    // Danh sách students được assign vào session (chỉ cho PRIVATE mode)
+    private List<SessionStudentEntryResponse> assignedStudents;
+    
+    // Giữ lại whitelistEntries cho backward compatibility
+    @Deprecated
     private List<ExamSessionWhitelistEntryResponse> whitelistEntries;
 }

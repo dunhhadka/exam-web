@@ -49,7 +49,8 @@ public class HttpSecurityConfiguration {
             "/api/account/register",
             "/api/account/authenticate",
             "/api/join/**",
-            "/api/exam-attempt/**"
+            "/api/exam-attempt/**",
+            "/api/logs/**"
     };
 
     @Bean

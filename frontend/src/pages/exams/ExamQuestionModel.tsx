@@ -13,10 +13,13 @@ import {
   QuestionTypeLabel,
 } from '../../types/question'
 import { Truncate3Lines } from '../question/QuestionList'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import styled from '@emotion/styled'
 import { useSearch } from '../../components/search/useSearch'
-import { useSearchQuestionQuery } from '../../services/api/questionApi'
+import {
+  useLazyFindByIdQuery,
+  useSearchQuestionQuery,
+} from '../../services/api/questionApi'
 
 interface Props {
   open: boolean
@@ -65,6 +68,19 @@ export const ExamQuestionModel = ({
   const [questionSelectedIds, setQuestionSelectedIds] =
     useState<number[]>(selectedQuestionIds)
 
+  // Cache Question objects across pages so OK can return full selection
+  const [selectedQuestionsById, setSelectedQuestionsById] = useState<
+    Record<number, Question>
+  >({})
+
+  const [fetchQuestionById] = useLazyFindByIdQuery()
+
+  useEffect(() => {
+    if (!open) return
+    setQuestionSelectedIds(selectedQuestionIds)
+    setSelectedQuestionsById({})
+  }, [open, selectedQuestionIds])
+
   const {
     searchTerm,
     setSearchTerm,
@@ -90,13 +106,39 @@ export const ExamQuestionModel = ({
   )
 
   const handleSelectQuestions = () => {
-    const questions = (data ?? []).filter((item) =>
-      questionSelectedIds.includes(item.id)
-    )
+    const doSelect = async () => {
+      const selectedIds = (questionSelectedIds ?? []).map((id) => Number(id))
+      if (selectedIds.length === 0) {
+        onSelect([])
+        onCancel()
+        return
+      }
 
-    onSelect(questions)
+      const missingIds = selectedIds.filter((id) => !selectedQuestionsById[id])
 
-    onCancel()
+      let fetched: Question[] = []
+      if (missingIds.length > 0) {
+        const results = await Promise.all(
+          missingIds.map(async (id) => {
+            const res = await fetchQuestionById({ questionId: id })
+            return res.data
+          })
+        )
+        fetched = results.filter(Boolean) as Question[]
+      }
+
+      const mergedById: Record<number, Question> = {
+        ...selectedQuestionsById,
+      }
+      for (const q of fetched) mergedById[q.id] = q
+
+      const questions = selectedIds.map((id) => mergedById[id]).filter(Boolean)
+
+      onSelect(questions)
+      onCancel()
+    }
+
+    void doSelect()
   }
 
   console.log('question data', data)
@@ -121,9 +163,30 @@ export const ExamQuestionModel = ({
         data={data}
         rowSelection={{
           type: 'checkbox',
+          preserveSelectedRowKeys: true,
           selectedRowKeys: questionSelectedIds,
-          onChange: (newSelectedRowKeys, _) => {
-            setQuestionSelectedIds(newSelectedRowKeys as number[])
+          onChange: (newSelectedRowKeys, selectedRows) => {
+            const nextIds = (newSelectedRowKeys as number[]).map((id) =>
+              Number(id)
+            )
+            setQuestionSelectedIds(nextIds)
+
+            setSelectedQuestionsById((prev) => {
+              const next: Record<number, Question> = { ...prev }
+
+              // Remove unselected ids from cache
+              for (const idStr of Object.keys(next)) {
+                const id = Number(idStr)
+                if (!nextIds.includes(id)) delete next[id]
+              }
+
+              // Add/update selected rows from current page
+              for (const row of selectedRows ?? []) {
+                next[row?.id] = row
+              }
+
+              return next
+            })
           },
         }}
         pagination={{

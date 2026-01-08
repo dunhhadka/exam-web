@@ -49,7 +49,7 @@ const MainLayout = () => {
   // Menu items cho TEACHER
   const teacherMenuItems: MenuItem[] = [
     {
-      key: 'Home',
+      key: 'home',
       icon: <HomeOutlined />,
       label: 'Trang chủ',
       path: '/home',
@@ -87,12 +87,19 @@ const MainLayout = () => {
       path: '/examsessions',
     },
     {
+      key: 'notifications',
+      icon: <TeamOutlined />,
+      label: 'Quản lý thông báo',
+      path: '/notifications',
+    },
+    {
       key: 'store',
       icon: <BarChartOutlined />,
       label: 'Lưu trữ',
       path: '/store',
     },
     {
+<<<<<<< HEAD
       key: 'settings',
       icon: <SettingOutlined />,
       label: 'Thông tin cá nhân',
@@ -115,6 +122,8 @@ const MainLayout = () => {
       path: '/student-exam-sessions',
     },
     {
+=======
+>>>>>>> da2c7106712fc2f3079763a5dc47b43a07eabe67
       key: 'settings',
       icon: <SettingOutlined />,
       label: 'Thông tin cá nhân',
@@ -122,6 +131,31 @@ const MainLayout = () => {
     },
   ]
 
+<<<<<<< HEAD
+=======
+  // Menu items cho STUDENT
+  const studentMenuItems: MenuItem[] = [
+    {
+      key: 'overview',
+      icon: <DashboardOutlined />,
+      label: 'Tổng quan',
+      path: '/overview',
+    },
+    {
+      key: 'student-exam-sessions',
+      icon: <CalendarOutlined />,
+      label: 'Bài kiểm tra của tôi',
+      path: '/student-exam-sessions',
+    },
+    {
+      key: 'settings',
+      icon: <SettingOutlined />,
+      label: 'Thông tin cá nhân',
+      path: '/settings',
+    },
+  ]
+
+>>>>>>> da2c7106712fc2f3079763a5dc47b43a07eabe67
   // Lấy menu items dựa trên role
   const menuItems = useMemo(() => {
     const userRole = profile?.roles[0]
@@ -161,12 +195,17 @@ const MainLayout = () => {
 
   const handleMenuClick = (key: string) => {
     setSelectedKey(key)
+    console.log('Navigating to key:', key)
     navigate(findPathByKey(key, menuItems))
   }
 
   const findPathByKey = (key: string, items: MenuItem[]): string => {
     for (const item of items) {
+<<<<<<< HEAD
       if (item.key === key) {
+=======
+      if (item.key === key || item.path === key) {
+>>>>>>> da2c7106712fc2f3079763a5dc47b43a07eabe67
         return item.path
       }
 
@@ -181,9 +220,35 @@ const MainLayout = () => {
     return '/home'
   }
 
+  const findKeyByPath = (path: string, menuItems: MenuItem[]): string => {
+    console.log('Finding key for path:', path, menuItems)
+    for (const item of menuItems) {
+      if (item.path === path) {
+        return item.key
+      }
+
+      if (item.children && item.children.length > 0) {
+        const childKey = findKeyByPath(path, item.children)
+        if (childKey.length > 0) {
+          return childKey
+        }
+      }
+    }
+
+    return ''
+  }
+
   const handleOpenChange = (keys: string[]) => {
     setOpenKeys(keys)
   }
+
+  useEffect(() => {
+    const key = findKeyByPath(location.pathname, menuItems)
+    console.log('Current path:', location.pathname, 'Mapped key:', key)
+    if (key) {
+      setSelectedKey(key)
+    }
+  }, [])
 
   return (
     <Layout style={{ minHeight: '100vh' }}>

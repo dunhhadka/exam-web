@@ -131,6 +131,8 @@ export const ExamListPage = () => {
   const {
     filter,
     setFilter,
+    searchTerm,
+    setSearchTerm,
     data,
     isLoading,
     isFetching,
@@ -161,12 +163,12 @@ export const ExamListPage = () => {
         data={data}
         loading={isLoading || isFetching}
         filterActive
-        query={filter.keyword}
+        query={searchTerm}
         placeholder="Tìm kiếm bài thi..."
         onQueryChange={(value) => {
+          setSearchTerm(value || '')
           setFilter({
             ...filter,
-            keyword: value || undefined,
             pageIndex: 1,
           })
         }}

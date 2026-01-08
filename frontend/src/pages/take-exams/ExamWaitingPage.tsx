@@ -15,8 +15,14 @@ import { formatRemaining } from '../examsession/ExamSessionCard'
 import { formatInstant } from '../../utils/times'
 import { SessionInfoResponse } from '../../types/take-exam'
 import { useEffect, useState } from 'react'
+<<<<<<< HEAD
 import { useSelector } from 'react-redux'
 import { RootState } from '../../store'
+=======
+import { useDispatch, useSelector } from 'react-redux'
+import { RootState } from '../../store'
+import { setTakeExamCode } from '../../store/slices/takeExamSlice'
+>>>>>>> da2c7106712fc2f3079763a5dc47b43a07eabe67
 
 const { Text } = Typography
 
@@ -39,6 +45,11 @@ const ExamWaitingPage = () => {
   const { state } = useLocation()
   const examSessionInfo = state?.examSessionInfo as SessionInfoResponse
   const email = state?.email as string
+<<<<<<< HEAD
+=======
+  const dispatch = useDispatch()
+
+>>>>>>> da2c7106712fc2f3079763a5dc47b43a07eabe67
 
   const profile = localStorage.getItem('userProfile')
     ? JSON.parse(localStorage.getItem('userProfile') || '{}')
@@ -81,6 +92,10 @@ const ExamWaitingPage = () => {
         endTime: examSessionInfo.endTime,
         examCode: examSessionInfo.code,
       })
+<<<<<<< HEAD
+=======
+      dispatch(setTakeExamCode(examSessionInfo.code))
+>>>>>>> da2c7106712fc2f3079763a5dc47b43a07eabe67
     } else if (examSession) {
       setDisplayInfo({
         id: examSession.id,
@@ -90,6 +105,10 @@ const ExamWaitingPage = () => {
         endTime: examSession.endTime,
         examCode: examSession.code,
       })
+<<<<<<< HEAD
+=======
+      dispatch(setTakeExamCode(examSession.code))
+>>>>>>> da2c7106712fc2f3079763a5dc47b43a07eabe67
     }
   }, [examSession, examSessionInfo])
 

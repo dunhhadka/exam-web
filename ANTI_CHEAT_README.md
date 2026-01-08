@@ -3,7 +3,7 @@
 ## Tổng Quan
 
 Hệ thống anti-cheat được áp dụng từ màn hình `CheckInWizard` để đảm bảo tính toàn vẹn của kỳ thi. Các settings được lấy từ backend thông qua `SessionInfoResponse.settings` và được áp dụng ngay khi component mount.
-
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ## Các Tính Năng Chặn
 
 ### 1. `disableCopyPaste` - Khóa Copy-Paste

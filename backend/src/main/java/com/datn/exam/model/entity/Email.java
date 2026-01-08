@@ -48,6 +48,9 @@ public class Email extends AuditableEntity {
     @Column(name = "retry_count")
     private Integer retryCount;
 
+    @Column(name = "attempt_id")
+    private Long attemptId;
+
     public static enum Status {
         PENDING,
         SENT,

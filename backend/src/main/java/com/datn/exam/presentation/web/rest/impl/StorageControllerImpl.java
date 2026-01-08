@@ -1,4 +1,5 @@
-package com.datn.exam.controller;
+package com.datn.exam.presentation.web.rest.impl;
+
 
 import com.datn.exam.model.dto.request.DeleteStorageRequest;
 import com.datn.exam.model.dto.response.Response;
@@ -8,7 +9,6 @@ import com.datn.exam.service.StorageService;
 import com.datn.exam.support.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,7 +20,7 @@ import java.util.UUID;
 @RequestMapping("/api/storage")
 @RequiredArgsConstructor
 @Slf4j
-public class StorageController {
+public class StorageControllerImpl {
 
     private final StorageService storageService;
 

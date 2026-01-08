@@ -57,7 +57,8 @@ public class S3ServiceImpl implements S3Service {
                     .build();
 
             s3Client.putObject(putObjectRequest, RequestBody.fromInputStream(inputStream, contentLength));
-            return generatePresignedGetUrl(key, defaultPresignedUrlExpirationMinutes);
+            // Return object key instead of pre-signed URL to avoid expiration issues
+            return key;
         } catch (S3Exception e) {
             log.error("Failed to upload file to S3: {}", key, e);
             throw new IOException("Failed to upload file to S3: " + e.getMessage(), e);
@@ -204,6 +205,12 @@ public class S3ServiceImpl implements S3Service {
     public String extractKeyFromUrl(String url) {
         if (url == null || url.isEmpty()) {
             return url;
+        }
+
+        // Loại bỏ query parameters (cho pre-signed URLs)
+        int queryIndex = url.indexOf('?');
+        if (queryIndex != -1) {
+            url = url.substring(0, queryIndex);
         }
 
         if (baseUrl != null && !baseUrl.isEmpty() && url.startsWith(baseUrl)) {

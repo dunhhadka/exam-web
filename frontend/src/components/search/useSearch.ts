@@ -45,11 +45,11 @@ export function useSearch<IFilter extends Record<string, any>, IResult>(
 
   const finalFilter: IFilter = {
     ...filter,
-    query: debouncedSearchTerm.trim(),
+    keyword: debouncedSearchTerm.trim(),
   }
 
   const shouldSkip =
-    skip || (minLength > 0 && debouncedSearchTerm.trim.length < minLength)
+    skip || (minLength > 0 && debouncedSearchTerm.trim().length < minLength)
 
   const {
     data: response,

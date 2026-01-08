@@ -1,7 +1,9 @@
 package com.datn.exam.config.application.jobs;
 
 import com.datn.exam.model.dto.OtpMailContext;
+import com.datn.exam.model.dto.ResultMailContext;
 import com.datn.exam.model.dto.events.ExamOtpEvent;
+import com.datn.exam.model.dto.events.ResultMailEvent;
 import com.datn.exam.model.entity.Email;
 import com.datn.exam.repository.EmailRepository;
 import com.datn.exam.service.EmailService;
@@ -14,6 +16,12 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
+import java.time.format.DateTimeFormatter;
+
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -25,6 +33,12 @@ public class ExamEmailEventListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onExamEmail(ExamOtpEvent event) {
         sendAndMark(event.getContext());
+    }
+
+    @Async("mailExecutor")
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onResultMail(ResultMailEvent event) {
+        sendResultMailAndMark(event.getContext());
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -40,6 +54,25 @@ public class ExamEmailEventListener {
                 email.setStatus(Email.Status.FAILED);
                 email.setRetryCount((email.getRetryCount() == null ? 0 : email.getRetryCount()) + 1);
                 log.error("Send mail failed ", ex);
+            }
+
+            emailRepository.save(email);
+        });
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    protected void sendResultMailAndMark(ResultMailContext ctx) {
+        emailRepository.findById(ctx.getEmail().getId()).ifPresent(email -> {
+            try {
+                emailService.sendMail(ctx);
+
+                email.setStatus(Email.Status.SENT);
+                email.setRetryCount((email.getRetryCount() == null ? 0 : email.getRetryCount()) + 1);
+                log.info("Sent result mail to {}", email.getTo());
+            } catch (Exception ex) {
+                email.setStatus(Email.Status.FAILED);
+                email.setRetryCount((email.getRetryCount() == null ? 0 : email.getRetryCount()) + 1);
+                log.error("Send result mail failed ", ex);
             }
 
             emailRepository.save(email);

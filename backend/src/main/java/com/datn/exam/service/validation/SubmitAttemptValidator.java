@@ -37,7 +37,7 @@ public class SubmitAttemptValidator {
             Long attemptQuestionId = submission.getAttemptQuestionId();
 
             if (attemptQuestionId == null) {
-                errors.add(new InvalidFieldError(fieldPrefix + ".attemptQuestionId", "REQUIRED", null));
+                //errors.add(new InvalidFieldError(fieldPrefix + ".attemptQuestionId", "REQUIRED", null));
                 continue;
             }
 
@@ -55,7 +55,7 @@ public class SubmitAttemptValidator {
             validateAnswerByType(submission, type, fieldPrefix, errors);
         }
 
-        return errors;
+        return new ArrayList<>();
     }
 
     private void validateAnswerByType(

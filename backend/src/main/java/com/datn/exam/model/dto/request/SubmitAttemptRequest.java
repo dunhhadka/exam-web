@@ -1,5 +1,6 @@
 package com.datn.exam.model.dto.request;
 
+import com.datn.exam.model.entity.ExamAttempt;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -13,6 +14,8 @@ public class SubmitAttemptRequest {
     @NotEmpty(message = "ANSWERS_REQUIRED")
     @Valid
     private List<AnswerSubmission> answers;
+
+    private ExamAttempt.AttemptStatus status;
 
     @Data
     public static class AnswerSubmission {

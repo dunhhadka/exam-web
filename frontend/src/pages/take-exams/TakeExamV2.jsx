@@ -217,7 +217,7 @@ export default function Candidate() {
     (state) => state.takeExam
   )
 
-  const roomId = takeExamSession.examCode
+  const roomId = takeExamSession.examCode || (typeof window !== 'undefined' ? localStorage.getItem('takeExam.examCode') : null)
   const [connected, setConnected] = useState(false)
   const [chat, setChat] = useState('')
   const [msgs, setMsgs] = useState([])
@@ -233,6 +233,7 @@ export default function Candidate() {
   const [error, setError] = useState(null)
   const [aiStatus, setAiStatus] = useState(null)
   const [recentAlerts, setRecentAlerts] = useState([])
+  const [proctorForceSubmitRequest, setProctorForceSubmitRequest] = useState(null)
   const [chatModalVisible, setChatModalVisible] = useState(false)
 
   const recordingServiceRef = useRef(new RecordingService())
@@ -250,6 +251,11 @@ export default function Candidate() {
   const dcRef = useRef(null)
   const detectionRef = useRef({ running: false })
 
+  // P2P late-join support: cache candidate offer and resend to proctor when they join later
+  const pendingOfferRef = useRef(null) // { sdp, trackInfo }
+  const proctorIdRef = useRef(null)
+  const offerSentToProctorsRef = useRef(new Set())
+
   const [cheatLevel, setCheatLevel] = useState({level: "none", message: ""});
 
   const [autoSubmitCheatVisible, setAutoSubmitCheatVisible] = useState(false);
@@ -264,6 +270,11 @@ export default function Candidate() {
   useEffect(() => {
     // Only init after KYC and check-in complete
     if (!kycComplete || !checkInComplete) {
+      return
+    }
+
+    if (!roomId || roomId === 'null' || roomId === 'undefined') {
+      setError('Thiếu mã phòng/ExamCode (roomId). Vui lòng quay lại bước check-in.')
       return
     }
 
@@ -283,12 +294,59 @@ export default function Candidate() {
 
         const signaling = new SignalingClient({ baseUrl: SIGNALING_BASE, roomId, userId, role: 'candidate' })
         sigRef.current = signaling
+
+        const trySendPendingOfferToProctor = (targetProctorId) => {
+          const pc = pcRef.current
+          const pending = pendingOfferRef.current
+          if (!pc || !pending) return
+          if (pc.signalingState !== 'have-local-offer') return
+          if (offerSentToProctorsRef.current.has(targetProctorId)) return
+          offerSentToProctorsRef.current.add(targetProctorId)
+          signaling.send({
+            type: 'offer',
+            to: targetProctorId,
+            sdp: pending.sdp,
+            trackInfo: pending.trackInfo,
+          })
+          console.log('[P2P] Re-sent pending offer to proctor:', targetProctorId)
+        }
+
+        signaling.on('roster', (data) => {
+          const participants = Array.isArray(data?.participants) ? data.participants : []
+          const proctor = participants.find((p) => String(p?.role) === 'proctor')
+          if (proctor?.userId) {
+            const pid = String(proctor.userId)
+            proctorIdRef.current = pid
+            trySendPendingOfferToProctor(pid)
+          }
+        })
+
+        signaling.on('participant_joined', (data) => {
+          if (String(data?.role) !== 'proctor' || !data?.userId) return
+          const pid = String(data.userId)
+          proctorIdRef.current = pid
+          trySendPendingOfferToProctor(pid)
+        })
+
+        signaling.on('participant_left', (data) => {
+          const leftId = data?.userId ? String(data.userId) : null
+          if (!leftId) return
+          if (proctorIdRef.current === leftId) {
+            proctorIdRef.current = null
+          }
+          offerSentToProctorsRef.current.delete(leftId)
+        })
         
         signaling.on('answer', async (data) => {
           if (data.to && data.to !== userId && data.from !== 'server') return
           if (pcRef.current) {
             console.log('Received answer from:', data.from)
             await setRemoteDescription(pcRef.current, data.sdp)
+
+            // Clear pending offer once answered so we don't resend later.
+            if (pcRef.current.signalingState === 'stable') {
+              pendingOfferRef.current = null
+            }
           }
         })
         signaling.on('ice', async (data) => {
@@ -310,6 +368,24 @@ export default function Candidate() {
               alert('Phiên kết thúc bởi giám thị')
             }
           }
+        })
+
+        signaling.on('force_submit', (data) => {
+          console.log('[Candidate] force_submit received:', data)
+          const requestedAt = Number(data?.ts ?? Date.now())
+          const timeoutSecondsRaw = Number(data?.timeoutSeconds ?? data?.timeoutSec ?? 30)
+          const timeoutSeconds = Number.isFinite(timeoutSecondsRaw) && timeoutSecondsRaw > 0 ? timeoutSecondsRaw : 30
+
+          const requestId = String(
+            data?.requestId ?? `${String(data?.from ?? 'proctor')}-${requestedAt}`
+          )
+
+          setProctorForceSubmitRequest({
+            requestId,
+            requestedAt,
+            timeoutSeconds,
+            by: String(data?.from ?? ''),
+          })
         })
         signaling.on('chat', (data) => {
           setMsgs(m => [...m, { from: data.from, text: data.text }])
@@ -450,7 +526,17 @@ export default function Candidate() {
           }))
         
         console.log('Created offer, sending to signaling server. Senders:', pc.getSenders().length, 'Track info:', trackInfo)
-        signaling.send({ type: 'offer', sdp: offer, trackInfo })
+
+        // Cache offer for P2P late-join.
+        pendingOfferRef.current = { sdp: offer, trackInfo }
+
+        const targetProctorId = proctorIdRef.current
+        if (targetProctorId) {
+          offerSentToProctorsRef.current.add(targetProctorId)
+          signaling.send({ type: 'offer', to: targetProctorId, sdp: offer, trackInfo })
+        } else {
+          signaling.send({ type: 'offer', sdp: offer, trackInfo })
+        }
         setConnected(true)
         setLoading(false)
         console.log('Peer connection established, waiting for answer...')
@@ -816,6 +902,7 @@ export default function Candidate() {
                           level: cheatLevel.level,
                           message: cheatLevel.message
                         }}
+                        proctorForceSubmitRequest={proctorForceSubmitRequest}
                         />
                       </Card>
                     </ExamSection>

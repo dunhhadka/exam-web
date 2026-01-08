@@ -1,6 +1,13 @@
 import { Exam } from './exam'
 import { PagingRequest } from './question'
 
+export interface SessionStudentEntry {
+  userId: string
+  email: string
+  fullName?: string
+  avatarImages?: string[]
+}
+
 export interface ExamSession {
   id: number
   exam: Exam
@@ -25,7 +32,11 @@ export interface ExamSession {
   accessMode: ExamSessionAccessMode
   hasAccessPassword: boolean
   whitelistEntries?: ExamSessionWhitelistEntry[]
+<<<<<<< HEAD
   assignedStudents?: any[]
+=======
+  assignedStudents?: SessionStudentEntry[]
+>>>>>>> da2c7106712fc2f3079763a5dc47b43a07eabe67
 }
 
 export enum ExamSessionStatus {
@@ -51,7 +62,7 @@ export interface AntiCheat {
   maxExitFullscreenAllowed?: number | null
 }
 
-export type ExamSessionAccessMode = 'PUBLIC' | 'WHITELIST' | 'PASSWORD'
+export type ExamSessionAccessMode = 'PUBLIC' | 'PRIVATE'
 
 export interface ExamSessionWhitelistEntry {
   email: string
@@ -97,10 +108,11 @@ export interface ExamSessionRequest {
   isPublic?: boolean
 
   accessMode?: ExamSessionAccessMode
-  password?: string
 
   settings?: ExamSessionSetting
 
+  studentIds?: string[]
+  studentAvatars?: Record<string, string[]> // userId -> base64 avatar images
   whitelistEmails?: string[]
   whitelistEntries?: ExamSessionWhitelistEntry[]
 }

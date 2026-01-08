@@ -6,7 +6,7 @@ import {
 import styled from '@emotion/styled'
 import { yupResolver } from '@hookform/resolvers/yup'
 import { Button, Flex, InputNumber, Radio, Space } from 'antd'
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom'
 import * as yup from 'yup'
@@ -36,9 +36,7 @@ const examSchema = yup.object({
   score: yup
     .number()
     .typeError('Điểm phải là số')
-    .required('Vui lòng nhập tổng điểm')
     .min(0, 'Điểm phải lớn hơn hoặc bằng 0')
-    .max(100, 'Điểm không được vượt quá 100')
     .optional(),
   isPublic: yup.boolean().required('Vui lòng chọn trạng thái xuất bản'),
   questions: yup
@@ -71,6 +69,7 @@ export const ExamCreatePage = (props?: ExamCreatePageProps) => {
     reset,
     watch,
     control,
+    setValue,
   } = useForm<ExamRequest>({
     resolver: yupResolver(examSchema) as any,
     defaultValues:
@@ -88,10 +87,24 @@ export const ExamCreatePage = (props?: ExamCreatePageProps) => {
             level: ExamLevel.EASY,
             questions: [],
             idsTag: [],
-            score: undefined,
+            score: 0,
             isPublic: false,
           },
   })
+
+  // Watch questions để tự động tính tổng điểm
+  const questions = watch('questions')
+  
+  // Tự động tính tổng điểm từ các câu hỏi
+  const totalScore = useMemo(() => {
+    if (!questions || questions.length === 0) return 0
+    return questions.reduce((sum, q) => sum + (q.point || 0), 0)
+  }, [questions])
+
+  // Cập nhật score khi totalScore thay đổi
+  useEffect(() => {
+    setValue('score', totalScore)
+  }, [totalScore, setValue])
 
   // Reset form khi initData thay đổi (khi switch exam khác trong modal)
   useEffect(() => {
@@ -231,7 +244,7 @@ export const ExamCreatePage = (props?: ExamCreatePageProps) => {
 
       <PointsSection>
         <PointsLabel>
-          Tổng điểm: <RequiredStar>*</RequiredStar>
+          Tổng điểm:
         </PointsLabel>
         <Controller
           name="score"
@@ -240,9 +253,10 @@ export const ExamCreatePage = (props?: ExamCreatePageProps) => {
             <div>
               <InputNumber
                 {...field}
-                placeholder="Nhập điểm"
+                value={totalScore}
+                disabled
+                placeholder="0"
                 min={0}
-                max={100}
                 style={{ width: 200 }}
                 status={errors.score ? 'error' : undefined}
               />

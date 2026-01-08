@@ -110,7 +110,7 @@ const StyledSider = styled(Sider)`
 
 const LogoContainer = styled.div`
   height: 64px;
-  padding: 16px;
+  padding: 16px 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -119,35 +119,16 @@ const LogoContainer = styled.div`
   gap: 12px;
 `
 
-const LogoBadge = styled.div`
-  width: 32px;
-  height: 32px;
-  background: linear-gradient(135deg, #1890ff 0%, #40a9ff 100%);
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-size: 18px;
-  font-weight: 700;
-  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.3);
+const LogoImage = styled.img`
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
   flex-shrink: 0;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
   &:hover {
     transform: scale(1.05);
-    box-shadow: 0 6px 16px rgba(24, 144, 255, 0.4);
   }
-`
-
-const LogoText = styled(Typography.Text)`
-  font-size: 16px;
-  font-weight: 700;
-  background: linear-gradient(135deg, #1890ff 0%, #40a9ff 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  letter-spacing: -0.5px;
 `
 
 const ToggleContainer = styled.div`
@@ -193,14 +174,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Logo/Brand */}
       <LogoContainer>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {collapsed ? (
-            <LogoBadge>E</LogoBadge>
-          ) : (
-            <>
-              <LogoBadge>E</LogoBadge>
-              <LogoText strong>Exam.vn</LogoText>
-            </>
-          )}
+          <LogoImage src="/logo.png" alt="Exam.vn" />
         </div>
         <ToggleContainer>
           <Tooltip title={collapsed ? 'Mở menu' : 'Thu gọn menu'}>

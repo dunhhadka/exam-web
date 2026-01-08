@@ -6,7 +6,10 @@ spring:
     url: ${DB_URL:jdbc:mysql://localhost:3306/exam?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:password}
+<<<<<<< HEAD
 
+=======
+>>>>>>> da2c7106712fc2f3079763a5dc47b43a07eabe67
   jpa:
     hibernate:
       ddl-auto: update

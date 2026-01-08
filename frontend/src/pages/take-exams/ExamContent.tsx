@@ -32,10 +32,11 @@ import type {
 import { QuestionType } from '../../types/question'
 import { useToast } from '../../hooks/useToast'
 import { useAntiCheat } from '../../hooks/useAntiCheat'
+import { AttemptStatus } from '../../types/attempt'
 
 const { TextArea } = Input
 
-export const CheatLevelAutoSubmit = 'S4'
+export const CheatLevelAutoSubmit = 'S6'
 
 interface Props {
   cheatDetected?: {
@@ -43,9 +44,20 @@ interface Props {
     message: string
   }
   onCheatAutoSubmit?: () => void
+
+  proctorForceSubmitRequest?: {
+    requestId: string
+    requestedAt: number
+    timeoutSeconds: number
+    by?: string
+  }
 }
 
-const TakeExamContent = ({ cheatDetected, onCheatAutoSubmit }: Props) => {
+const TakeExamContent = ({
+  cheatDetected,
+  onCheatAutoSubmit,
+  proctorForceSubmitRequest,
+}: Props) => {
   const location = useLocation()
   const navigate = useNavigate()
   const { state } = location
@@ -63,6 +75,13 @@ const TakeExamContent = ({ cheatDetected, onCheatAutoSubmit }: Props) => {
   const [errorMessage, setErrorMessage] = useState('')
   const [submitResult, setSubmitResult] = useState<any>(null)
   const [isAutoSubmitModalOpen, setIsAutoSubmitModalOpen] = useState(false)
+
+  const [isProctorSubmitModalOpen, setIsProctorSubmitModalOpen] =
+    useState(false)
+  const [proctorSubmitSecondsLeft, setProctorSubmitSecondsLeft] = useState(0)
+  const proctorSubmitDeadlineRef = useRef<number | null>(null)
+  const proctorSubmitIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const proctorSubmitTriggeredRef = useRef(false)
 
   const timerRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -163,13 +182,18 @@ const TakeExamContent = ({ cheatDetected, onCheatAutoSubmit }: Props) => {
         disableDeveloperTools:
           data.settings.anti_cheat.block_dev_tools ?? false,
         preventTabSwitch:
-          (data.settings.anti_cheat.max_window_blur_allowed ?? 0) > 0,
+          data.settings.anti_cheat.max_window_blur_allowed !== null &&
+          data.settings.anti_cheat.max_window_blur_allowed !== undefined,
         preventMinimize:
-          (data.settings.anti_cheat.max_window_blur_allowed ?? 0) > 0,
+          data.settings.anti_cheat.max_exit_fullscreen_allowed !== null &&
+          data.settings.anti_cheat.max_exit_fullscreen_allowed !== undefined,
         requireFullscreen:
-          (data.settings.anti_cheat.max_exit_fullscreen_allowed ?? 0) > 0,
+          data.settings.anti_cheat.max_exit_fullscreen_allowed !== null &&
+          data.settings.anti_cheat.max_exit_fullscreen_allowed !== undefined,
         maxFullscreenExitAllowed:
           data.settings.anti_cheat.max_exit_fullscreen_allowed ?? 0,
+        maxWindowBlurAllowed:
+          data.settings.anti_cheat.max_window_blur_allowed ?? 0,
         attemptId: data.attemptId,
         examCode: data.examCode,
       }
@@ -194,42 +218,48 @@ const TakeExamContent = ({ cheatDetected, onCheatAutoSubmit }: Props) => {
     fetchExamAttempt()
   }, [fetchExamAttempt])
 
-  const submitExam = useCallback(async () => {
-    if (!data) return
+  const submitExam = useCallback(
+    async (status?: AttemptStatus) => {
+      if (!data) return
 
-    const answersList = Object.values(answers)
-    console.log('Submitting answers:', answersList, tokenJoinStart)
+      const answersList = Object.values(answers)
+      console.log('Submitting answers:', answersList, tokenJoinStart)
 
-    try {
-      const result = await submitAttempt({
-        attemptId: data.attemptId,
-        request: { answers: answersList },
-        sessionToken: tokenJoinStart,
-      }).unwrap()
+      try {
+        const result = await submitAttempt({
+          attemptId: data.attemptId,
+          request: { answers: answersList, status },
+          sessionToken: tokenJoinStart,
+        }).unwrap()
 
-      console.log('Submit successful:', result)
-      setSubmitResult(result)
-      setIsSuccessModalOpen(true)
-    } catch (error: any) {
-      console.error('Failed to submit exam:', error)
-      setErrorMessage(
-        error?.data?.message || 'Không thể nộp bài. Vui lòng thử lại.'
-      )
-      setIsErrorModalOpen(true)
-    }
-  }, [data, answers, submitAttempt, tokenJoinStart])
+        console.log('Submit successful:', result)
+        setSubmitResult(result)
+        setIsSuccessModalOpen(true)
+      } catch (error: any) {
+        console.error('Failed to submit exam:', error)
+        setErrorMessage(
+          error?.data?.message || 'Không thể nộp bài. Vui lòng thử lại.'
+        )
+        setIsErrorModalOpen(true)
+      }
+    },
+    [data, answers, submitAttempt, tokenJoinStart]
+  )
 
-  const submitExamDirectly = useCallback(async () => {
-    if (!data) return
+  const submitExamDirectly = useCallback(
+    async (status?: AttemptStatus) => {
+      if (!data) return
 
-    console.log('Auto-submitting (time up)')
+      console.log('Auto-submitting (time up)')
 
-    try {
-      await submitExam()
-    } catch (error) {
-      console.error('Auto-submit failed:', error)
-    }
-  }, [data, submitExam])
+      try {
+        await submitExam(status)
+      } catch (error) {
+        console.error('Auto-submit failed:', error)
+      }
+    },
+    [data, submitExam]
+  )
 
   useEffect(() => {
     if (
@@ -247,12 +277,81 @@ const TakeExamContent = ({ cheatDetected, onCheatAutoSubmit }: Props) => {
   ])
 
   useEffect(() => {
+    if (!proctorForceSubmitRequest?.requestId) return
+
+    proctorSubmitTriggeredRef.current = false
+    const timeoutSecondsRaw = Number(proctorForceSubmitRequest.timeoutSeconds)
+    const timeoutSeconds =
+      Number.isFinite(timeoutSecondsRaw) && timeoutSecondsRaw > 0
+        ? timeoutSecondsRaw
+        : 30
+
+    const requestedAtRaw = Number(proctorForceSubmitRequest.requestedAt)
+    const requestedAt =
+      Number.isFinite(requestedAtRaw) && requestedAtRaw > 0
+        ? requestedAtRaw
+        : Date.now()
+
+    proctorSubmitDeadlineRef.current = requestedAt + timeoutSeconds * 1000
+    setIsProctorSubmitModalOpen(true)
+
+    const tick = () => {
+      const deadline = proctorSubmitDeadlineRef.current
+      if (!deadline) return
+
+      const msLeft = deadline - Date.now()
+      const secondsLeft = Math.max(0, Math.ceil(msLeft / 1000))
+      setProctorSubmitSecondsLeft(secondsLeft)
+
+      if (secondsLeft <= 0 && !proctorSubmitTriggeredRef.current) {
+        proctorSubmitTriggeredRef.current = true
+        setIsProctorSubmitModalOpen(false)
+
+        if (proctorSubmitIntervalRef.current) {
+          clearInterval(proctorSubmitIntervalRef.current)
+          proctorSubmitIntervalRef.current = null
+        }
+
+        submitExamDirectly()
+      }
+    }
+
+    // Initialize countdown immediately
+    tick()
+
+    if (proctorSubmitIntervalRef.current) {
+      clearInterval(proctorSubmitIntervalRef.current)
+    }
+    proctorSubmitIntervalRef.current = setInterval(tick, 250)
+
+    return () => {
+      if (proctorSubmitIntervalRef.current) {
+        clearInterval(proctorSubmitIntervalRef.current)
+        proctorSubmitIntervalRef.current = null
+      }
+    }
+  }, [proctorForceSubmitRequest?.requestId, submitExamDirectly])
+
+  const handleProctorSubmitNow = useCallback(async () => {
+    if (proctorSubmitTriggeredRef.current) return
+    proctorSubmitTriggeredRef.current = true
+
+    if (proctorSubmitIntervalRef.current) {
+      clearInterval(proctorSubmitIntervalRef.current)
+      proctorSubmitIntervalRef.current = null
+    }
+
+    setIsProctorSubmitModalOpen(false)
+    await submitExamDirectly()
+  }, [submitExamDirectly])
+
+  useEffect(() => {
     if (isAutoSubmitModalOpen) {
       console.log('Auto submit modal opened, starting 5s countdown...')
 
       const submitTimer = setTimeout(() => {
         console.log('5s passed - auto submitting exam')
-        submitExamDirectly()
+        submitExamDirectly(AttemptStatus.ABANDONED)
         onCheatAutoSubmit?.()
       }, 5000)
 
@@ -389,10 +488,10 @@ const TakeExamContent = ({ cheatDetected, onCheatAutoSubmit }: Props) => {
     setIsSubmitModalOpen(false)
   }, [])
 
-  const handleSuccessModalOk = useCallback(() => {
+  const handleSuccessModalOk = () => {
     setIsSuccessModalOpen(false)
-    navigate('/finish-exam', { state: { result: submitResult } })
-  }, [navigate, submitResult])
+    navigate('/')
+  }
 
   const handleErrorModalOk = useCallback(() => {
     setIsErrorModalOpen(false)
@@ -401,7 +500,7 @@ const TakeExamContent = ({ cheatDetected, onCheatAutoSubmit }: Props) => {
     if (examCode) {
       navigate(`/exam-checkin?code=${examCode}`)
     } else {
-      navigate('/finish-exam', { state: { result: submitResult } })
+      navigate('/', { state: { result: submitResult } })
     }
   }, [startRequest, state, navigate, submitResult])
 
@@ -794,7 +893,7 @@ const TakeExamContent = ({ cheatDetected, onCheatAutoSubmit }: Props) => {
           }
           open={isAutoSubmitModalOpen}
           onOk={() => {
-            navigate('/finish-exam', { state: { result: submitResult } })
+            navigate('/', { state: { result: submitResult } })
           }}
           onCancel={() => {}} // Không cho phép hủy
           okText="Đã hiểu"
@@ -835,6 +934,72 @@ const TakeExamContent = ({ cheatDetected, onCheatAutoSubmit }: Props) => {
             <WarningText style={{ marginTop: 16, fontSize: 13 }}>
               📋 Kết quả sẽ được ghi nhận với dấu hiệu vi phạm quy định.
             </WarningText>
+          </ModalContent>
+        </Modal>
+      )}
+
+      {isProctorSubmitModalOpen && (
+        <Modal
+          title={
+            <ModalTitle>
+              <ExclamationCircleOutlined
+                style={{ color: '#ff4d4f', marginRight: 8 }}
+              />
+              Yêu cầu nộp bài từ giám thị
+            </ModalTitle>
+          }
+          open={isProctorSubmitModalOpen}
+          onOk={handleProctorSubmitNow}
+          onCancel={() => {}}
+          okText="Nộp bài ngay"
+          cancelButtonProps={{ style: { display: 'none' } }}
+          closable={false}
+          maskClosable={false}
+          keyboard={false}
+          confirmLoading={isSubmitLoading}
+          centered
+          width={520}
+        >
+          <ModalContent>
+            <WarningText style={{ color: '#ff4d4f', marginBottom: 12 }}>
+              Giám thị yêu cầu bạn nộp bài thi ngay lập tức.
+            </WarningText>
+
+            <p style={{ marginBottom: 12 }}>
+              Hệ thống sẽ tự động nộp sau{' '}
+              <strong>{proctorSubmitSecondsLeft}</strong> giây nếu bạn không bấm
+              nộp.
+            </p>
+
+            <Progress
+              percent={Math.min(
+                100,
+                Math.max(
+                  0,
+                  Math.round(
+                    (((proctorForceSubmitRequest?.timeoutSeconds || 30) -
+                      proctorSubmitSecondsLeft) /
+                      (proctorForceSubmitRequest?.timeoutSeconds || 30)) *
+                      100
+                  )
+                )
+              )}
+              status="active"
+              showInfo={false}
+            />
+
+            <StatsInfo style={{ marginTop: 16 }}>
+              <StatsItem>
+                <span>Đã làm:</span>
+                <strong>
+                  {getAnsweredCount()}/{data?.questions?.length ?? 0} câu
+                </strong>
+              </StatsItem>
+              <StatsItem>
+                <span>Thời gian còn lại:</span>
+                <strong>{formatTime(timeRemaining)}</strong>
+              </StatsItem>
+            </StatsInfo>
           </ModalContent>
         </Modal>
       )}

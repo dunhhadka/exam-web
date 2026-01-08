@@ -56,7 +56,15 @@ public class User extends AuditableEntity{
     @Version
     private Long version;
 
+    @OneToMany(mappedBy = "user", fetch = FetchType.EAGER)
+    @Fetch(FetchMode.SUBSELECT)
+    private List<SessionStudent> assignedSessions;
+
+    @OneToMany(mappedBy = "user")
+    private List<ExamAttempt> examAttempts;
+
     @OneToMany(mappedBy = "user", fetch = FetchType.EAGER, orphanRemoval = true, cascade = CascadeType.PERSIST)
     @Fetch(FetchMode.SUBSELECT)
     private List<UserRole> userRoles;
+
 }

@@ -8,6 +8,7 @@ import com.datn.exam.support.enums.ActiveStatus;
 import com.datn.exam.support.enums.Level;
 import com.datn.exam.support.enums.QuestionType;
 import com.datn.exam.support.enums.Status;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
@@ -253,6 +254,7 @@ public class Question extends AuditableEntity {
     @NoArgsConstructor
     @AllArgsConstructor
     public static abstract class BaseQuestion {
+        @JsonIgnore 
         private QuestionType type;
 
         @JsonProperty("public_flag")
@@ -274,9 +276,9 @@ public class Question extends AuditableEntity {
 
     @Data
     @NoArgsConstructor
-    @AllArgsConstructor
     @EqualsAndHashCode(callSuper = true)
     public static abstract class MultiAnswerQuestion extends BaseQuestion {
+        @JsonIgnore  // Thêm annotation này để không serialize answers
         private List<Answer> answers = new ArrayList<>();
 
         protected MultiAnswerQuestion(List<Answer> answers, QuestionType questionType, Level level, Status status, boolean isPublic) {

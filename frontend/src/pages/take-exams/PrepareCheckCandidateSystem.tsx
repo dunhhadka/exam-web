@@ -47,6 +47,7 @@ const PrepareCheckCandidateSystem = () => {
       preventMinimize: maxExitFullscreenAllowed !== null && maxExitFullscreenAllowed !== undefined,
       requireFullscreen: maxExitFullscreenAllowed !== null && maxExitFullscreenAllowed !== undefined,
       maxFullscreenExitAllowed: maxExitFullscreenAllowed ?? undefined,
+      maxWindowBlurAllowed: maxWindowBlurAllowed ?? undefined,
     }
 
     // Chỉ trả về settings nếu có ít nhất một setting được enable

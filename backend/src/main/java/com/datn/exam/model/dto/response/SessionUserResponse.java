@@ -17,4 +17,5 @@ public class SessionUserResponse {
     private String code;
     private String gender;
     private String status;
+    private Long attemptId;
 }

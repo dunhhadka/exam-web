@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { Provider } from "react-redux";
 import "./App.css";
 import { store } from "./store";
@@ -34,6 +35,44 @@ import OverviewPage from "./pages/student-page/OverviewPage";
 import StudentExamSession from "./pages/student-page/StudentExamSession";
 import ExamSessionFactoryPage from "./pages/examsession/ExamSessionFactoryPage";
 import ExamWaitingPage from "./pages/take-exams/ExamWaitingPage";
+=======
+import { Provider } from 'react-redux'
+import './App.css'
+import { store } from './store'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import PublicRoute from './routes/PublicRoute'
+import AuthLayout from './components/layouts/AuthLayout'
+import Login from './pages/auth/Login'
+import Register from './pages/auth/Register'
+import ProtectedRoute from './routes/ProtectedRoute'
+import MainLayout from './components/layouts/MainLayout'
+import Home from './pages/home/Home'
+import { QuestionList } from './pages/question/QuestionList'
+import { QuestionCreatePage } from './pages/question/QuestionCreatePage'
+import { ExamListPage } from './pages/exams/ExamListPage'
+import { ExamCreatePage } from './pages/exams/ExamCreatePage'
+import { ToastProvider } from './ToastProvider'
+import ExamSessionListPage from './pages/examsession/ExamSessionListPage'
+import CheckinExam from './pages/take-exams/CheckinExam'
+import CheckinValidateToken from './pages/take-exams/CheckinValidateToken'
+import CheckInInfo from './pages/take-exams/CheckinInfo'
+import FinishExam from './pages/take-exams/FinishExam'
+import { App as AntdApp } from 'antd'
+import DefaultHomePage from './pages/home/DefaultHome'
+import CheckExamSystem from './pages/take-exams/CheckExamSystem'
+import CheckExamIdentity from './pages/take-exams/CheckExamIdentity'
+import PrepareCheckCandidateSystem from './pages/take-exams/PrepareCheckCandidateSystem'
+import ProctorTrackingSystem from './pages/take-exams/ProctorTrackingSystem'
+import TakeExamV2 from './pages/take-exams/TakeExamV2'
+import StorePage from './pages/Store/StorePage'
+import LandingPage from './web-public/LandingPage'
+import UserInfo from './pages/auth/UserInfo'
+import OverviewPage from './pages/student-page/OverviewPage'
+import StudentExamSession from './pages/student-page/StudentExamSession'
+import ExamSessionFactoryPage from './pages/examsession/ExamSessionFactoryPage'
+import ExamWaitingPage from './pages/take-exams/ExamWaitingPage'
+import NotificationContent from './pages/notification/Notification'
+>>>>>>> da2c7106712fc2f3079763a5dc47b43a07eabe67
 
 function App() {
   return (
@@ -77,10 +116,27 @@ function App() {
               </Route>
 
               {/* TEACHER Routes */}
+<<<<<<< HEAD
               <Route element={<ProtectedRoute allowedRoles={["TEACHER"]} />}>
                 <Route element={<MainLayout />}>
                   <Route path="/home" element={<Home />} />
                   <Route path="/questions" element={<QuestionList />} />
+=======
+              <Route element={<ProtectedRoute allowedRoles={['TEACHER']} />}>
+                <Route element={<MainLayout />}>
+                  <Route path="/home" element={<Home />} />
+                  <Route path="/questions" element={<QuestionList />} />
+                  <Route path="/exams" element={<ExamListPage />} />
+                  {/* <Route
+                    path="/examsessions"
+                    element={<ExamSessionListPage />}
+                  /> */}
+                  <Route path="/store" element={<StorePage />} />
+                  <Route
+                    path="/notifications"
+                    element={<NotificationContent />}
+                  />
+>>>>>>> da2c7106712fc2f3079763a5dc47b43a07eabe67
                   <Route
                     path="/questions/create"
                     element={<QuestionCreatePage />}
@@ -103,7 +159,11 @@ function App() {
               </Route>
 
               {/* STUDENT Routes */}
+<<<<<<< HEAD
               <Route element={<ProtectedRoute allowedRoles={["STUDENT"]} />}>
+=======
+              <Route element={<ProtectedRoute allowedRoles={['STUDENT']} />}>
+>>>>>>> da2c7106712fc2f3079763a5dc47b43a07eabe67
                 <Route element={<MainLayout />}>
                   <Route path="/overview" element={<OverviewPage />} />
                   <Route
@@ -116,12 +176,19 @@ function App() {
               {/* Shared Routes (STUDENT và TEACHER) */}
               <Route
                 element={
+<<<<<<< HEAD
                   <ProtectedRoute allowedRoles={["STUDENT", "TEACHER"]} />
+=======
+                  <ProtectedRoute allowedRoles={['STUDENT', 'TEACHER']} />
+>>>>>>> da2c7106712fc2f3079763a5dc47b43a07eabe67
                 }
               >
                 <Route element={<MainLayout />}>
                   <Route path="/store" element={<StorePage />} />
+<<<<<<< HEAD
                   <Route path="/my-course" element={<MyCoursePage />} />
+=======
+>>>>>>> da2c7106712fc2f3079763a5dc47b43a07eabe67
                   <Route path="/settings" element={<UserInfo />} />
                 </Route>
               </Route>

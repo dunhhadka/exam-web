@@ -1,6 +1,7 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { getToastInstance } from '../ToastProvider'
 import { useIncrementFullscreenExitCountMutation } from '../services/api/take-exam'
+import { useCreateLogMutation } from '../services/api/logApi'
 
 interface AntiCheatSettings {
   disableCopyPaste?: boolean
@@ -11,18 +12,39 @@ interface AntiCheatSettings {
   examCode?: string
   attemptId?: number
   maxFullscreenExitAllowed?: number
+  maxWindowBlurAllowed?: number
 }
 
 export const useAntiCheat = (settings?: AntiCheatSettings) => {
-  const devtoolsCheckIntervalRef = useRef<NodeJS.Timeout | null>(null)
-  const warningCountRef = useRef<number>(0)
-  const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null)
-  const countdownRef = useRef<number>(5)
-  const redirectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const isCountdownActiveRef = useRef<boolean>(false)
   const fullscreenExitCountRef = useRef<number>(0)
-  const initTimeRef = useRef<number>(Date.now())
+  const lastFullscreenChangeTimeRef = useRef<number>(0)
   const [incrementFullscreenExitCount] = useIncrementFullscreenExitCountMutation()
+  const [showFullscreenOverlay, setShowFullscreenOverlay] = useState(false)
+  const [createLog] = useCreateLogMutation()
+
+  // Helper function to log anti-cheat warnings
+  const logWarning = async (
+    logType: 'DEVTOOLS_OPEN' | 'TAB_SWITCH' | 'FULLSCREEN_EXIT' | 'COPY_PASTE_ATTEMPT' | 'SUSPICIOUS_ACTIVITY' | 'OTHER',
+    severity: 'INFO' | 'WARNING' | 'SERIOUS' | 'CRITICAL',
+    message: string
+  ) => {
+    if (!settings?.attemptId) {
+      console.warn('Cannot log warning: attemptId not provided')
+      return
+    }
+
+    try {
+      await createLog({
+        attemptId: settings.attemptId,
+        logType,
+        severity,
+        message,
+      }).unwrap()
+      console.log(`📝 Log saved: ${logType} - ${message}`)
+    } catch (error) {
+      console.error('Failed to save log:', error)
+    }
+  }
 
   useEffect(() => {
     console.log('🛡️ useAntiCheat - Settings received:', {
@@ -45,8 +67,9 @@ export const useAntiCheat = (settings?: AntiCheatSettings) => {
     const handleCopy = (e: ClipboardEvent) => {
       e.preventDefault()
       e.stopPropagation()
+      logWarning('COPY_PASTE_ATTEMPT', 'WARNING', 'Cố gắng sao chép nội dung')
       if (toast) {
-        toast.warning(' Cảnh báo', 'Không được phép sao chép trong quá trình làm bài thi!', 3)
+        toast.warning('⚠ Cảnh báo', 'Không được phép sao chép trong quá trình làm bài thi!', 3)
       }
       return false
     }
@@ -54,8 +77,9 @@ export const useAntiCheat = (settings?: AntiCheatSettings) => {
     const handleCut = (e: ClipboardEvent) => {
       e.preventDefault()
       e.stopPropagation()
+      logWarning('COPY_PASTE_ATTEMPT', 'WARNING', 'Cố gắng cắt nội dung')
       if (toast) {
-        toast.warning(' Cảnh báo', 'Không được phép cắt trong quá trình làm bài thi!', 3)
+        toast.warning('⚠ Cảnh báo', 'Không được phép cắt trong quá trình làm bài thi!', 3)
       }
       return false
     }
@@ -63,8 +87,9 @@ export const useAntiCheat = (settings?: AntiCheatSettings) => {
     const handlePaste = (e: ClipboardEvent) => {
       e.preventDefault()
       e.stopPropagation()
+      logWarning('COPY_PASTE_ATTEMPT', 'WARNING', 'Cố gắng dán nội dung')
       if (toast) {
-        toast.warning(' Cảnh báo', 'Không được phép dán trong quá trình làm bài thi!', 3)
+        toast.warning('⚠ Cảnh báo', 'Không được phép dán trong quá trình làm bài thi!', 3)
       }
       return false
     }
@@ -85,22 +110,11 @@ export const useAntiCheat = (settings?: AntiCheatSettings) => {
           const action = e.key.toLowerCase() === 'c' ? 'sao chép' : 
                         e.key.toLowerCase() === 'v' ? 'dán' : 
                         e.key.toLowerCase() === 'x' ? 'cắt' : 'chọn tất cả'
-          toast.warning(' Cảnh báo', `Không được phép ${action} trong quá trình làm bài thi!`, 3)
+          toast.warning('⚠ Cảnh báo', `Không được phép ${action} trong quá trình làm bài thi!`, 3)
         }
         return false
       }
-      if (
-        e.key === 'F12' ||
-        ((e.ctrlKey || e.metaKey) && e.shiftKey && ['i', 'j'].includes(e.key.toLowerCase())) ||
-        ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'u')
-      ) {
-        e.preventDefault()
-        e.stopPropagation()
-        if (toast) {
-          toast.warning(' Cảnh báo', 'Không được phép mở Developer Tools trong quá trình làm bài thi!', 3)
-        }
-        return false
-      }
+      // Bỏ xử lý F12 ở đây vì đã có trong disableDeveloperTools effect
     }
 
     document.addEventListener('copy', handleCopy, true)
@@ -228,6 +242,7 @@ export const useAntiCheat = (settings?: AntiCheatSettings) => {
       const opened = detectDevtools()
       if (opened) {
         console.log('🛡️ AntiCheat - DEVTOOLS DETECTED')
+        logWarning('DEVTOOLS_OPEN', 'CRITICAL', 'Phát hiện Developer Tools đang mở')
         startWarning()
 
         const examCode =
@@ -267,7 +282,12 @@ export const useAntiCheat = (settings?: AntiCheatSettings) => {
   useEffect(() => {
     if (!settings?.preventTabSwitch) return
 
-    console.log('🛡️ useAntiCheat - ✅ Enabling tab switch protection')
+    const maxWindowBlurAllowed = settings?.maxWindowBlurAllowed ?? 0
+    console.log('🛡️ useAntiCheat - ✅ Enabling tab switch protection', {
+      maxWindowBlurAllowed,
+    })
+
+    let blurCount = 0
     let warningShown = false
     let isInitialized = false
     let blurTimeout: NodeJS.Timeout | null = null
@@ -283,13 +303,46 @@ export const useAntiCheat = (settings?: AntiCheatSettings) => {
       if (!isInitialized) return
 
       if (document.hidden) {
+        blurCount += 1
+        console.log('🛡️ useAntiCheat - Tab hidden detected', {
+          blurCount,
+          maxAllowed: maxWindowBlurAllowed,
+        })
+
+        // Nếu maxWindowBlurAllowed = 0, chặn ngay lần đầu tiên
+        if (maxWindowBlurAllowed === 0 && blurCount > 0) {
+          logWarning('TAB_SWITCH', 'SERIOUS', 'Chuyển tab khi không được phép (maxAllowed = 0)')
+          if (toast) {
+            toast.error(
+              '❌ Vi phạm',
+              'Bạn không được phép chuyển sang tab khác',
+              10
+            )
+          }
+          return
+        }
+
+        // Nếu vượt quá số lần cho phép
+        if (blurCount > maxWindowBlurAllowed) {
+          logWarning('TAB_SWITCH', 'SERIOUS', `Chuyển tab vượt quá giới hạn: ${blurCount}/${maxWindowBlurAllowed}`)
+          if (toast) {
+            toast.error(
+              '❌ Vi phạm',
+              `Bạn đã chuyển sang tab khác quá ${maxWindowBlurAllowed} lần.`,
+              10
+            )
+          }
+          return
+        }
+
+        // Cảnh báo
         if (!warningShown) {
           warningShown = true
-          console.log('🛡️ useAntiCheat - Tab hidden detected')
+          logWarning('TAB_SWITCH', 'WARNING', `Chuyển tab lần ${blurCount}/${maxWindowBlurAllowed}`)
           if (toast) {
             toast.warning(
-              ' Cảnh báo',
-              'Bạn đã rời khỏi màn hình làm bài! Vui lòng quay lại ngay.',
+              '⚠ Cảnh báo',
+              `Bạn đã rời khỏi màn hình làm bài (${blurCount}/${maxWindowBlurAllowed} lần)! Vui lòng quay lại ngay.`,
               5
             )
           }
@@ -309,13 +362,44 @@ export const useAntiCheat = (settings?: AntiCheatSettings) => {
 
       blurTimeout = setTimeout(() => {
         if (document.hidden && !warningShown) {
+          blurCount += 1
+          console.log('🛡️ useAntiCheat - Window blur with tab hidden detected', {
+            blurCount,
+            maxAllowed: maxWindowBlurAllowed,
+          })
+
+          // Nếu maxWindowBlurAllowed = 0, chặn ngay lần đầu tiên
+          if (maxWindowBlurAllowed === 0 && blurCount > 0) {
+            const toast = getToastInstance()
+            if (toast) {
+              toast.error(
+                'Vi phạm',
+                'Bạn không được phép chuyển sang tab khác.',
+                10
+              )
+            }
+            return
+          }
+
+          // Nếu vượt quá số lần cho phép
+          if (blurCount > maxWindowBlurAllowed) {
+            const toast = getToastInstance()
+            if (toast) {
+              toast.error(
+                'Vi phạm',
+                `Bạn đã chuyển sang tab khác quá ${maxWindowBlurAllowed} lần.`,
+                10
+              )
+            }
+            return
+          }
+
           warningShown = true
-          console.log('🛡️ useAntiCheat - Window blur with tab hidden detected')
           const toast = getToastInstance()
           if (toast) {
             toast.warning(
               ' Cảnh báo',
-              'Cửa sổ làm bài đã mất focus! Vui lòng quay lại ngay.',
+              `Cửa sổ làm bài đã mất focus (${blurCount}/${maxWindowBlurAllowed} lần)! Vui lòng quay lại ngay.`,
               5
             )
           }
@@ -344,7 +428,7 @@ export const useAntiCheat = (settings?: AntiCheatSettings) => {
       window.removeEventListener('blur', handleBlur)
       window.removeEventListener('focus', handleFocus)
     }
-  }, [settings?.preventTabSwitch])
+  }, [settings?.preventTabSwitch, settings?.maxWindowBlurAllowed])
 
   useEffect(() => {
     if (!settings?.preventMinimize) {
@@ -386,7 +470,8 @@ export const useAntiCheat = (settings?: AntiCheatSettings) => {
     }
 
     let lastFullscreenRequestTime = 0
-    const FULLSCREEN_REQUEST_COOLDOWN = 5000
+    const FULLSCREEN_REQUEST_COOLDOWN = 100 // Giảm từ 5000ms xuống 100ms để request nhanh hơn
+    const FULLSCREEN_CHANGE_DEBOUNCE = 500 // 500ms debounce
 
     const checkFullscreen = () => {
       const isFullscreen =
@@ -407,7 +492,41 @@ export const useAntiCheat = (settings?: AntiCheatSettings) => {
       requestFullscreen()
     }
 
+    // Chặn ESC key để ngăn user thoát fullscreen
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && settings.requireFullscreen) {
+        const isFullscreen =
+          document.fullscreenElement ||
+          (document as any).webkitFullscreenElement ||
+          (document as any).mozFullScreenElement ||
+          (document as any).msFullscreenElement
+
+        if (isFullscreen) {
+          e.preventDefault()
+          e.stopPropagation()
+          const toast = getToastInstance()
+          if (toast) {
+            toast.warning(
+              '⚠ Cảnh báo',
+              'Không được phép thoát chế độ toàn màn hình trong khi làm bài!',
+              3
+            )
+          }
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown, true)
+
     const handleFullscreenChange = async () => {
+      // Debounce để tránh gọi nhiều lần (vì có 4 event listeners)
+      const now = Date.now()
+      if (now - lastFullscreenChangeTimeRef.current < FULLSCREEN_CHANGE_DEBOUNCE) {
+        console.log('🛡️ useAntiCheat - Debouncing fullscreen change event')
+        return
+      }
+      lastFullscreenChangeTimeRef.current = now
+
       const isFullscreen =
         document.fullscreenElement ||
         (document as any).webkitFullscreenElement ||
@@ -415,6 +534,9 @@ export const useAntiCheat = (settings?: AntiCheatSettings) => {
         (document as any).msFullscreenElement
 
       if (!isFullscreen && settings.requireFullscreen) {
+        // Hiển thị overlay ngay lập tức
+        setShowFullscreenOverlay(true)
+        
         fullscreenExitCountRef.current += 1
 
         if (settings.attemptId) {
@@ -426,35 +548,49 @@ export const useAntiCheat = (settings?: AntiCheatSettings) => {
           }
         }
 
-        const maxAllowed = settings.maxFullscreenExitAllowed ?? 3
+        const maxAllowed = settings.maxFullscreenExitAllowed ?? 0
+        
+        // Nếu maxAllowed = 0, không hiện toast vì đã có overlay
+        if (maxAllowed === 0 && fullscreenExitCountRef.current > 0) {
+          console.log('🛡️ useAntiCheat - maxAllowed = 0, blocking immediately with overlay')
+          logWarning('FULLSCREEN_EXIT', 'CRITICAL', 'Thoát fullscreen khi không được phép (maxAllowed = 0)')
+          return
+        }
+
+        // Nếu vượt quá số lần cho phép
         if (fullscreenExitCountRef.current > maxAllowed) {
+          logWarning('FULLSCREEN_EXIT', 'SERIOUS', `Thoát fullscreen vượt quá giới hạn: ${fullscreenExitCountRef.current}/${maxAllowed}`)
           const toast = getToastInstance()
           if (toast) {
             toast.error(
               '❌ Vi phạm',
-              `Bạn đã thoát khỏi chế độ toàn màn hình quá ${maxAllowed} lần. Bài thi sẽ bị chặn.`,
+              `Bạn đã thoát khỏi chế độ toàn màn hình quá ${maxAllowed} lần.`,
               10
             )
           }
           return
         }
 
+        // Chỉ hiện toast cảnh báo khi còn trong giới hạn
+        logWarning('FULLSCREEN_EXIT', 'WARNING', `Thoát fullscreen lần ${fullscreenExitCountRef.current}/${maxAllowed}`)
         const toast = getToastInstance()
         if (toast) {
           toast.warning(
-            ' Cảnh báo',
+            '⚠ Cảnh báo',
             `Bạn đã thoát khỏi chế độ toàn màn hình (${fullscreenExitCountRef.current}/${maxAllowed} lần). Vui lòng quay lại toàn màn hình ngay.`,
             5
           )
         }
 
-        setTimeout(() => {
-          const now = Date.now()
-          if ((now - lastFullscreenRequestTime) > FULLSCREEN_REQUEST_COOLDOWN) {
-            lastFullscreenRequestTime = now
-            requestFullscreen()
-          }
-        }, 1000)
+        // Request fullscreen lại NGAY LẬP TỨC (bỏ setTimeout 1s)
+        const requestNow = Date.now()
+        if ((requestNow - lastFullscreenRequestTime) > FULLSCREEN_REQUEST_COOLDOWN) {
+          lastFullscreenRequestTime = requestNow
+          requestFullscreen()
+        }
+      } else if (isFullscreen) {
+        // Ẩn overlay khi đã vào fullscreen trở lại
+        setShowFullscreenOverlay(false)
       }
     }
 
@@ -465,12 +601,80 @@ export const useAntiCheat = (settings?: AntiCheatSettings) => {
 
     const fullscreenCheckInterval = setInterval(checkFullscreen, 5000)
 
+    // Tạo và inject overlay element
+    const overlay = document.createElement('div')
+    overlay.id = 'fullscreen-warning-overlay'
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.95);
+      z-index: 999999;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      color: white;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    `
+    overlay.innerHTML = `
+      <div style="text-align: center; padding: 40px;">
+        <div style="font-size: 72px; margin-bottom: 24px;">⚠️</div>
+        <h1 style="font-size: 32px; margin-bottom: 16px;">Vui lòng quay lại chế độ toàn màn hình!</h1>
+        <p style="font-size: 18px; color: #ffa940; margin-bottom: 32px;">
+          Bạn đã thoát khỏi chế độ toàn màn hình.<br/>
+          Hệ thống yêu cầu bạn phải ở chế độ toàn màn hình để tiếp tục làm bài.
+        </p>
+        <button id="return-fullscreen-btn" style="
+          padding: 16px 32px;
+          font-size: 18px;
+          background: #1890ff;
+          color: white;
+          border: none;
+          border-radius: 8px;
+          cursor: pointer;
+          font-weight: bold;
+        ">
+          🖥️ Quay lại Toàn Màn Hình
+        </button>
+      </div>
+    `
+    document.body.appendChild(overlay)
+
+    const returnBtn = document.getElementById('return-fullscreen-btn')
+    if (returnBtn) {
+      returnBtn.onclick = () => {
+        lastFullscreenRequestTime = Date.now()
+        requestFullscreen()
+      }
+    }
+
+    // Observer để hiển thị/ẩn overlay
+    const updateOverlay = () => {
+      if (showFullscreenOverlay && settings.requireFullscreen) {
+        overlay.style.display = 'flex'
+      } else {
+        overlay.style.display = 'none'
+      }
+    }
+
+    // Gọi ngay và set interval
+    updateOverlay()
+    const overlayInterval = setInterval(updateOverlay, 100)
+
     return () => {
+      document.removeEventListener('keydown', handleKeyDown, true)
       document.removeEventListener('fullscreenchange', handleFullscreenChange)
       document.removeEventListener('webkitfullscreenchange', handleFullscreenChange)
       document.removeEventListener('mozfullscreenchange', handleFullscreenChange)
       document.removeEventListener('MSFullscreenChange', handleFullscreenChange)
       clearInterval(fullscreenCheckInterval)
+      clearInterval(overlayInterval)
+      if (overlay.parentNode) {
+        overlay.parentNode.removeChild(overlay)
+      }
     }
-  }, [settings?.preventMinimize, settings?.requireFullscreen, settings?.attemptId, settings?.maxFullscreenExitAllowed, incrementFullscreenExitCount])
+  }, [settings?.preventMinimize, settings?.requireFullscreen, settings?.attemptId, settings?.maxFullscreenExitAllowed, incrementFullscreenExitCount, showFullscreenOverlay])
 }

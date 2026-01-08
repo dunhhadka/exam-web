@@ -14,6 +14,7 @@ import {
   Space,
   Badge,
   Switch,
+  Select,
   List,
   Modal,
   FloatButton,
@@ -246,6 +247,17 @@ export default function Proctor() {
   const [selectedCandidate, setSelectedCandidate] = useState(null)
   const [aiAnalysis, setAiAnalysis] = useState({})
   const [chatModalVisible, setChatModalVisible] = useState(false)
+  const [participants, setParticipants] = useState([])
+  const [isSfuMode, setIsSfuMode] = useState(false)
+  const isSfuModeRef = useRef(false)
+
+  const getCandidateDisplayId = (streamKey) => {
+    const key = String(streamKey ?? '')
+    if (isSfuMode && key === 'sfu-all') {
+      return selectedCandidate ? String(selectedCandidate) : 'sfu-all'
+    }
+    return key
+  }
 
   const localVideoRef = useRef(null)
   const pcsRef = useRef(new Map())
@@ -254,10 +266,62 @@ export default function Proctor() {
   const videoRefsRef = useRef(new Map())
   const sigRef = useRef(null)
 
+  const cleanupCandidate = (candidateId) => {
+    const cid = String(candidateId ?? '')
+    if (!cid) return
+
+    const pc = pcsRef.current.get(cid)
+    if (pc) {
+      try { pc.close() } catch {}
+      pcsRef.current.delete(cid)
+    }
+
+    try { streamMapsRef.current.delete(cid) } catch {}
+
+    setRemoteStreams((prev) => {
+      if (!prev || !Object.prototype.hasOwnProperty.call(prev, cid)) return prev
+      const next = { ...prev }
+      delete next[cid]
+      return next
+    })
+
+    setFocusedId((prev) => (String(prev ?? '') === cid ? null : prev))
+    setSelectedCandidate((prev) => (String(prev ?? '') === cid ? null : prev))
+  }
+
   useEffect(() => {
     const init = async () => {
       const signaling = new SignalingClient({ baseUrl: SIGNALING_BASE, roomId, userId, role: 'proctor' })
       sigRef.current = signaling
+
+      // Track roster so we can target specific candidates even in SFU mode.
+      signaling.on('roster', (data) => {
+        const list = Array.isArray(data?.participants) ? data.participants : []
+        setParticipants(list)
+      })
+      signaling.on('participant_joined', (data) => {
+        const pid = String(data?.userId ?? '')
+        const role = String(data?.role ?? '')
+        if (!pid) return
+        setParticipants((prev) => {
+          const exists = prev.some((p) => String(p?.userId) === pid)
+          if (exists) return prev
+          return [...prev, { userId: pid, role }]
+        })
+      })
+      signaling.on('participant_left', (data) => {
+        const pid = String(data?.userId ?? '')
+        if (!pid) return
+        setParticipants((prev) => prev.filter((p) => String(p?.userId) !== pid))
+
+        // In P2P mode, remove the disconnected candidate UI + close PC.
+        if (!isSfuModeRef.current) {
+          cleanupCandidate(pid)
+        } else {
+          // In SFU mode, at minimum clear selection/focus if it points to the leaving candidate.
+          setSelectedCandidate((prev) => (String(prev ?? '') === pid ? null : prev))
+        }
+      })
       
       let sfuMode = false
       try {
@@ -267,6 +331,9 @@ export default function Proctor() {
       } catch (e) {
         console.warn('Could not check SFU mode, defaulting to P2P')
       }
+
+      setIsSfuMode(sfuMode)
+      isSfuModeRef.current = sfuMode
       
       if (sfuMode) {
         console.log('=== SFU MODE ===')
@@ -554,6 +621,8 @@ export default function Proctor() {
                     }
                   }
                 })
+              } else if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected' || pc.connectionState === 'closed') {
+                cleanupCandidate(candidateId)
               }
             }
             
@@ -624,6 +693,33 @@ export default function Proctor() {
   }, [roomId, userId])
 
   useEffect(() => {
+    // Only exit focus when the candidate is actually removed (disconnect cleanup).
+    if (!focusedId) return
+    if (!remoteStreams[focusedId]) setFocusedId(null)
+  }, [focusedId, remoteStreams])
+
+  useEffect(() => {
+    // In SFU mode, if no candidates are in the roster, clear any remaining UI streams.
+    if (!isSfuMode) return
+    const candidateIds = participants
+      .filter((p) => String(p?.role) === 'candidate')
+      .map((p) => String(p?.userId))
+      .filter(Boolean)
+
+    if (candidateIds.length === 0) {
+      setRemoteStreams({})
+      setFocusedId(null)
+      setSelectedCandidate(null)
+      return
+    }
+
+    if (selectedCandidate && !candidateIds.includes(String(selectedCandidate))) {
+      setSelectedCandidate(null)
+      setFocusedId(null)
+    }
+  }, [participants, isSfuMode, selectedCandidate])
+
+  useEffect(() => {
     const handleKeyPress = (e) => {
       if (e.ctrlKey || e.metaKey) {
         const macros = {
@@ -686,6 +782,54 @@ export default function Proctor() {
     sigRef.current?.send({ type: 'control', action, to: candidateId })
   }
 
+  const requestForceSubmit = (candidateId) => {
+    const candidateIds = participants
+      .filter((p) => String(p?.role) === 'candidate')
+      .map((p) => String(p?.userId))
+      .filter(Boolean)
+
+    const normalized = candidateId ? String(candidateId) : ''
+    let targetId = normalized
+
+    // In SFU mode, the UI stream key can be "sfu-all" which is not a real participant id.
+    if (isSfuMode && (!targetId || targetId === 'sfu-all')) {
+      if (selectedCandidate) targetId = String(selectedCandidate)
+      else if (candidateIds.length === 1) targetId = candidateIds[0]
+    }
+
+    console.log('[Proctor] force_submit request', {
+      isSfuMode,
+      focusedCandidateId: candidateId,
+      selectedCandidate,
+      resolvedTargetId: targetId,
+      candidateIds,
+    })
+
+    // Safety: if still not resolved (or invalid), ask proctor to select.
+    if (!targetId || (candidateIds.length > 0 && !candidateIds.includes(targetId))) {
+      alert('Vui lòng chọn đúng thí sinh để yêu cầu nộp bài.')
+      return
+    }
+
+    sigRef.current?.send({
+      type: 'force_submit',
+      to: targetId,
+      timeoutSeconds: 30,
+      ts: Date.now(),
+    })
+  }
+
+  useEffect(() => {
+    // Convenience: auto-select when exactly 1 candidate is connected.
+    const candidateIds = participants
+      .filter((p) => String(p?.role) === 'candidate')
+      .map((p) => String(p?.userId))
+      .filter(Boolean)
+    if (!selectedCandidate && candidateIds.length === 1) {
+      setSelectedCandidate(candidateIds[0])
+    }
+  }, [participants, selectedCandidate])
+
   const getSeverityColor = (level) => {
     if (level === 'S3') return '#ff4d4f'
     if (level === 'S2') return '#faad14'
@@ -733,7 +877,7 @@ export default function Proctor() {
             <FocusView>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                 <Typography.Title level={4} style={{ margin: 0 }}>
-                  👁️ Đang theo dõi: {focusedId}
+                  👁️ Đang theo dõi: {getCandidateDisplayId(focusedId)}
                 </Typography.Title>
                 <Button onClick={() => setFocusedId(null)}>Thoát chế độ theo dõi</Button>
               </div>
@@ -771,6 +915,20 @@ export default function Proctor() {
               </div>
               
               <ControlBar>
+                {isSfuMode && (
+                  <Select
+                    value={selectedCandidate}
+                    placeholder="Chọn thí sinh"
+                    onChange={(v) => setSelectedCandidate(v)}
+                    style={{ minWidth: 180 }}
+                    options={participants
+                      .filter((p) => String(p?.role) === 'candidate')
+                      .map((p) => ({
+                        value: String(p.userId),
+                        label: String(p.userId),
+                      }))}
+                  />
+                )}
                 <Button 
                   type="primary" 
                   icon={<PauseCircleOutlined />}
@@ -784,6 +942,12 @@ export default function Proctor() {
                   onClick={() => controlCandidate(focusedId, 'end')}
                 >
                   Kết thúc
+                </Button>
+                <Button
+                  danger
+                  onClick={() => requestForceSubmit(focusedId)}
+                >
+                  Yêu cầu nộp bài
                 </Button>
                 <Button 
                   icon={<MessageOutlined />}
@@ -826,6 +990,7 @@ export default function Proctor() {
                 {Object.entries(remoteStreams)
                   .filter(([uid]) => !filterIncidents || incidents.some(it => it.from === uid || it.by === uid))
                   .map(([uid, streams]) => {
+                    const displayId = getCandidateDisplayId(uid)
                     const candIncidents = groupedIncidents[uid] || []
                     const s3Count = candIncidents.filter(i => i.level === 'S3').length
                     const s2Count = candIncidents.filter(i => i.level === 'S2').length
@@ -843,10 +1008,10 @@ export default function Proctor() {
                             <Avatar size="small" icon={<UserOutlined />} />
                             <div>
                               <Typography.Text strong style={{ fontSize: 14 }}>
-                                {uid}
+                                {displayId}
                               </Typography.Text>
                               <div style={{ fontSize: 12, color: '#666' }}>
-                                {streams?.camera ? '📹 Đang kết nối' : '⏳ Chờ camera...'}
+                                {streams?.camera ? '📹 Đã kết nối' : '⏳ Chờ camera...'}
                               </div>
                             </div>
                           </div>
@@ -935,7 +1100,10 @@ export default function Proctor() {
                           <Button 
                             size="small"
                             type={selectedCandidate === uid ? 'primary' : 'default'}
-                            onClick={() => setSelectedCandidate(uid === selectedCandidate ? null : uid)}
+                            onClick={() => {
+                              if (isSfuMode && uid === 'sfu-all') return
+                              setSelectedCandidate(uid === selectedCandidate ? null : uid)
+                            }}
                           >
                             Chọn
                           </Button>

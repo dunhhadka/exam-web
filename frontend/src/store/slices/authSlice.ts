@@ -9,15 +9,17 @@ interface AuthState {
   isAuthenticated: boolean
   isRefreshing: boolean
   profile?: Profile
+  authEpoch: number
 }
 
 const initialState: AuthState = {
   user: null,
   accessToken: localStorage.getItem('accessToken'),
-  refreshToken: localStorage.getItem('refetchToken'),
+  refreshToken: localStorage.getItem('refreshToken'),
   isAuthenticated: !!localStorage.getItem('accessToken'),
   isRefreshing: false,
   profile: undefined,
+  authEpoch: 0,
 }
 
 const authSlide = createSlice({
@@ -38,12 +40,13 @@ const authSlide = createSlice({
       state.accessToken = accessToken
       state.refreshToken = refreshToken
       state.isAuthenticated = true
+      state.profile = undefined
+      state.authEpoch += 1
 
-      console.log(accessToken, refreshToken)
-
-      // set to LocalStorage
       localStorage.setItem('accessToken', accessToken)
       localStorage.setItem('refreshToken', refreshToken)
+      localStorage.removeItem('userProfile')
+      localStorage.removeItem('profile')
     },
     setRefreshing: (state, action: PayloadAction<boolean>) => {
       state.isRefreshing = action.payload
@@ -55,11 +58,18 @@ const authSlide = createSlice({
       state.isAuthenticated = false
       state.isRefreshing = false
       state.profile = undefined
+<<<<<<< HEAD
+=======
+      state.authEpoch += 1
+>>>>>>> da2c7106712fc2f3079763a5dc47b43a07eabe67
 
-      // remove from LocalStorage
       localStorage.removeItem('accessToken')
       localStorage.removeItem('refreshToken')
       localStorage.removeItem('userProfile')
+<<<<<<< HEAD
+=======
+      localStorage.removeItem('profile') 
+>>>>>>> da2c7106712fc2f3079763a5dc47b43a07eabe67
     },
 
     updateTokens: (

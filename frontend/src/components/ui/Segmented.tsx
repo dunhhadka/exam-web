@@ -25,6 +25,13 @@ const CustomSegmented = ({ options, defaultValue, onChange }: Props) => {
 
   const inputRefs = useRef<(HTMLButtonElement | null)[]>([])
 
+  // Update active state when defaultValue prop changes
+  useEffect(() => {
+    if (defaultValue && defaultValue !== active) {
+      setActive(defaultValue)
+    }
+  }, [defaultValue])
+
   const updateIndicator = useCallback(() => {
     const activeIndex = options.findIndex((opt) => opt.value === active)
     if (activeIndex < 0) return

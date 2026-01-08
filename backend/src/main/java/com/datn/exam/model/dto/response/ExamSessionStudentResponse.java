@@ -1,6 +1,9 @@
 package com.datn.exam.model.dto.response;
 
+<<<<<<< HEAD
 import com.datn.exam.support.enums.SessionStudentStatus;
+=======
+>>>>>>> da2c7106712fc2f3079763a5dc47b43a07eabe67
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
@@ -24,7 +27,10 @@ public class ExamSessionStudentResponse {
 
     private Integer duration;
 
+<<<<<<< HEAD
     private SessionStudentStatus status;
 
+=======
+>>>>>>> da2c7106712fc2f3079763a5dc47b43a07eabe67
     private String description;
 }

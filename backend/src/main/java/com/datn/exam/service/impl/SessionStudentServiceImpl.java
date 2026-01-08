@@ -1,12 +1,15 @@
 package com.datn.exam.service.impl;
 
-import com.datn.exam.model.dto.response.WhitelistPreviewResponse;
+import com.datn.exam.model.dto.response.SessionStudentPreviewResponse;
 import com.datn.exam.model.entity.ExamSession;
-import com.datn.exam.model.entity.Whitelist;
+import com.datn.exam.model.entity.SessionStudent;
+import com.datn.exam.model.entity.User;
+import com.datn.exam.model.entity.UserInformation;
 import com.datn.exam.repository.ExamSessionRepository;
-import com.datn.exam.repository.WhitelistRepository;
+import com.datn.exam.repository.SessionStudentRepository;
+import com.datn.exam.repository.UserRepository;
 import com.datn.exam.service.S3Service;
-import com.datn.exam.service.WhitelistService;
+import com.datn.exam.service.SessionStudentService;
 import com.datn.exam.support.enums.error.BadRequestError;
 import com.datn.exam.support.enums.error.NotFoundError;
 import com.datn.exam.support.exception.ResponseException;
@@ -28,14 +31,16 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class WhitelistServiceImpl implements WhitelistService {
+public class SessionStudentServiceImpl implements SessionStudentService {
     private final ExamSessionRepository examSessionRepository;
-    private final WhitelistRepository whitelistRepository;
+    private final SessionStudentRepository sessionStudentRepository;
+    private final UserRepository userRepository;
     private final S3Service s3Service;
-    private static final int MAX_AVATARS_PER_EMAIL = 5;
+    
+    private static final int MAX_AVATARS_PER_STUDENT = 5;
 
     @Override
-    public WhitelistPreviewResponse previewFromExcel(Long sessionId, MultipartFile file) {
+    public SessionStudentPreviewResponse previewFromExcel(Long sessionId, MultipartFile file) {
         if (file.isEmpty()) {
             throw new ResponseException(BadRequestError.FILE_EMPTY);
         }
@@ -54,67 +59,108 @@ public class WhitelistServiceImpl implements WhitelistService {
             sessionName = session.getName();
 
             existingEmails.addAll(
-                    whitelistRepository.findEmailsBySessionId(sessionId)
+                    sessionStudentRepository.findByExamSessionId(sessionId)
                             .stream()
-                            .map(String::toLowerCase)
+                            .map(ss -> ss.getUser().getEmail().toLowerCase())
                             .collect(Collectors.toSet())
             );
         }
 
-        List<WhitelistPreviewResponse.EmailItem> allEmails;
+        List<SessionStudentPreviewResponse.StudentItem> allStudents;
         try {
-            allEmails = parseEmailWithImages(file);
+            allStudents = parseStudentsWithImages(file);
         } catch (IOException e) {
             log.error("Failed to parse Excel with images", e);
             throw new ResponseException(BadRequestError.INVALID_EXCEL_FILE);
         }
 
-        List<WhitelistPreviewResponse.EmailItem> validEmails = new ArrayList<>();
-        List<WhitelistPreviewResponse.EmailItem> invalidEmails = new ArrayList<>();
+        Set<String> emails = allStudents.stream()
+                .map(s -> s.getEmail().toLowerCase())
+                .collect(Collectors.toSet());
 
-        for (WhitelistPreviewResponse.EmailItem item : allEmails) {
-            if (!EmailUtils.isValidEmail(item.getEmail())) {
+        // Tìm tất cả users theo email (không chỉ STUDENT) để phân biệt các trường hợp
+        List<User> allUsersByEmail = userRepository.findByEmails(new ArrayList<>(emails));
+        Map<String, User> userByEmail = allUsersByEmail.stream()
+                .collect(Collectors.toMap(
+                        u -> u.getEmail().toLowerCase(),
+                        u -> u
+                ));
+
+        // Tìm chỉ STUDENT users để check role
+        List<User> studentsInDb = userRepository.findStudentsByEmails(new ArrayList<>(emails));
+        Set<String> studentEmails = studentsInDb.stream()
+                .map(u -> u.getEmail().toLowerCase())
+                .collect(Collectors.toSet());
+
+        List<SessionStudentPreviewResponse.StudentItem> validStudents = new ArrayList<>();
+        List<SessionStudentPreviewResponse.StudentItem> invalidStudents = new ArrayList<>();
+        List<SessionStudentPreviewResponse.StudentItem> duplicates = new ArrayList<>();
+        List<SessionStudentPreviewResponse.StudentItem> missingStudents = new ArrayList<>();
+
+        for (SessionStudentPreviewResponse.StudentItem item : allStudents) {
+            String email = item.getEmail().toLowerCase();
+
+            if (!EmailUtils.isValidEmail(email)) {
                 item.setReason("Email không đúng định dạng");
-                invalidEmails.add(item);
+                invalidStudents.add(item);
                 continue;
             }
 
-            if (item.getAvatarCount() > MAX_AVATARS_PER_EMAIL) {
-                item.setReason(String.format("Tối đa %d ảnh cho 1 email (hiện có %d)",
-                        MAX_AVATARS_PER_EMAIL, item.getAvatarCount()));
-                invalidEmails.add(item);
+            if (item.getAvatarCount() > MAX_AVATARS_PER_STUDENT) {
+                item.setReason(String.format("Tối đa %d ảnh cho 1 student (hiện có %d)",
+                        MAX_AVATARS_PER_STUDENT, item.getAvatarCount()));
+                invalidStudents.add(item);
                 continue;
             }
 
-            validEmails.add(item);
+            User user = userByEmail.get(email);
+            
+            // Kiểm tra xem user có tồn tại không
+            if (user == null) {
+                item.setReason("Email chưa có tài khoản trong hệ thống");
+                missingStudents.add(item);
+                continue;
+            }
+
+            // Kiểm tra xem user có role STUDENT không
+            if (!studentEmails.contains(email)) {
+                item.setReason("Tài khoản này không phải là tài khoản học sinh (STUDENT)");
+                missingStudents.add(item);
+                continue;
+            }
+
+            // User hợp lệ (có role STUDENT)
+            item.setUserId(user.getId().toString());
+            String fullName = Optional.ofNullable(user.getInformation())
+                    .map(UserInformation::buildFullName)
+                    .orElse("");
+            item.setFullName(fullName);
+
+            if (sessionId != null && existingEmails.contains(email)) {
+                item.setReason("Student đã được assign vào session này");
+                duplicates.add(item);
+                continue;
+            }
+
+            validStudents.add(item);
         }
 
-        List<WhitelistPreviewResponse.EmailItem> duplicates = new ArrayList<>();
-        if (sessionId != null && !existingEmails.isEmpty()) {
-            duplicates = validEmails.stream()
-                    .filter(item -> existingEmails.contains(item.getEmail().toLowerCase()))
-                    .peek(item -> item.setReason("Email đã tồn tại trong whitelist"))
-                    .toList();
-
-            validEmails = validEmails.stream()
-                    .filter(item -> !existingEmails.contains(item.getEmail().toLowerCase()))
-                    .toList();
-        }
-
-        return WhitelistPreviewResponse.builder()
+        return SessionStudentPreviewResponse.builder()
                 .sessionId(sessionId)
                 .sessionName(sessionName)
-                .validEmails(validEmails)
-                .invalidEmails(invalidEmails)
+                .validStudents(validStudents)
+                .invalidStudents(invalidStudents)
                 .duplicates(duplicates)
-                .totalValid(validEmails.size())
-                .totalInvalid(invalidEmails.size())
+                .missingStudents(missingStudents)
+                .totalValid(validStudents.size())
+                .totalInvalid(invalidStudents.size())
                 .totalDuplicates(duplicates.size())
+                .totalMissing(missingStudents.size())
                 .build();
     }
 
-    private List<WhitelistPreviewResponse.EmailItem> parseEmailWithImages(MultipartFile file) throws IOException {
-        List<WhitelistPreviewResponse.EmailItem> emails = new ArrayList<>();
+    private List<SessionStudentPreviewResponse.StudentItem> parseStudentsWithImages(MultipartFile file) throws IOException {
+        List<SessionStudentPreviewResponse.StudentItem> students = new ArrayList<>();
 
         try (InputStream is = file.getInputStream();
              Workbook workbook = WorkbookFactory.create(is)) {
@@ -148,7 +194,7 @@ public class WhitelistServiceImpl implements WhitelistService {
 
                 List<String> avatars = rowToAvatarList.getOrDefault(rowNumber - 1, new ArrayList<>());
 
-                emails.add(WhitelistPreviewResponse.EmailItem.builder()
+                students.add(SessionStudentPreviewResponse.StudentItem.builder()
                         .row(rowNumber)
                         .email(email)
                         .avatarPreviews(avatars)
@@ -158,7 +204,7 @@ public class WhitelistServiceImpl implements WhitelistService {
             }
         }
 
-        return emails;
+        return students;
     }
 
     private Map<Integer, List<String>> extractMultipleImagesAsBase64(XSSFSheet sheet) {
@@ -184,9 +230,9 @@ public class WhitelistServiceImpl implements WhitelistService {
         }
 
         rowToAvatars.replaceAll((row, avatars) -> {
-            if (avatars.size() > MAX_AVATARS_PER_EMAIL) {
-                log.warn("Row {} has {} avatars, limit to {}", row + 1, avatars.size(), MAX_AVATARS_PER_EMAIL);
-                return avatars.subList(0, MAX_AVATARS_PER_EMAIL);
+            if (avatars.size() > MAX_AVATARS_PER_STUDENT) {
+                log.warn("Row {} has {} avatars, limit to {}", row + 1, avatars.size(), MAX_AVATARS_PER_STUDENT);
+                return avatars.subList(0, MAX_AVATARS_PER_STUDENT);
             }
             return avatars;
         });
@@ -195,30 +241,35 @@ public class WhitelistServiceImpl implements WhitelistService {
     }
 
     @Transactional
-    public void addAvatar(Long whitelistId, MultipartFile file) {
-        Whitelist whitelist = whitelistRepository.findById(whitelistId)
-                .orElseThrow(() -> new ResponseException(NotFoundError.WHITELIST_NOT_FOUND));
+    @Override
+    public void addAvatar(Long sessionStudentId, MultipartFile file) {
+        SessionStudent student = sessionStudentRepository.findById(sessionStudentId)
+                .orElseThrow(() -> new ResponseException(NotFoundError.SESSION_STUDENT_NOT_FOUND));
 
-        if (whitelist.getAvatarUrls().size() >= MAX_AVATARS_PER_EMAIL) {
+        if (student.getAvatarUrls().size() >= MAX_AVATARS_PER_STUDENT) {
             throw new ResponseException(BadRequestError.MAX_AVATARS_REACHED);
         }
 
-        String avatarUrl = uploadAvatarToS3(whitelistId, file);
+        String avatarUrl = uploadAvatarToS3(sessionStudentId, file);
 
-        whitelist.addAvatar(avatarUrl);
-        whitelistRepository.save(whitelist);
+        List<String> avatars = new ArrayList<>(student.getAvatarUrls());
+        avatars.add(avatarUrl);
+        student.setAvatarUrls(avatars);
+        
+        sessionStudentRepository.save(student);
     }
 
     @Transactional
-    public void removeAvatar(Long whitelistId, Integer index) {
-        Whitelist whitelist = whitelistRepository.findById(whitelistId)
-                .orElseThrow(() -> new ResponseException(NotFoundError.WHITELIST_NOT_FOUND));
+    @Override
+    public void removeAvatar(Long sessionStudentId, Integer index) {
+        SessionStudent student = sessionStudentRepository.findById(sessionStudentId)
+                .orElseThrow(() -> new ResponseException(NotFoundError.SESSION_STUDENT_NOT_FOUND));
 
-        if (index < 0 || index >= whitelist.getAvatarUrls().size()) {
+        if (index < 0 || index >= student.getAvatarUrls().size()) {
             throw new ResponseException(BadRequestError.INVALID_AVATAR_INDEX);
         }
 
-        String removedUrl = whitelist.getAvatarUrls().get(index);
+        String removedUrl = student.getAvatarUrls().get(index);
         if (isS3Url(removedUrl)) {
             try {
                 s3Service.deleteFile(removedUrl);
@@ -227,20 +278,24 @@ public class WhitelistServiceImpl implements WhitelistService {
             }
         }
 
-        whitelist.removeAvatar(index);
-        whitelistRepository.save(whitelist);
+        List<String> avatars = new ArrayList<>(student.getAvatarUrls());
+        avatars.remove(index.intValue());
+        student.setAvatarUrls(avatars);
+        
+        sessionStudentRepository.save(student);
     }
 
     @Transactional
-    public void replaceAvatar(Long whitelistId, Integer index, MultipartFile file) {
-        Whitelist whitelist = whitelistRepository.findById(whitelistId)
-                .orElseThrow(() -> new ResponseException(NotFoundError.WHITELIST_NOT_FOUND));
+    @Override
+    public void replaceAvatar(Long sessionStudentId, Integer index, MultipartFile file) {
+        SessionStudent student = sessionStudentRepository.findById(sessionStudentId)
+                .orElseThrow(() -> new ResponseException(NotFoundError.SESSION_STUDENT_NOT_FOUND));
 
-        if (index < 0 || index >= whitelist.getAvatarUrls().size()) {
+        if (index < 0 || index >= student.getAvatarUrls().size()) {
             throw new ResponseException(BadRequestError.INVALID_AVATAR_INDEX);
         }
 
-        String oldUrl = whitelist.getAvatarUrls().get(index);
+        String oldUrl = student.getAvatarUrls().get(index);
         if (isS3Url(oldUrl)) {
             try {
                 s3Service.deleteFile(oldUrl);
@@ -249,15 +304,17 @@ public class WhitelistServiceImpl implements WhitelistService {
             }
         }
 
-        String newUrl = uploadAvatarToS3(whitelistId, file);
-        whitelist.replaceAvatar(index, newUrl);
+        String newUrl = uploadAvatarToS3(sessionStudentId, file);
+        
+        List<String> avatars = new ArrayList<>(student.getAvatarUrls());
+        avatars.set(index, newUrl);
+        student.setAvatarUrls(avatars);
 
-        whitelistRepository.save(whitelist);
+        sessionStudentRepository.save(student);
     }
 
-    private String uploadAvatarToS3(Long whitelistId, MultipartFile file) {
+    private String uploadAvatarToS3(Long sessionStudentId, MultipartFile file) {
         try {
-            // Tạo key duy nhất cho file
             String timestamp = String.valueOf(System.currentTimeMillis());
             String originalFilename = file.getOriginalFilename();
             String extension = "";
@@ -265,8 +322,8 @@ public class WhitelistServiceImpl implements WhitelistService {
                 extension = originalFilename.substring(originalFilename.lastIndexOf("."));
             }
 
-            String key = String.format("whitelists/%d/avatars/%s%s",
-                    whitelistId, timestamp, extension);
+            String key = String.format("session-students/%d/avatars/%s%s",
+                    sessionStudentId, timestamp, extension);
 
             return s3Service.uploadFile(file, key);
 

@@ -58,6 +58,17 @@ interface TakeExamSate {
   userEmail?: string | null
 }
 
+const TAKE_EXAM_CODE_STORAGE_KEY = 'takeExam.examCode'
+
+function getStoredExamCode(): string | null {
+  try {
+    const v = localStorage.getItem(TAKE_EXAM_CODE_STORAGE_KEY)
+    return v && v !== 'null' && v !== 'undefined' ? v : null
+  } catch {
+    return null
+  }
+}
+
 const initialState: TakeExamSate = {
   currentStep: 'loading',
   examConfig: {
@@ -83,7 +94,7 @@ const initialState: TakeExamSate = {
     isPassed: undefined,
   },
   takeExamSession: {
-    examCode: null,
+    examCode: getStoredExamCode(),
     candicateInfo: undefined,
     examStartTime: undefined,
     examEndTime: undefined,
@@ -163,6 +174,13 @@ const takeExamSlice = createSlice({
 
     setTakeExamCode: (state, action: PayloadAction<string>) => {
       state.takeExamSession.examCode = action.payload
+
+      // Persist so refresh doesn't lose roomId (prevents joining /ws/null)
+      try {
+        localStorage.setItem(TAKE_EXAM_CODE_STORAGE_KEY, action.payload)
+      } catch {
+        // ignore
+      }
     },
 
     setCandicateInfo: (state, action: PayloadAction<any>) => {

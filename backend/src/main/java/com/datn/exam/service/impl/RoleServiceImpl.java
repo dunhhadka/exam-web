@@ -1,8 +1,6 @@
 package com.datn.exam.service.impl;
 
 import com.datn.exam.model.entity.Role;
-import com.datn.exam.model.entity.RolePrivilege;
-import com.datn.exam.repository.RolePrivilegeRepository;
 import com.datn.exam.repository.RoleRepository;
 import com.datn.exam.service.RoleService;
 import com.datn.exam.support.constants.Constants;
@@ -19,7 +17,6 @@ import java.util.*;
 @Slf4j
 public class RoleServiceImpl implements RoleService {
     private final RoleRepository roleRepository;
-    private final RolePrivilegeRepository rolePrivilegeRepository;
 
     @Override
     public void init() {
@@ -30,7 +27,6 @@ public class RoleServiceImpl implements RoleService {
         List<Role> existedRoles = roleRepository.findAllByCodes(defaultRoleCodes);
 
         List<Role> roles = new ArrayList<>();
-        List<RolePrivilege> rolePrivileges = new ArrayList<>();
 
         for (Constants.DefaultRole defaultRole : Constants.DefaultRole.values()) {
             Optional<Role> roleOptional = existedRoles.stream()
@@ -46,26 +42,11 @@ public class RoleServiceImpl implements RoleService {
                         .deleted(Boolean.FALSE)
                         .build();
 
-                defaultRole.getPrivileges().forEach(((resourceCode, permissions) -> {
-                    permissions.forEach(permission -> {
-                        RolePrivilege rolePrivilege = RolePrivilege.builder()
-                                .id(IdUtils.nextId())
-                                .roleId(role.getId())
-                                .resourceCode(resourceCode)
-                                .permission(permission)
-                                .deleted(Boolean.FALSE)
-                                .build();
-
-                        rolePrivileges.add(rolePrivilege);
-                    });
-                }));
                 roles.add(role);
             }
         }
 
         roleRepository.saveAll(roles);
-        log.info(rolePrivileges.toString());
-        rolePrivilegeRepository.saveAll(rolePrivileges);
     }
 
     @Override

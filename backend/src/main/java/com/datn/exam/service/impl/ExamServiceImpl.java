@@ -9,6 +9,7 @@ import com.datn.exam.model.entity.Exam;
 import com.datn.exam.model.entity.ExamQuestion;
 import com.datn.exam.model.entity.Question;
 import com.datn.exam.model.entity.Tag;
+import com.datn.exam.repository.ExamQuestionRepository;
 import com.datn.exam.repository.ExamRepository;
 import com.datn.exam.repository.QuestionRepository;
 import com.datn.exam.repository.TagRepository;
@@ -43,7 +44,7 @@ public class ExamServiceImpl implements ExamService {
     private final JdbcQuestionDao questionDao;
     private final TagRepository tagRepository;
     private final ExamMapper examMapper;
-
+    private final ExamQuestionRepository examQuestionRepository;
     @Override
     public ExamResponse createDraft(ExamDraftRequest request) {
 
@@ -157,6 +158,7 @@ public class ExamServiceImpl implements ExamService {
                     .build();
 
             examQuestions.add(examQuestion);
+            examQuestion.setRoot(exam);
         }
 
         exam.getExamQuestions().addAll(examQuestions);

@@ -18,14 +18,12 @@ import { CustomTable } from '../../components/search/CustomTable'
 import { useToast } from '../../hooks/useToast'
 import {
   useCreateExamSessionMutation,
-  useFilterExamSessionQuery,
   useLazyGetExamSessionByIdQuery,
   useUpdateExamSessionMutation,
 } from '../../services/api/examsession'
 import { Exam } from '../../types/exam'
 import { AttemptListModal } from './AttemptListModal'
 import {
-  ExamFilterRequest,
   ExamSession,
   ExamSessionRequest,
 } from '../../types/examsession'
@@ -37,6 +35,7 @@ import ConfirmModal from '../../components/common/ConfirmModal'
 import { useNavigate } from 'react-router-dom'
 import { createActionColumns } from '../../components/search/createActionColumn'
 import { ExamSessionFilter } from './ExamSessionFilter'
+import { useFilterExamSessionHook } from '../../hooks/useFilterExamSessionQuery'
 
 const ExamSessionListPage = () => {
   const [selectedSession, setSelectedSession] = useState<ExamSession | null>(
@@ -45,11 +44,9 @@ const ExamSessionListPage = () => {
   const [attemptListOpen, setAttemptListOpen] = useState(false)
   const [userManagementOpen, setUserManagementOpen] = useState(false)
 
-  // Menu items cho dropdown "Hành động"
   const getActionMenuItems = (record: ExamSession): MenuProps['items'] => {
     const items: MenuProps['items'] = []
 
-    // Chỉ thêm "Giám sát làm bài" nếu đang trong khoảng thời gian
     if (isNowBetween(record.startTime, record.endTime)) {
       items.push({
         key: 'monitor',
@@ -64,7 +61,7 @@ const ExamSessionListPage = () => {
 
     items.push({
       key: 'manage-users',
-      label: 'Quản lý người dùng',
+      label: 'Quản lý sinh viên',
       icon: <TeamOutlined />,
       onClick: () => {
         setSelectedSession(record)
@@ -87,34 +84,6 @@ const ExamSessionListPage = () => {
       label: 'Kết quả',
       icon: <FundOutlined />,
       onClick: () => console.log('Kết quả', record),
-    })
-
-    items.push({
-      key: 'exam-progress',
-      label: 'Tiến độ cuộc thi',
-      icon: <HistoryOutlined />,
-      onClick: () => console.log('Tiến độ cuộc thi', record),
-    })
-
-    items.push({
-      key: 'learning-progress',
-      label: 'Tiến độ học tập chung',
-      icon: <BookOutlined />,
-      onClick: () => console.log('Tiến độ học tập chung', record),
-    })
-
-    items.push({
-      key: 'report',
-      label: 'Báo cáo',
-      icon: <FileTextOutlined />,
-      onClick: () => console.log('Báo cáo', record),
-    })
-
-    items.push({
-      key: 'history',
-      label: 'Lịch sử',
-      icon: <HistoryOutlined />,
-      onClick: () => console.log('Lịch sử', record),
     })
 
     return items
@@ -227,20 +196,19 @@ const ExamSessionListPage = () => {
   //       </button>
   //     ))
 
-  const [filter, setFilter] = useState<ExamFilterRequest>({
-    pageIndex: 1,
-    pageSize: 10,
-  })
   const [openFilter, setOpenFilter] = useState(false)
-  const [keyword, setKeyword] = useState<string | undefined>(undefined)
 
   const {
-    data: examSessionData,
+    query,
+    changeQuery,
+    filter,
+    labelItems,
+    changeFilter,
+    result: data,
+    count,
     isLoading: isExamSessionLoading,
     isFetching: isExamSessionFetching,
-  } = useFilterExamSessionQuery(filter)
-
-  const { data, count } = examSessionData ?? { data: [], count: 0 }
+  } = useFilterExamSessionHook({})
 
   const [examSessionUpdate, setExamSessionUpdate] = useState<
     ExamSession | undefined
@@ -340,21 +308,23 @@ const ExamSessionListPage = () => {
           pageSize: filter.pageSize ?? 10,
           total: count,
           onChange: (page, pageSize) => {
-            setFilter({ ...filter, pageIndex: page, pageSize })
+            changeFilter({
+              ...filter,
+              pageIndex: page,
+              pageSize: pageSize,
+            })
           },
         }}
         openFilter={openFilter}
         onFilterClick={setOpenFilter}
-        query={keyword}
-        onQueryChange={(value) => {
-          setKeyword(value)
-          setFilter({ ...filter, keyword: value || undefined, pageIndex: 1 })
-        }}
+        query={query}
+        onQueryChange={changeQuery}
         placeholder="Tìm kiếm bài kiểm tra..."
+        labelItems={labelItems}
         filterComponent={
           <ExamSessionFilter
             filter={filter}
-            onFilterChange={setFilter}
+            onFilterChange={changeFilter}
             onClose={() => setOpenFilter(false)}
           />
         }

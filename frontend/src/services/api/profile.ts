@@ -3,7 +3,8 @@ import { authenticatedApi } from './baseApi'
 
 export const profileApi = authenticatedApi.injectEndpoints({
   endpoints: (builder) => ({
-    getProfile: builder.query<UserProfile, void>({
+    getProfile: builder.query<UserProfile, number>({
+      // NOTE: the argument is a cache-buster (e.g. authEpoch). It is not sent to the server.
       query: () => ({
         url: '/account/profile',
         method: 'GET',

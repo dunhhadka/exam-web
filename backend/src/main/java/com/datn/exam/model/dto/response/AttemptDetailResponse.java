@@ -2,8 +2,10 @@ package com.datn.exam.model.dto.response;
 
 import com.datn.exam.model.entity.ExamAttempt;
 import com.datn.exam.support.enums.QuestionType;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -13,6 +15,8 @@ import java.util.Map;
 
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class AttemptDetailResponse {
     private Long attemptId;
     private Long sessionId;

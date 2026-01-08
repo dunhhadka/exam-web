@@ -34,8 +34,12 @@ public class SessionStudentJdbcTemplate {
                     es.start_time,
                     es.end_time,
                     e.name as exam_name,
+<<<<<<< HEAD
                     es.duration_minutes as duration,
                     ss.status
+=======
+                    es.duration_minutes as duration
+>>>>>>> da2c7106712fc2f3079763a5dc47b43a07eabe67
                 FROM exam_sessions es
                 INNER JOIN session_students ss ON es.id = ss.exam_session_id
                 INNER JOIN users u ON ss.user_id = u.id
@@ -133,7 +137,10 @@ public class SessionStudentJdbcTemplate {
 
             dto.setExamName(rs.getString("exam_name"));
             dto.setDuration(rs.getInt("duration"));
+<<<<<<< HEAD
             dto.setStatus(Optional.ofNullable(rs.getString("status")).map(SessionStudentStatus::valueOf).orElse(null));
+=======
+>>>>>>> da2c7106712fc2f3079763a5dc47b43a07eabe67
 
             return dto;
         }

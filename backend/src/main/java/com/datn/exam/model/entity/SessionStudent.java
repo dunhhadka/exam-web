@@ -1,9 +1,13 @@
 package com.datn.exam.model.entity;
 
 import com.datn.exam.support.converter.ListConverter;
+<<<<<<< HEAD
 import com.datn.exam.support.enums.SessionStudentStatus;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
+=======
+import jakarta.persistence.*;
+>>>>>>> da2c7106712fc2f3079763a5dc47b43a07eabe67
 import jakarta.validation.constraints.Size;
 import lombok.*;
 
@@ -34,9 +38,12 @@ public class SessionStudent extends AuditableEntity {
     @Column(name = "avatar_urls", columnDefinition = "TEXT")
     @Builder.Default
     private @Size(max = 5) List<String> avatarUrls = new ArrayList<>();
+<<<<<<< HEAD
 
     @NotNull
     @Enumerated(value = EnumType.STRING)
     @Builder.Default
     private SessionStudentStatus status = SessionStudentStatus.NOT_STARTED;
+=======
+>>>>>>> da2c7106712fc2f3079763a5dc47b43a07eabe67
 }

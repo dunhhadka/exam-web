@@ -15,7 +15,13 @@ from fastapi import UploadFile, File, Form
 import shutil
 import numpy as np
 import httpx
-from kyc_service import save_kyc_profile, get_kyc_embedding, delete_kyc_profile, get_whitelist_images
+from kyc_service import (
+    save_kyc_profile,
+    get_kyc_embedding,
+    delete_kyc_profile,
+    get_whitelist_images,
+    check_session_student_whitelist,
+)
 from ai_analysis.model_adapters.arcface_model import ArcFaceModel
 from ai_analysis.model_adapters.yolo_detector import YOLODetector
 import os
@@ -92,6 +98,16 @@ class Room:
                     await target.websocket.send_text(payload)
                 except RuntimeError:
                     pass
+                return
+
+            # Helpful debug for cases where UI tries to send to a non-existent participant id.
+            try:
+                print(
+                    f"[WS] target_not_found room={self.room_id} sender={sender_id} to={target_id} type={message.get('type')}",
+                    flush=True,
+                )
+            except Exception:
+                pass
             return
         # Fanout to all except sender
         for pid, participant in list(self.participants.items()):
@@ -200,13 +216,11 @@ async def check_whitelist(
         - has_avatar: boolean
         - avatar_count: int
     """
-    whitelist_urls = get_whitelist_images(email, session_id)
+    exists_in_session, whitelist_urls = check_session_student_whitelist(email, session_id)
     return {
-        "exists": True, # If we query and get result (even empty list implies record exists if logic changes, but here strictly based on images)
-        # Actually get_whitelist_images returns list of URLs. 
-        # If list is not empty, it means we found valid URLs.
+        "exists": exists_in_session,
         "has_avatar": len(whitelist_urls) > 0,
-        "avatar_count": len(whitelist_urls)
+        "avatar_count": len(whitelist_urls),
     }
 
 @app.post("/api/kyc/verify")
@@ -772,8 +786,9 @@ async def ws_endpoint(websocket: WebSocket, room_id: str):
             msg = json.loads(text)
             mtype = msg.get("type")
 
-            # Relay SDP/ICE/chat/messages to others in room
-            if mtype in {"offer", "answer", "ice", "chat"}:
+            # Relay signaling/chat/control messages to others in room
+            # NOTE: routing to a specific participant is supported via message["to"].
+            if mtype in {"offer", "answer", "ice", "chat", "control", "force_submit"}:
                 # If SFU is enabled, handle WebRTC signaling via SFU
                 if SFU_ENABLED and mtype == "offer":
                     track_info = msg.get("trackInfo", [])

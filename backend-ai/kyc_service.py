@@ -51,6 +51,21 @@ class Whitelist(Base):
     exam_session_id: Mapped[int] = mapped_column(Integer, index=True)
     avatar_urls: Mapped[str] = mapped_column(Text) 
 
+
+class User(Base):
+    __tablename__ = "users"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    email: Mapped[str] = mapped_column(String(255), index=True)
+    avatar_url: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
+
+class SessionStudent(Base):
+    __tablename__ = "session_students"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    exam_session_id: Mapped[int] = mapped_column(Integer, index=True)
+    user_id: Mapped[str] = mapped_column(String(36), index=True)
+    avatar_urls: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
 class ExamSession(Base):
     __tablename__ = "exam_sessions"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -91,7 +106,8 @@ def init_db():
                 pool_timeout=_int_env("MYSQL_POOL_TIMEOUT", 30),
             )
             _SessionLocal = sessionmaker(bind=_engine, autoflush=False, autocommit=False)
-            Base.metadata.create_all(_engine)
+            # Only create KYC tables in the KYC DB (avoid creating exam-domain tables here).
+            Base.metadata.create_all(_engine, tables=[KYCProfile.__table__])
             # Ensure column type can store large JSON; migrate if needed
             try:
                 with _engine.connect() as conn:
@@ -213,16 +229,27 @@ def delete_kyc_profile(candidate_id: str) -> bool:
 def get_whitelist_images(email: str, session_id: int) -> List[str]:
     """
     Fetch whitelist image URLs for a given email and session_id from the exam database.
+    NOTE: This is currently sourced from `session_students.avatar_urls` joined by `users.email`.
     """
     sess = get_whitelist_session()
     if sess is None:
         print("[KYC] Whitelist session is None")
         return []
     try:
-        # Query the whitelist table
-        results = sess.query(Whitelist.avatar_urls).filter(
-            Whitelist.email == email,
-            Whitelist.exam_session_id == session_id
+        # Resolve user id from email (case-insensitive)
+        user_id = (
+            sess.query(User.id)
+            .filter(func.lower(User.email) == str(email).strip().lower())
+            .scalar()
+        )
+
+        if not user_id:
+            return []
+
+        # Query session_students for that user in the given session
+        results = sess.query(SessionStudent.avatar_urls).filter(
+            SessionStudent.exam_session_id == session_id,
+            SessionStudent.user_id == str(user_id),
         ).all()
         
         urls = []
@@ -264,6 +291,45 @@ def get_whitelist_images(email: str, session_id: int) -> List[str]:
     except SQLAlchemyError as e:
         print(f"[KYC] Whitelist fetch error: {e}")
         return []
+    finally:
+        sess.close()
+
+
+def check_session_student_whitelist(email: str, session_id: int) -> tuple[bool, List[str]]:
+    """Return (exists_in_session, avatar_urls).
+
+    `exists_in_session` is True only when:
+    - email exists in `users`, AND
+    - a `session_students` row exists for (exam_session_id, user_id).
+    """
+    sess = get_whitelist_session()
+    if sess is None:
+        return (False, [])
+    try:
+        user_id = (
+            sess.query(User.id)
+            .filter(func.lower(User.email) == str(email).strip().lower())
+            .scalar()
+        )
+        if not user_id:
+            return (False, [])
+
+        row = (
+            sess.query(SessionStudent.avatar_urls)
+            .filter(
+                SessionStudent.exam_session_id == session_id,
+                SessionStudent.user_id == str(user_id),
+            )
+            .first()
+        )
+        if not row:
+            return (False, [])
+
+        urls = get_whitelist_images(email, session_id)
+        return (True, urls)
+    except SQLAlchemyError as e:
+        print(f"[KYC] Whitelist check error: {e}")
+        return (False, [])
     finally:
         sess.close()
 

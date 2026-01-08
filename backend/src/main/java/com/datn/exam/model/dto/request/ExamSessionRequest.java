@@ -10,6 +10,8 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 @Data
 @Builder
@@ -37,7 +39,9 @@ public class ExamSessionRequest {
     private ExamSessionSetting settings;
 
     private ExamSession.AccessMode accessMode;
-    private String password;
-    private List<String> whitelistEmails;
-    private List<ExamSessionWhitelistEntryRequest> whitelistEntries;
+
+    private List<UUID> studentIds;
+    
+    // Map userId -> List of base64 avatar images (only for new/changed avatars)
+    private Map<UUID, List<String>> studentAvatars;
 }

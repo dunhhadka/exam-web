@@ -87,6 +87,13 @@ interface AIStatus {
   analyses?: AIAnalysis[]
 }
 
+interface ProctorForceSubmitRequest {
+  requestId: string
+  requestedAt: number
+  timeoutSeconds: number
+  by?: string
+}
+
 interface UseScreenOCRParams {
   screenVideoRef: React.RefObject<HTMLVideoElement | null>
   canvasRef: React.RefObject<HTMLCanvasElement | null>
@@ -332,7 +339,11 @@ export default function Candidate() {
     (state: RootState) => state.takeExam
   )
 
-  const roomId = takeExamSession.examCode
+  const roomId =
+    takeExamSession.examCode ||
+    (typeof window !== 'undefined'
+      ? localStorage.getItem('takeExam.examCode')
+      : null)
   const sessionSettings = location.state?.sessionSettings
   const attemptId = location.state?.attemptId
 
@@ -368,6 +379,9 @@ export default function Candidate() {
   const [error, setError] = useState<string | null>(null)
   const [aiStatus, setAiStatus] = useState<AIStatus | null>(null)
   const [recentAlerts, setRecentAlerts] = useState<Alert[]>([])
+  const [proctorForceSubmitRequest, setProctorForceSubmitRequest] = useState<
+    ProctorForceSubmitRequest | null
+  >(null)
   const [chatModalVisible, setChatModalVisible] = useState<boolean>(false)
 
   const recordingServiceRef = useRef<RecordingService>(new RecordingService())
@@ -385,12 +399,22 @@ export default function Candidate() {
   const dcRef = useRef<RTCDataChannel | null>(null)
   const detectionRef = useRef<{ running: boolean }>({ running: false })
 
+  // P2P late-join support: cache candidate offer and resend to proctor when they join later
+  const pendingOfferRef = useRef<{ sdp: any; trackInfo: any[] } | null>(null)
+  const proctorIdRef = useRef<string | null>(null)
+  const offerSentToProctorsRef = useRef<Set<string>>(new Set())
+
   // Start OCR loop at component mount (top-level hook usage)
   useScreenOCR({ screenVideoRef, canvasRef, sigRef, userId })
 
   useEffect(() => {
     // Only init after KYC and check-in complete
     if (!kycComplete || !checkInComplete) {
+      return
+    }
+
+    if (!roomId || roomId === 'null' || roomId === 'undefined') {
+      setError('Thiếu mã phòng/ExamCode (roomId). Vui lòng quay lại bước check-in.')
       return
     }
 
@@ -410,11 +434,55 @@ export default function Candidate() {
 
         const signaling = new SignalingClient({
           baseUrl: SIGNALING_BASE,
-          roomId: roomId!,
+          roomId: roomId,
           userId: userId!,
           role: 'candidate',
         })
         sigRef.current = signaling
+
+        const trySendPendingOfferToProctor = (targetProctorId: string) => {
+          const pc = pcRef.current
+          const pending = pendingOfferRef.current
+          if (!pc || !pending) return
+          // Only resend while we're still waiting for an answer (P2P case)
+          if (pc.signalingState !== 'have-local-offer') return
+          if (offerSentToProctorsRef.current.has(targetProctorId)) return
+          offerSentToProctorsRef.current.add(targetProctorId)
+          signaling.send({
+            type: 'offer',
+            to: targetProctorId,
+            sdp: pending.sdp,
+            trackInfo: pending.trackInfo,
+          })
+          console.log('[P2P] Re-sent pending offer to proctor:', targetProctorId)
+        }
+
+        // Track proctor presence so that if proctor joins late in P2P mode, we can re-send cached offer.
+        signaling.on('roster', (data: any) => {
+          const participants = Array.isArray(data?.participants) ? data.participants : []
+          const proctor = participants.find((p: any) => String(p?.role) === 'proctor')
+          if (proctor?.userId) {
+            const pid = String(proctor.userId)
+            proctorIdRef.current = pid
+            trySendPendingOfferToProctor(pid)
+          }
+        })
+
+        signaling.on('participant_joined', (data: any) => {
+          if (String(data?.role) !== 'proctor' || !data?.userId) return
+          const pid = String(data.userId)
+          proctorIdRef.current = pid
+          trySendPendingOfferToProctor(pid)
+        })
+
+        signaling.on('participant_left', (data: any) => {
+          const leftId = data?.userId ? String(data.userId) : null
+          if (!leftId) return
+          if (proctorIdRef.current === leftId) {
+            proctorIdRef.current = null
+          }
+          offerSentToProctorsRef.current.delete(leftId)
+        })
 
         signaling.on('answer', async (data: any) => {
           // Accept answer from server (SFU mode) or from proctor (P2P mode)
@@ -433,6 +501,9 @@ export default function Candidate() {
               try {
                 await setRemoteDescription(pcRef.current, data.sdp)
                 console.log('Successfully set remote description')
+
+                // Once answered, clear pending offer so we don't resend on later proctor joins.
+                pendingOfferRef.current = null
               } catch (error) {
                 console.error('Failed to set remote description:', error)
               }
@@ -472,6 +543,29 @@ export default function Candidate() {
         })
         signaling.on('chat', (data: any) => {
           setMsgs((m) => [...m, { from: data.from, text: data.text }])
+        })
+
+        signaling.on('force_submit', (data: any) => {
+          console.log('[Candidate] force_submit received:', data)
+          const requestedAt = Number(data?.ts ?? Date.now())
+          const timeoutSecondsRaw = Number(
+            data?.timeoutSeconds ?? data?.timeoutSec ?? 30
+          )
+          const timeoutSeconds =
+            Number.isFinite(timeoutSecondsRaw) && timeoutSecondsRaw > 0
+              ? timeoutSecondsRaw
+              : 30
+
+          const requestId = String(
+            data?.requestId ?? `${String(data?.from ?? 'proctor')}-${requestedAt}`
+          )
+
+          setProctorForceSubmitRequest({
+            requestId,
+            requestedAt,
+            timeoutSeconds,
+            by: String(data?.from ?? ''),
+          })
         })
 
         // Listen for AI analysis updates
@@ -643,7 +737,17 @@ export default function Candidate() {
           'Track info:',
           trackInfo
         )
-        signaling.send({ type: 'offer', sdp: offer, trackInfo })
+
+        // Cache offer for P2P late-join. In SFU mode, server answers immediately and we'll clear it.
+        pendingOfferRef.current = { sdp: offer, trackInfo }
+
+        const targetProctorId = proctorIdRef.current
+        if (targetProctorId) {
+          offerSentToProctorsRef.current.add(targetProctorId)
+          signaling.send({ type: 'offer', to: targetProctorId, sdp: offer, trackInfo })
+        } else {
+          signaling.send({ type: 'offer', sdp: offer, trackInfo })
+        }
         setConnected(true)
         setLoading(false)
         console.log('Peer connection established, waiting for answer...')
@@ -1128,7 +1232,11 @@ export default function Candidate() {
               }
               style={{ flex: 1 }}
             >
-              <TakeExamContent />
+              <TakeExamContent
+                proctorForceSubmitRequest={
+                  proctorForceSubmitRequest ?? undefined
+                }
+              />
             </Card>
           </ExamSection>
 

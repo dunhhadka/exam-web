@@ -21,6 +21,10 @@ import {
 import { formatInstant } from "../../utils/times";
 import styled from "@emotion/styled";
 import { useExamCountDown } from "../../hooks/useExamCountDown";
+<<<<<<< HEAD
+=======
+import { baseInviteLink } from "./ExamSessionViewLink";
+>>>>>>> da2c7106712fc2f3079763a5dc47b43a07eabe67
 
 const { Text } = Typography;
 
@@ -233,7 +237,11 @@ const ExamSessionCard = ({
         </Space>
 
         <TokenBox>
+<<<<<<< HEAD
           <TokenText copyable>{examSession.code}</TokenText>
+=======
+          <TokenText copyable = {{text: `${baseInviteLink + examSession.code}`}}>{examSession.code}</TokenText>
+>>>>>>> da2c7106712fc2f3079763a5dc47b43a07eabe67
         </TokenBox>
 
         {renderActionButtons()}
