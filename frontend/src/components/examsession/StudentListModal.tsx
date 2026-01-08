@@ -369,7 +369,9 @@ export const StudentListModal: React.FC<StudentListModalProps> = ({
   const [previewEntry, setPreviewEntry] = useState<StudentEntry | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const avatarInputsRef = useRef<Record<string, HTMLInputElement | null>>({})
+  const searchSectionRef = useRef<HTMLDivElement | null>(null)
   const toast = useToast()
+  const [showDropdownResutl, setShowDropdownResult] = useState(false)
 
   const [searchStudents, { data: searchResults, isLoading: searchLoading }] =
     useLazySearchStudentsQuery()
@@ -383,6 +385,25 @@ export const StudentListModal: React.FC<StudentListModalProps> = ({
       //searchStudents({ keyword: '', size: 20 })
     }
   }, [visible, initialStudents, searchStudents])
+
+  // Handle click outside to close dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        searchSectionRef.current &&
+        !searchSectionRef.current.contains(event.target as Node)
+      ) {
+        setShowDropdownResult(false)
+      }
+    }
+
+    if (showDropdownResutl) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside)
+      }
+    }
+  }, [showDropdownResutl])
 
   useEffect(() => {
     if (searchKeyword.trim()) {
@@ -661,12 +682,15 @@ export const StudentListModal: React.FC<StudentListModalProps> = ({
               onChange={handleFileChange}
             />
 
-            <SearchSection>
+            <SearchSection ref={searchSectionRef}>
               <Input
                 placeholder="Tìm kiếm sinh viên theo email hoặc tên..."
                 prefix={<SearchOutlined />}
                 value={searchKeyword}
-                onChange={(e) => setSearchKeyword(e.target.value)}
+                onChange={(e) => {
+                  setSearchKeyword(e.target.value)
+                  setShowDropdownResult(true)
+                }}
                 allowClear
                 onFocus={() => {
                   // Gọi API search ngay khi focus
@@ -674,6 +698,8 @@ export const StudentListModal: React.FC<StudentListModalProps> = ({
                     keyword: searchKeyword.trim() || '',
                     size: 20,
                   })
+
+                  setShowDropdownResult(true)
                 }}
               />
 
@@ -685,28 +711,30 @@ export const StudentListModal: React.FC<StudentListModalProps> = ({
                 </SearchResults>
               )}
 
-              {!searchLoading && searchResultsData.length > 0 && (
-                <SearchResults>
-                  {searchResultsData.map((user) => {
-                    const selected = isStudentSelected(user)
-                    return (
-                      <SearchResultItem
-                        key={user.id}
-                        data-selected={selected}
-                        onClick={() => handleToggleStudent(user)}
-                      >
-                        <Checkbox checked={selected} />
-                        <StudentInfo>
-                          <StudentName>
-                            {`${user.code} - ${user.name}` || 'Chưa có tên'} -{' '}
-                            {user.email}
-                          </StudentName>
-                        </StudentInfo>
-                      </SearchResultItem>
-                    )
-                  })}
-                </SearchResults>
-              )}
+              {!searchLoading &&
+                searchResultsData.length > 0 &&
+                showDropdownResutl && (
+                  <SearchResults>
+                    {searchResultsData.map((user) => {
+                      const selected = isStudentSelected(user)
+                      return (
+                        <SearchResultItem
+                          key={user.id}
+                          data-selected={selected}
+                          onClick={() => handleToggleStudent(user)}
+                        >
+                          <Checkbox checked={selected} />
+                          <StudentInfo>
+                            <StudentName>
+                              {`${user.code} - ${user.name}` || 'Chưa có tên'} -{' '}
+                              {user.email}
+                            </StudentName>
+                          </StudentInfo>
+                        </SearchResultItem>
+                      )
+                    })}
+                  </SearchResults>
+                )}
 
               {!searchLoading &&
                 searchKeyword.trim() &&
