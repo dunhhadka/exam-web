@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import time
 import warnings
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
@@ -844,6 +845,26 @@ async def ws_endpoint(websocket: WebSocket, room_id: str):
             text = await websocket.receive_text()
             msg = json.loads(text)
             mtype = msg.get("type")
+
+            if mtype == "incident":
+                # Client-side incidents (e.g. anti-cheat events) should be visible to proctor.
+                # Normalize and store for history APIs.
+                try:
+                    incident = dict(msg)
+                    incident.setdefault("roomId", room_id)
+                    incident.setdefault("by", user_id)
+                    incident.setdefault("ts", int(time.time() * 1000))
+                    try:
+                        room.incidents.append(incident)  # type: ignore[union-attr]
+                    except Exception:
+                        pass
+                    await room.broadcast(sender_id=user_id, message=incident)  # type: ignore[union-attr]
+                except Exception as e:
+                    try:
+                        await websocket.send_text(json.dumps({"type": "error", "reason": f"incident_error: {str(e)}"}))
+                    except Exception:
+                        pass
+                continue
 
             if mtype == "candidate_context":
             # Expect: {type:"candidate_context", attemptId, userId?}

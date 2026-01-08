@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { getToastInstance } from '../ToastProvider'
 import { useIncrementFullscreenExitCountMutation } from '../services/api/take-exam'
 import { useCreateLogMutation } from '../services/api/logApi'
+import { getProctoringSignalingClient } from '../utils/proctoringSignaling'
 
 interface AntiCheatSettings {
   disableCopyPaste?: boolean
@@ -31,6 +32,36 @@ export const useAntiCheat = (settings?: AntiCheatSettings) => {
     if (!settings?.attemptId) {
       console.warn('Cannot log warning: attemptId not provided')
       return
+    }
+
+    const severityToLevel = (s: typeof severity) => {
+      switch (s) {
+        case 'INFO':
+          return 'S1'
+        case 'WARNING':
+          return 'S2'
+        case 'SERIOUS':
+          return 'S3'
+        case 'CRITICAL':
+          return 'S4'
+        default:
+          return 'S2'
+      }
+    }
+
+    // Best-effort: also push incident to proctor via signaling WebSocket (if connected)
+    try {
+      const signaling = getProctoringSignalingClient()
+      signaling?.send({
+        type: 'incident',
+        tag: logType,
+        level: severityToLevel(severity),
+        note: message,
+        ts: Date.now(),
+        attemptId: settings.attemptId,
+      })
+    } catch (e) {
+      // no-op (WS optional)
     }
 
     try {

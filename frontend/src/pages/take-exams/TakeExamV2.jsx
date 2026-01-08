@@ -6,6 +6,7 @@ import { createPeer, addLocalStream, createAndSetOffer, setRemoteDescription } f
 import { RecordingService } from '../take-exams/js/recording'
 import { useSelector } from 'react-redux'
 import TakeExamContent, { CheatLevelAutoSubmit } from './ExamContent'
+import { setProctoringSignalingClient } from '../../utils/proctoringSignaling'
 import {
   Card,
   Button,
@@ -310,6 +311,7 @@ export default function Candidate() {
 
         const signaling = new SignalingClient({ baseUrl: SIGNALING_BASE, roomId, userId, role: 'candidate' })
         sigRef.current = signaling
+        setProctoringSignalingClient(signaling)
 
         const trySendPendingOfferToProctor = (targetProctorId) => {
           const pc = pcRef.current
@@ -571,6 +573,7 @@ export default function Candidate() {
     return () => { 
       try { 
         sigRef.current?.close()
+        setProctoringSignalingClient(null)
         pcRef.current?.close()
         cameraStreamRef.current?.getTracks().forEach(t => t.stop())
         screenStreamRef.current?.getTracks().forEach(t => t.stop())

@@ -216,7 +216,7 @@ async def run_real_analysis_loop(
                                 "by": candidate_id,
                                 "tag": "A4",
                                 "level": "S2",  # default, will be adjusted by rules engine
-                                "note": f"screen_share_missing_{int(missing_duration)}s",
+                                "note": f"Chưa chia sẻ màn hình trong {int(missing_duration)}s",
                                 "ts": int(now * 1000),
                             }
                             if rules_engine is not None:
