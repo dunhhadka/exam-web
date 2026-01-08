@@ -4,9 +4,10 @@ import {
   ImportOutlined,
   PlusCircleOutlined,
   DownloadOutlined,
+  LoadingOutlined,
 } from '@ant-design/icons'
 import styled from '@emotion/styled'
-import { Button, message, Modal, Radio, Tag, Tooltip } from 'antd'
+import { Button, message, Modal, Radio, Tag, Tooltip, Spin } from 'antd'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import ConfirmModal from '../../components/common/ConfirmModal'
@@ -405,6 +406,18 @@ export const QuestionList = () => {
           e.target.value = ''
         }}
       />
+
+      {isImporting && (
+        <LoadingOverlay>
+          <LoadingContent>
+            <Spin
+              indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />}
+            />
+            <LoadingText>Đang nhập file Excel...</LoadingText>
+          </LoadingContent>
+        </LoadingOverlay>
+      )}
+
       {showQuestionCreateModal && (
         <QuestionTypeCreate
           open={showQuestionCreateModal}
@@ -608,4 +621,35 @@ export const Truncate3Lines = styled.div`
 
 const HiddenFileInput = styled.input`
   display: none;
+`
+
+const LoadingOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 9999;
+`
+
+const LoadingContent = styled.div`
+  background: white;
+  padding: 40px;
+  border-radius: 8px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+`
+
+const LoadingText = styled.div`
+  font-size: 16px;
+  font-weight: 500;
+  color: #262626;
 `
