@@ -1057,7 +1057,7 @@ const TakeExamContent = ({
         open={isSuccessModalOpen}
         onOk={handleSuccessModalOk}
         onCancel={handleSuccessModalOk}
-        okText="Xem kết quả"
+        okText="Về trang chủ"
         cancelButtonProps={{ style: { display: 'none' } }}
         centered
         width={480}

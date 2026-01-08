@@ -17,6 +17,7 @@ import {
   Select,
   List,
   Modal,
+  Popconfirm,
   FloatButton,
   Avatar,
   Progress,
@@ -929,26 +930,17 @@ export default function Proctor() {
                       }))}
                   />
                 )}
-                <Button 
-                  type="primary" 
-                  icon={<PauseCircleOutlined />}
-                  onClick={() => controlCandidate(focusedId, 'pause')}
+                <Popconfirm
+                  title="Xác nhận yêu cầu thí sinh nộp bài?"
+                  description="Hệ thống sẽ gửi yêu cầu nộp bài đến thí sinh được chọn."
+                  okText="Xác nhận"
+                  cancelText="Hủy"
+                  onConfirm={() => requestForceSubmit(focusedId)}
                 >
-                  Tạm dừng
-                </Button>
-                <Button 
-                  danger 
-                  icon={<StopOutlined />}
-                  onClick={() => controlCandidate(focusedId, 'end')}
-                >
-                  Kết thúc
-                </Button>
-                <Button
-                  danger
-                  onClick={() => requestForceSubmit(focusedId)}
-                >
-                  Yêu cầu nộp bài
-                </Button>
+                  <Button danger>
+                    Yêu cầu nộp bài
+                  </Button>
+                </Popconfirm>
                 <Button 
                   icon={<MessageOutlined />}
                   onClick={() => setChatModalVisible(true)}
