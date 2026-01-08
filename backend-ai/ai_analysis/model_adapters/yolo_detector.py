@@ -6,6 +6,7 @@ Detects faces in camera frames
 from typing import List, Dict, Optional, Tuple
 import numpy as np
 import logging
+import os
 
 from .base_model import BaseModel
 
@@ -38,7 +39,9 @@ class YOLODetector(BaseModel):
         """
         super().__init__("YOLOv8n-Face", device)
         
-        self.model_path = model_path
+        # If model_path is not provided, allow configuring via env var.
+        # Example: YOLO_MODEL_PATH=yolov8n-face.pt
+        self.model_path = model_path or os.getenv("YOLO_MODEL_PATH") or None
         self.confidence_threshold = confidence_threshold
         self.input_size = input_size
         
@@ -225,7 +228,7 @@ class YOLODetector(BaseModel):
 
 
 # Convenience function for mock/testing
-def create_mock_detector() -> 'MockYOLODetector':
+def create_mock_detector() -> 'YOLODetector':
     """Create a mock detector for testing without real model"""
     
     class MockYOLODetector(YOLODetector):

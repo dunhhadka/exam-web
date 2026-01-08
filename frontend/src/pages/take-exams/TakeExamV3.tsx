@@ -39,6 +39,7 @@ import {
 import styled from '@emotion/styled'
 import { RecordingService } from './js/recording'
 import { SignalingClient } from './js/signaling'
+import { setProctoringSignalingClient } from '../../utils/proctoringSignaling'
 import {
   addLocalStream,
   createAndSetOffer,
@@ -439,6 +440,7 @@ export default function Candidate() {
           role: 'candidate',
         })
         sigRef.current = signaling
+        setProctoringSignalingClient(signaling)
 
         const trySendPendingOfferToProctor = (targetProctorId: string) => {
           const pc = pcRef.current
@@ -763,6 +765,7 @@ export default function Candidate() {
     return () => {
       try {
         sigRef.current?.close()
+        setProctoringSignalingClient(null)
         pcRef.current?.close()
         cameraStreamRef.current?.getTracks().forEach((t) => t.stop())
         screenStreamRef.current?.getTracks().forEach((t) => t.stop())

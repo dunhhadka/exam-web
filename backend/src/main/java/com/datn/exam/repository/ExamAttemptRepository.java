@@ -4,11 +4,13 @@ import com.datn.exam.model.entity.ExamAttempt;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
 
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
+@Repository
 public interface ExamAttemptRepository extends JpaRepository<ExamAttempt, Long> {
     @Query("SELECT COUNT(ea) FROM ExamAttempt ea WHERE ea.examSession.id = :sessionId AND ea.studentEmail = :email")
     int countByExamSessionIdAndStudentEmail(Long sessionId, String email);

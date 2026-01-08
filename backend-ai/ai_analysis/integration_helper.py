@@ -6,6 +6,7 @@ Provides functions to start/stop real AI analysis with frame capture
 import asyncio
 import logging
 import json
+import os
 import time
 from typing import Optional, Callable
 
@@ -43,12 +44,42 @@ async def get_or_create_real_analyzer(use_mock: bool = False):
     """
     global _real_analyzer
     
+    def _pick_device() -> str:
+        """Pick inference device.
+
+        Priority:
+        1) AI_DEVICE env ("cuda"/"cpu")
+        2) If torch available and CUDA available -> "cuda"
+        3) Fallback -> "cpu"
+        """
+        env_device = (os.getenv("AI_DEVICE") or "").strip().lower()
+        if env_device in {"cuda", "cpu"}:
+            return env_device
+        try:
+            import torch  # type: ignore
+
+            if torch.cuda.is_available():
+                return "cuda"
+        except Exception:
+            pass
+        return "cpu"
+
+    def _pick_threads() -> int:
+        raw = (os.getenv("AI_NUM_THREADS") or "").strip()
+        try:
+            v = int(raw)
+            return v if v > 0 else 4
+        except Exception:
+            return 4
+
     async with _analyzer_lock:
         if _real_analyzer is None:
             from ai_analysis.real_analyzer import RealAIAnalyzer
             
-            logger.info("Creating RealAIAnalyzer instance...")
-            _real_analyzer = RealAIAnalyzer(use_mock=use_mock, device="cpu")
+            device = _pick_device()
+            threads = _pick_threads()
+            logger.info(f"Creating RealAIAnalyzer instance... device={device} threads={threads} mock={use_mock}")
+            _real_analyzer = RealAIAnalyzer(use_mock=use_mock, device=device, num_threads=threads)
             
             # Load models
             logger.info("Loading AI models (this may take 30-60s)...")
@@ -61,6 +92,16 @@ async def get_or_create_real_analyzer(use_mock: bool = False):
             logger.info("✅ RealAIAnalyzer ready")
     
     return _real_analyzer
+
+
+async def warmup_real_analyzer(use_mock: bool = False) -> bool:
+    """Best-effort warm-up so first candidate doesn't pay cold-start cost."""
+    try:
+        analyzer = await get_or_create_real_analyzer(use_mock=use_mock)
+        return bool(getattr(analyzer, "models_loaded", False))
+    except Exception as e:
+        logger.warning(f"Warmup failed: {e}")
+        return False
 
 
 async def run_real_analysis_loop(
@@ -87,8 +128,7 @@ async def run_real_analysis_loop(
     logger.info(f"Starting real AI analysis for {candidate_id} in room {room_id}")
     
     try:
-        # Get analyzer
-        analyzer = await get_or_create_real_analyzer(use_mock=use_mock_models)
+        analyzer = None
         
         # Import frame capture
         from ai_analysis.frame_capture import capture_frames_from_candidate
@@ -135,6 +175,11 @@ async def run_real_analysis_loop(
                     logger.warning(f"No candidate connection found for {candidate_id}")
                     await asyncio.sleep(1.0)
                     continue
+
+                # Load analyzer only after candidate has an active SFU connection.
+                # This avoids heavy model loading during signaling/join.
+                if analyzer is None:
+                    analyzer = await get_or_create_real_analyzer(use_mock=use_mock_models)
                 
                 # Skip frames (adaptive frame rate)
                 frame_counter += 1
@@ -171,7 +216,7 @@ async def run_real_analysis_loop(
                                 "by": candidate_id,
                                 "tag": "A4",
                                 "level": "S2",  # default, will be adjusted by rules engine
-                                "note": f"screen_share_missing_{int(missing_duration)}s",
+                                "note": f"Chưa chia sẻ màn hình trong {int(missing_duration)}s",
                                 "ts": int(now * 1000),
                             }
                             if rules_engine is not None:
@@ -195,6 +240,14 @@ async def run_real_analysis_loop(
                             if save_cheating_log:
                                 try:
                                     ts_ms = int(now * 1000)
+                                    attempt_id = None
+                                    if rooms_manager:
+                                        try:
+                                            room = await rooms_manager.get_or_create(room_id)
+                                            participant = room.participants.get(str(candidate_id))
+                                            attempt_id = getattr(participant, "attempt_id", None)
+                                        except Exception:
+                                            attempt_id = None
                                     evidence_path = save_evidence_image(
                                         frame_data=frame_data,
                                         incident_type="A4",
@@ -206,9 +259,10 @@ async def run_real_analysis_loop(
                                     save_cheating_log(
                                         exam_session_id=room_id,
                                         candidate_id=candidate_id,
+                                        attempt_id=attempt_id,
                                         incident_type="A4",
                                         severity_level="S2",
-                                        description=f"Screen share missing for {int(missing_duration)}s",
+                                        description=f"Chưa chia sẻ màn hình trong {int(missing_duration)}s",
                                         timestamp=ts_ms,
                                         evidence=evidence_path
                                     )
@@ -255,6 +309,14 @@ async def run_real_analysis_loop(
                                 if save_cheating_log:
                                     try:
                                         ts_ms = int(now_s * 1000)
+                                        attempt_id = None
+                                        if rooms_manager:
+                                            try:
+                                                room = await rooms_manager.get_or_create(room_id)
+                                                participant = room.participants.get(str(candidate_id))
+                                                attempt_id = getattr(participant, "attempt_id", None)
+                                            except Exception:
+                                                attempt_id = None
                                         evidence_path = save_evidence_image(
                                             frame_data=frame_data,
                                             incident_type="A11",
@@ -266,6 +328,7 @@ async def run_real_analysis_loop(
                                         save_cheating_log(
                                             exam_session_id=room_id,
                                             candidate_id=candidate_id,
+                                            attempt_id=attempt_id,
                                             incident_type="A11",
                                             severity_level="S1",
                                             description=f"Idle for {int(idle_dur)}s",
@@ -338,6 +401,14 @@ async def run_real_analysis_loop(
                         if save_cheating_log:
                             try:
                                 ts_ms = int(time.time() * 1000)
+                                attempt_id = None
+                                if rooms_manager:
+                                    try:
+                                        room = await rooms_manager.get_or_create(room_id)
+                                        participant = room.participants.get(str(candidate_id))
+                                        attempt_id = getattr(participant, "attempt_id", None)
+                                    except Exception:
+                                        attempt_id = None
                                 evidence_path = save_evidence_image(
                                     frame_data=frame_data,
                                     incident_type=alert["type"],
@@ -348,6 +419,7 @@ async def run_real_analysis_loop(
                                 save_cheating_log(
                                     exam_session_id=room_id,
                                     candidate_id=candidate_id,
+                                    attempt_id=attempt_id,
                                     incident_type=alert['type'],
                                     severity_level=alert['level'],
                                     description=alert['message'],

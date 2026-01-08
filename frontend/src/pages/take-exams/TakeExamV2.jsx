@@ -6,6 +6,7 @@ import { createPeer, addLocalStream, createAndSetOffer, setRemoteDescription } f
 import { RecordingService } from '../take-exams/js/recording'
 import { useSelector } from 'react-redux'
 import TakeExamContent, { CheatLevelAutoSubmit } from './ExamContent'
+import { setProctoringSignalingClient } from '../../utils/proctoringSignaling'
 import {
   Card,
   Button,
@@ -251,6 +252,22 @@ export default function Candidate() {
   const dcRef = useRef(null)
   const detectionRef = useRef({ running: false })
 
+  const attemptIdRef = useRef(null)
+
+  const sendCandidateContext = () => {
+    const attemptId = attemptIdRef.current
+    if (!attemptId) return
+    try {
+      sigRef.current?.send({
+        type: 'candidate_context',
+        userId,
+        attemptId,
+      })
+    } catch (e) {
+      console.warn('[Candidate] Failed to send candidate_context:', e)
+    }
+  }
+
   // P2P late-join support: cache candidate offer and resend to proctor when they join later
   const pendingOfferRef = useRef(null) // { sdp, trackInfo }
   const proctorIdRef = useRef(null)
@@ -294,6 +311,7 @@ export default function Candidate() {
 
         const signaling = new SignalingClient({ baseUrl: SIGNALING_BASE, roomId, userId, role: 'candidate' })
         sigRef.current = signaling
+        setProctoringSignalingClient(signaling)
 
         const trySendPendingOfferToProctor = (targetProctorId) => {
           const pc = pcRef.current
@@ -432,6 +450,9 @@ export default function Candidate() {
         try {
           await signaling.connect()
           console.log('WebSocket connected')
+
+          // If attemptId is already known, send it right after WS connect.
+          sendCandidateContext()
         } catch (error) {
           console.error('Failed to connect to signaling server:', error)
           alert('Không thể kết nối đến server. Vui lòng kiểm tra backend đang chạy.')
@@ -552,6 +573,7 @@ export default function Candidate() {
     return () => { 
       try { 
         sigRef.current?.close()
+        setProctoringSignalingClient(null)
         pcRef.current?.close()
         cameraStreamRef.current?.getTracks().forEach(t => t.stop())
         screenStreamRef.current?.getTracks().forEach(t => t.stop())
@@ -598,10 +620,10 @@ export default function Candidate() {
   useEffect(() => {
     const onVis = () => {
       if (document.hidden) {
-        sigRef.current?.send({ type: 'incident', tag: 'A3', level: 'S1', note: 'Tab hidden/blur', ts: Date.now(), by: userId })
+        sigRef.current?.send({ type: 'incident', tag: 'A3', level: 'S1', note: 'Chuyển tab khi không được phép', ts: Date.now(), by: userId })
       }
     }
-    const onBlur = () => sigRef.current?.send({ type: 'incident', tag: 'A3', level: 'S1', note: 'Window blur', ts: Date.now(), by: userId })
+    const onBlur = () => sigRef.current?.send({ type: 'incident', tag: 'A3', level: 'S1', note: 'Chuyển tab khi không được phép', ts: Date.now(), by: userId })
     document.addEventListener('visibilitychange', onVis)
     window.addEventListener('blur', onBlur)
     return () => {
@@ -903,6 +925,11 @@ export default function Candidate() {
                           message: cheatLevel.message
                         }}
                         proctorForceSubmitRequest={proctorForceSubmitRequest}
+                        onAttemptStarted={(attemptId) => {
+                          attemptIdRef.current = attemptId
+                          // If WS already connected, send immediately.
+                          sendCandidateContext()
+                        }}
                         />
                       </Card>
                     </ExamSection>
